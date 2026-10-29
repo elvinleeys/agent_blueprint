@@ -43,7 +43,7 @@
 | --- | --- | --- | --- |
 | `GET /api/projects` | 내 프로젝트 목록(최근 수정 순, 최대 100) | `listProjects` | 200 `{ projects }` |
 | `POST /api/projects` | 프로젝트 생성. 본문 `{ name, stack }` | `createProject` | 201 `{ project }` |
-| `GET /api/projects/[id]/blueprint?revision=N` | 설계도 불러오기. `revision` 생략 시 최신 판. 판이 없으면 `{ blueprint: null }` | `loadBlueprint` | 200 `{ blueprint }` |
+| `GET /api/projects/[id]/blueprint?revision=N` | 설계도 불러오기. `revision` 생략 시 최신 판. 내 프로젝트인데 판이 없으면 `{ blueprint: null }`, 없거나 남의 프로젝트면 404(`getProject`로 먼저 확인) | `loadBlueprint` | 200 `{ blueprint }` |
 | `PUT /api/projects/[id]/blueprint` | **자동 저장**: 최신 판 갱신(판이 없으면 첫 판 생성). 본문 `Blueprint` | `saveBlueprint` | 200 `{ revision, updatedAt }` |
 | `GET /api/projects/[id]/revisions` | 판 목록(요약, nodes 제외) | `listBlueprintRevisions` | 200 `{ revisions }` |
 | `POST /api/projects/[id]/revisions` | **새 판 추가**(지시서 내보내기 시점용). 본문 `Blueprint` | `createBlueprintRevision` | 201 `{ revision, updatedAt }` |
@@ -152,6 +152,6 @@ export async function handleProjectsPost(request: Request): Promise<Response> {
 2. **`lib/db`에 `getProject(db, id)` 추가**를 승인하시나요? 이 함수가 있으면 (a) `/api/draft`가 AI 호출 **전에** 프로젝트 소유를 확인(남의/없는 프로젝트면 404, 비용 없음), (b) 프로젝트의 스택을 단일 기준으로 쓸 수 있습니다. 없으면 소유 확인 없이 AI를 호출하고 저장 단계에서 실패합니다. 권장: 추가.
 3. `/api/draft`에 `projectId`가 있을 때 요청의 `stack`은? 권장: 선택으로 두고 **프로젝트에 저장된 스택으로 덮어쓴다**(요청값은 무시). 요청의 `stack`을 그대로 쓰는 쪽이 좋으면 알려 주세요.
 4. **구현 방식 A(API 라우트)** 제안에 동의하시나요?
-5. `GET .../blueprint`에서 판이 하나도 없을 때 **200 `{ blueprint: null }`**(새 프로젝트의 정상 상태)로 해도 되나요? (404로 구분하길 원하시면 알려 주세요)
+5. `GET .../blueprint`에서 판이 하나도 없을 때 **200 `{ blueprint: null }`**(새 프로젝트의 정상 상태)로 해도 되나요? (→ 결정: 내 프로젝트만 200 null, 없거나 남의 프로젝트는 404로 통일. `GET .../revisions`도 동일)
 6. 지시서 내보내기 기능은 아직 없지만 **`POST .../revisions` 라우트는 지금 열어 둘까요?** (권장: 예, 판 추가 경로가 하나로 모이고 테스트가 쉬움)
 7. 본문 크기 한도 **1MB**와 목록 **최대 100개(페이지네이션 없음)** 가 적절한가요?

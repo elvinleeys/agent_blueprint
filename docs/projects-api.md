@@ -8,9 +8,9 @@
 | --- | --- | --- |
 | `GET /api/projects` | 내 프로젝트 목록(최근 수정 순, 최대 100) | 200 `{ projects }` |
 | `POST /api/projects` | `{ name, stack }`로 생성 | 201 `{ project }` |
-| `GET /api/projects/[id]/blueprint?revision=N` | 설계도 불러오기(`revision` 생략 시 최신 판, 판이 없으면 `{ blueprint: null }`) | 200 |
+| `GET /api/projects/[id]/blueprint?revision=N` | 설계도 불러오기(`revision` 생략 시 최신 판). 내 프로젝트인데 판이 없으면 `{ blueprint: null }`, 없거나 남의 프로젝트면 404 | 200 |
 | `PUT /api/projects/[id]/blueprint` | 자동 저장: 최신 판 갱신. 최신 판이 AI 초안이고 저장본이 사용자 수정본(`generatedBy: "user"`)이면 새 판을 추가(AI 원본 보존) | 200 `{ revision, updatedAt }` |
-| `GET /api/projects/[id]/revisions` | 판 목록(최신 순, nodes 제외) | 200 `{ revisions }` |
+| `GET /api/projects/[id]/revisions` | 판 목록(최신 순, nodes 제외). 내 프로젝트인데 판이 없으면 `[]`, 없거나 남의 프로젝트면 404 | 200 `{ revisions }` |
 | `POST /api/projects/[id]/revisions` | 새 판 추가(지시서 내보내기 시점용) | 201 `{ revision, updatedAt }` |
 | `POST /api/draft` (multipart) | `projectId`를 붙이면 AI 호출 **전에** 소유를 확인하고, 스택은 프로젝트에 저장된 값을 쓰며, 성공한 초안을 새 판으로 저장 | 200 `{ blueprint, meta: { saved } }` |
 
@@ -64,7 +64,7 @@ const rv = await (await fetch(`/api/projects/${pid}/revisions`)).json();
 console.log(bp.blueprint?.title, bp.blueprint?.generatedBy, bp.blueprint?.nodes?.length);
 console.log(rv.revisions);
 ```
-기대: 블록 2 직후라면 `generatedBy: "ai"`, 판 목록에 `revision: 1` 한 줄. 판이 없는 새 프로젝트라면 `bp.blueprint`가 `null`이다.
+기대: 블록 2 직후라면 `generatedBy: "ai"`, 판 목록에 `revision: 1` 한 줄. 판이 없는 **내** 새 프로젝트라면 `bp.blueprint`가 `null`이다(없거나 남의 프로젝트 id면 두 요청 모두 404).
 
 ### 4. 자동 저장과 AI 초안 보존 (비용 없음, 블록 2 이후)
 ```js

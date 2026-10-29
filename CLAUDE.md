@@ -153,8 +153,8 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 | `/api/explain` | POST | 위반 1건 또는 정리 대상 | 설명·수정 제안 | OpenAI 호출 |
 | `/api/analyze` | POST | 업로드 컴포넌트 코드 | props·variant·스타일 값 | 코드 원본 저장 안 함 |
 | `/api/projects` | GET/POST | POST: JSON `{ name, stack }` | `{ projects }` / 201 `{ project }` | 로그인 세션 필수, 본인 프로젝트만(RLS) |
-| `/api/projects/[id]/blueprint` | GET/PUT | GET: `?revision=N`(생략 시 최신 판) / PUT: 설계도 JSON | `{ blueprint }`(판이 없으면 null) / `{ revision, updatedAt }` | PUT은 자동 저장: 최신 판 갱신. 최신 판이 AI 초안이고 저장본이 사용자 수정본이면 새 판 추가(AI 원본 보존) |
-| `/api/projects/[id]/revisions` | GET/POST | POST: 설계도 JSON | `{ revisions }` / 201 `{ revision, updatedAt }` | POST는 새 판 추가(지시서 내보내기 시점). 요청 본문 1MB 이하·JSON만. 오류는 400·401·404·409·413·422·503 |
+| `/api/projects/[id]/blueprint` | GET/PUT | GET: `?revision=N`(생략 시 최신 판) / PUT: 설계도 JSON | `{ blueprint }`(내 프로젝트인데 판이 없으면 null, 없거나 남의 프로젝트는 404) / `{ revision, updatedAt }` | PUT은 자동 저장: 최신 판 갱신. 최신 판이 AI 초안이고 저장본이 사용자 수정본이면 새 판 추가(AI 원본 보존) |
+| `/api/projects/[id]/revisions` | GET/POST | POST: 설계도 JSON | `{ revisions }`(없거나 남의 프로젝트는 404) / 201 `{ revision, updatedAt }` | POST는 새 판 추가(지시서 내보내기 시점). 요청 본문 1MB 이하·JSON만. 오류는 400·401·404·409·413·422·503 |
 | `/auth/callback` | GET | GitHub OAuth code | 세션 쿠키 설정 후 리다이렉트 | Supabase 세션 교환 |
 
 모든 API 라우트는 처리 전 Supabase 세션 유무를 먼저 확인하고, 없으면 401을 반환한다(로그인 화면은 제외).

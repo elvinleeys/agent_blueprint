@@ -1,3 +1,3 @@
-export function GET(): Response {
-  return Response.json({ error: { code: "not_implemented" } }, { status: 501 });
-}
+import { handleAuthCallback } from "@/lib/auth/callback-handler";
+
+export const GET = handleAuthCallback;

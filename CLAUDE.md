@@ -50,7 +50,7 @@ core/                      # 순수 TypeScript. React·Next.js import 금지
   adapters/styling/        # css, css-modules, tailwind 어댑터
   adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서)
   prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
-components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록, auth/ 로그인·계정)
+components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록, auth/ 로그인·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정)
 store/                     # Zustand 스토어 (설계도·검사 결과 상태)
 lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리), proxy.ts(세션 갱신)
 lib/auth/                  # 서버 전용 인증 처리 (callback-handler: /auth/callback 처리)
@@ -153,6 +153,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 | `/api/explain` | POST | 위반 1건 또는 정리 대상 | 설명·수정 제안 | OpenAI 호출 |
 | `/api/analyze` | POST | 업로드 컴포넌트 코드 | props·variant·스타일 값 | 코드 원본 저장 안 함 |
 | `/api/projects` | GET/POST | POST: JSON `{ name, stack }` | `{ projects }` / 201 `{ project }` | 로그인 세션 필수, 본인 프로젝트만(RLS) |
+| `/api/projects/[id]` | PATCH | JSON `{ name }`(이름만, 1~100자) | 200 `{ project }` | 스택은 바꿀 수 없음. 오류는 400·401·404·413·422·503 |
 | `/api/projects/[id]/blueprint` | GET/PUT | GET: `?revision=N`(생략 시 최신 판) / PUT: 설계도 JSON | `{ blueprint }`(내 프로젝트인데 판이 없으면 null, 없거나 남의 프로젝트는 404) / `{ revision, updatedAt }` | PUT은 자동 저장: 최신 판 갱신. 최신 판이 AI 초안이고 저장본이 사용자 수정본이면 새 판 추가(AI 원본 보존) |
 | `/api/projects/[id]/revisions` | GET/POST | POST: 설계도 JSON | `{ revisions }`(없거나 남의 프로젝트는 404) / 201 `{ revision, updatedAt }` | POST는 새 판 추가(지시서 내보내기 시점). 요청 본문 1MB 이하·JSON만. 오류는 400·401·404·409·413·422·503 |
 | `/auth/callback` | GET | GitHub OAuth code | 세션 쿠키 설정 후 리다이렉트 | Supabase 세션 교환 |

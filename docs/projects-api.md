@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | `GET /api/projects` | 내 프로젝트 목록(최근 수정 순, 최대 100) | 200 `{ projects }` |
 | `POST /api/projects` | `{ name, stack }`로 생성 | 201 `{ project }` |
+| `PATCH /api/projects/[id]` | 이름만 수정(`{ name }`, trim 후 1~100자, 다른 필드는 400, 없거나 남의 프로젝트는 404) | 200 `{ project }` |
 | `GET /api/projects/[id]/blueprint?revision=N` | 설계도 불러오기(`revision` 생략 시 최신 판). 내 프로젝트인데 판이 없으면 `{ blueprint: null }`, 없거나 남의 프로젝트면 404 | 200 |
 | `PUT /api/projects/[id]/blueprint` | 자동 저장: 최신 판 갱신. 최신 판이 AI 초안이고 저장본이 사용자 수정본(`generatedBy: "user"`)이면 새 판을 추가(AI 원본 보존) | 200 `{ revision, updatedAt }` |
 | `GET /api/projects/[id]/revisions` | 판 목록(최신 순, nodes 제외). 내 프로젝트인데 판이 없으면 `[]`, 없거나 남의 프로젝트면 404 | 200 `{ revisions }` |
@@ -41,6 +42,14 @@ console.log(await call("POST", "/api/projects", { name: "콘솔 테스트", stac
 console.log(await call("GET", "/api/projects"));
 ```
 기대: 생성 201 `{ project: { id, name, stack, ... } }`, 목록 200에 방금 만든 프로젝트가 첫 번째로 보인다.
+
+### 1-1. 프로젝트 이름 수정 (비용 없음)
+```js
+const { projects } = await (await fetch("/api/projects")).json();
+const r = await fetch(`/api/projects/${projects[0].id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "이름 수정 테스트" }) });
+console.log(r.status, await r.json());
+```
+기대: 200 `{ project: { name: "이름 수정 테스트", ... } }`. `{ name: "" }`은 422, `{ name: "x", stack: {} }`는 400.
 
 ### 2. 초안 생성 (projectId 포함) — 실제 OpenAI 호출, 1회 약 $0.01~0.02, 약 15~30초
 ```js

@@ -47,10 +47,14 @@ core/                      # 순수 TypeScript. React·Next.js import 금지
   adapters/framework/      # html, react, next 어댑터
   adapters/styling/        # css, css-modules, tailwind 어댑터
   adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서)
-  prompt/                  # 지시서 템플릿·생성기
+  prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
 components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록)
 store/                     # Zustand 스토어 (설계도·검사 결과 상태)
 lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리)
+lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용, draft-http: 요청 검증·오류 매핑, draft-handler: /api/draft 처리)
+scripts/                   # 개발용 실행 스크립트 (test-draft.ts: lib/ai를 호출하는 초안 생성 검증, 실제 API 호출은 직접 실행)
+fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음)
+tasks/                     # 계획·테스트 결과·응답 원문 (draft-test-result.md, draft-outputs/)
 ```
 
 `core/`는 화면과 완전히 분리한다. 나중에 CLI나 VS Code 확장에서 그대로 재사용하기 위함.
@@ -98,7 +102,7 @@ lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분�
 
 - OpenAI API는 반드시 서버(Route Handler)에서만 호출한다. 클라이언트 컴포넌트에서 직접 호출하지 않는다.
 - OpenAI 응답은 받는 즉시 Zod 스키마로 검증한다. 검증 실패 시 1회 자동 재시도 후 사용자에게 안내한다.
-- Supabase 쿼리는 기본적으로 anon key + 로그인 세션으로 실행한다. service role key는 꼭 필요한 서버 전용 작업에만, 별도 클라이언트로 분리해 사용한다.
+- Supabase 쿼리는 기본적으로 publishable key(`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) + 로그인 세션으로 실행한다. 서버에서 사용자를 확인할 때는 `getClaims()`를 쓰고 `getSession()`의 값은 신뢰하지 않는다. service role key는 꼭 필요한 서버 전용 작업에만, 별도 클라이언트로 분리해 사용한다.
 - 모든 Supabase 테이블은 RLS를 켜고, `user_id = auth.uid()` 기준(또는 project_id를 통한 간접 기준)으로 정책을 작성한다. 정책 없는 공개 테이블을 만들지 않는다.
 - 업로드된 이미지·코드 원본은 분석 후 저장하지 않는다. DB에는 설계도·스펙·검사 결과·지시서만 저장한다.
 - 환경변수는 `.env.local`에만 두고 커밋하지 않는다. `NEXT_PUBLIC_` 접두사는 브라우저에 노출해도 되는 값에만 붙인다.
@@ -138,7 +142,7 @@ lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분�
 
 | 경로 | 메서드 | 입력 | 출력 | 비고 |
 | --- | --- | --- | --- | --- |
-| `/api/draft` | POST | 스펙 7개 항목(일부), 이미지(선택), 스택 | 설계도 JSON | OpenAI 호출, 스키마 검증 후 반환 |
+| `/api/draft` | POST | `multipart/form-data`: stack, route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | `{ blueprint, meta }` | OpenAI 호출, 스키마 검증, 검증 실패 시 1회 재시도. 오류는 400·401·413·422·429·502·504로 구분. 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초 |
 | `/api/explain` | POST | 위반 1건 또는 정리 대상 | 설명·수정 제안 | OpenAI 호출 |
 | `/api/analyze` | POST | 업로드 컴포넌트 코드 | props·variant·스타일 값 | 코드 원본 저장 안 함 |
 | `/api/projects` | GET/POST | 프로젝트 데이터 | 저장·조회 결과 | 로그인 세션 필수 |
@@ -149,9 +153,9 @@ lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분�
 ## 에러 처리 공통 규칙
 
 - OpenAI 호출 실패·타임아웃(텍스트만 45초, 이미지 포함 60초 초과): 사용자에게 재시도 버튼 제공, 입력 내용은 보존한다.
-- 스키마 검증 실패: 1회 자동 재시도 → 재실패 시 오류 메시지와 함께 원인 필드를 사용자에게 보여준다.
+- 스키마 검증 실패: 1회 자동 재시도 → 재실패 시 오류 메시지와 함께 원인 필드를 사용자에게 보여준다. 남은 시간이 max(첫 시도 소요 시간, 15초)보다 적으면 재시도하지 않고 422와 실패 항목을 반환한다(화면의 다시 시도 버튼으로 처리).
 - Supabase 쿼리 실패: 에러를 그대로 노출하지 않고, 사용자용 메시지로 변환해 보여준다. 원본 에러는 서버 로그에만 남긴다.
-- 업로드 용량·개수 초과(이미지 5MB/3장, 코드 30개): 업로드 전에 클라이언트에서 먼저 검사해 불필요한 호출을 막는다.
+- 업로드 용량·개수: 이미지는 장당 5MB·최대 3장까지 선택하고, 전송 전 브라우저에서 축소해 합계 4MB 이하로 만든다(Vercel 함수 요청 본문 한도 4.5MB). 코드는 30개까지. 모두 업로드 전에 클라이언트에서 먼저 검사해 불필요한 호출을 막는다. 서버는 합계 4MB 초과 시 413을 반환한다.
 
 ## 커밋·브랜치
 

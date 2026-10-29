@@ -42,7 +42,7 @@ app/                       # 라우팅만. 로직을 두지 않는다
   login/page.tsx           # S-08 로그인
   account/page.tsx         # S-09 계정
 core/                      # 순수 TypeScript. React·Next.js import 금지
-  schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환)
+  schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환), normalize-blueprint.ts(AI 응답 자동 보정)
   rules/common/            # 공통 검사 규칙 R-01~R-07
   adapters/framework/      # html, react, next 어댑터
   adapters/styling/        # css, css-modules, tailwind 어댑터
@@ -142,7 +142,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 
 | 경로 | 메서드 | 입력 | 출력 | 비고 |
 | --- | --- | --- | --- | --- |
-| `/api/draft` | POST | `multipart/form-data`: stack, route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | `{ blueprint, meta }` | OpenAI 호출, 스키마 검증, 검증 실패 시 1회 재시도. 오류는 400·401·413·422·429·502·504로 구분. 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초 |
+| `/api/draft` | POST | `multipart/form-data`: stack, route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | `{ blueprint, meta(attempts, elapsedMs, normalized) }` | OpenAI 호출, 스키마 검증, 검증 실패 시 자동 보정 후 재검증, 그래도 실패하면 1회 재시도. 오류는 400·401·413·422·429·502·504로 구분. 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초 |
 | `/api/explain` | POST | 위반 1건 또는 정리 대상 | 설명·수정 제안 | OpenAI 호출 |
 | `/api/analyze` | POST | 업로드 컴포넌트 코드 | props·variant·스타일 값 | 코드 원본 저장 안 함 |
 | `/api/projects` | GET/POST | 프로젝트 데이터 | 저장·조회 결과 | 로그인 세션 필수 |
@@ -153,7 +153,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 ## 에러 처리 공통 규칙
 
 - OpenAI 호출 실패·타임아웃(텍스트만 45초, 이미지 포함 60초 초과): 사용자에게 재시도 버튼 제공, 입력 내용은 보존한다.
-- 스키마 검증 실패: 1회 자동 재시도 → 재실패 시 오류 메시지와 함께 원인 필드를 사용자에게 보여준다. 남은 시간이 max(첫 시도 소요 시간, 15초)보다 적으면 재시도하지 않고 422와 실패 항목을 반환한다(화면의 다시 시도 버튼으로 처리).
+- 스키마 검증 실패: 먼저 기계적으로 고칠 수 있는 오류(grid의 direction, flex의 columns, 같은 부모 아래 order 중복)를 자동 보정하고 보정 내역을 응답 meta에 담는다. 그래도 실패하면 1회 자동 재시도 → 재실패 시 오류 메시지와 함께 원인 필드를 사용자에게 보여준다. 남은 시간이 max(첫 시도 소요 시간, 15초)보다 적으면 재시도하지 않고 422와 실패 항목을 반환한다(화면의 다시 시도 버튼으로 처리).
 - Supabase 쿼리 실패: 에러를 그대로 노출하지 않고, 사용자용 메시지로 변환해 보여준다. 원본 에러는 서버 로그에만 남긴다.
 - 업로드 용량·개수: 이미지는 장당 5MB·최대 3장까지 선택하고, 전송 전 브라우저에서 축소해 합계 4MB 이하로 만든다(Vercel 함수 요청 본문 한도 4.5MB). 코드는 30개까지. 모두 업로드 전에 클라이언트에서 먼저 검사해 불필요한 호출을 막는다. 서버는 합계 4MB 초과 시 413을 반환한다.
 

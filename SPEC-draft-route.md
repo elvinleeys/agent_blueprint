@@ -51,7 +51,7 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 | --- | --- |
 | 요청 | `POST /api/draft`, `multipart/form-data`: `stack`(JSON `{framework, styling, architecture}`), `spec`(JSON, `overview`~`constraints` 선택 문자열), `images`(0~3개, png·jpeg·webp, 파일 시그니처로 확인) |
 | 입력 조건 | 스펙 7개 중 1개 이상 또는 이미지 1장 이상(`SpecInputSchema`), `stack`은 `BlueprintSchema.shape.stack` |
-| 성공 200 | `{ "blueprint": Blueprint, "meta": { "attempts": 1\|2, "elapsedMs": number } }` |
+| 성공 200 | `{ "blueprint": Blueprint, "meta": { "attempts": 1\|2, "elapsedMs": number, "normalized": { "nodeId", "path", "detail" }[] } }` |
 | 실패 | `{ "error": { "code": string, "message": string(사용자용, 한국어), "retryable": boolean, "fields"?: { "path": string, "message": string }[] } }` |
 | 로그(서버만) | 시도 횟수, 소요 시간, 토큰, 예상 비용, 오류 종류, 사용자 id(claims `sub`). 키·이미지·응답 원문·원본 에러는 남기지 않거나 서버 로그에만 남긴다 |
 
@@ -82,6 +82,13 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
   6. 시간 초과(응답 없음)는 `timeout`(504), 재시도하지 않는다. OpenAI 오류는 `status`로 분류: 429→`rate_limited`, 그 외→`upstream`.
   7. 비용: 시도마다 `usage`(입력·출력 토큰, 추론 토큰은 출력에 포함이므로 합산하지 않음)로 계산해 누적. 실패해도 소비한 토큰·비용은 결과에 포함한다.
 - 단가표 `PRICES`와 `estimateCostUsd`, 호출당 출력 상한 비용 계산도 이 모듈에서 export하고 스크립트가 재사용한다.
+
+### 자동 보정 `core/schema/normalize-blueprint.ts` (순수 함수, 결정 사항)
+- 재시도 전에 검증 실패한 응답을 기계적으로 고친다. 흐름: 검증 실패 → `normalizeBlueprint` → 재검증 → 통과하면 그대로 성공(재시도 없음) → 그래도 실패하면 **남은 오류만으로** 기존 재시도 조건 → 422.
+- 보정 대상: grid의 layout·responsive에 있는 `direction` 제거, flex의 `columns` 제거(layout·responsive), 같은 부모 아래 `order` 중복 시 (order, 원래 위치) 순으로 0부터 재정렬(겹치지 않는 틈은 유지, 루트는 제외).
+- 보정하지 않는 것: FSD `location` 형식, 이름 형식·중복, 루트 개수, block의 direction·columns 등 의미 판단이 필요한 오류.
+- 반환: 보정된 설계도 + 내역 `{ nodeId, path, detail }[]`. 입력은 바꾸지 않는다. 내역은 응답 `meta.normalized`, 서버 로그(개수), test:draft 결과의 비고 열(건수)과 `-normalized.json`에 남는다.
+- 재시도 응답에도 같은 보정을 적용한다. 재시도 지시문에는 보정으로 해결된 오류가 빠진다.
 
 ### `core/prompt/repair-prompt.ts` (순수 함수)
 `buildRepairPrompt({ issues, nodeNames? }) → string`

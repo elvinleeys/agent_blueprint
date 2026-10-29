@@ -50,3 +50,11 @@ export async function readJson(request: Request): Promise<JsonRead> {
     return { ok: false, error: invalidInput("JSON 형식이 올바르지 않습니다.") };
   }
 }
+
+export type IdContext = { params: Promise<{ id: string }> };
+
+/** 동적 경로의 [id]를 읽고 uuid인지 검사한다 */
+export async function parseProjectId(ctx: IdContext): Promise<{ ok: true; id: string } | { ok: false; error: HttpError }> {
+  const { id } = await ctx.params;
+  return isUuid(id) ? { ok: true, id } : { ok: false, error: invalidInput("프로젝트 id 형식이 올바르지 않습니다.") };
+}

@@ -29,41 +29,45 @@ npm run lint     # 린트
 ## 폴더 구조와 책임
 
 ```
-src/
-  app/                       # 라우팅만. 로직을 두지 않는다
-    page.tsx                 # S-01 홈
-    projects/page.tsx        # S-02 목록
-    projects/[id]/           # 작업공간 (설정·구조 설계·디자인 시스템·지시서)
-    api/draft/route.ts       # AI 초안 생성
-    api/explain/route.ts     # 위반 설명·정리 제안
-    api/analyze/route.ts     # 업로드 코드 분석
-    api/projects/            # 프로젝트·설계도 저장·조회
-    auth/callback/route.ts   # GitHub 로그인 콜백
-    login/page.tsx           # S-08 로그인
-    account/page.tsx         # S-09 계정
-  core/                      # 순수 TypeScript. React·Next.js import 금지
-    schema/                  # 설계도·DS 스펙 Zod 스키마
-    rules/common/            # 공통 검사 규칙 R-01~R-06
-    adapters/framework/      # html, react, next 어댑터
-    adapters/styling/        # css, css-modules, tailwind 어댑터
-    prompt/                  # 지시서 템플릿·생성기
-  components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록)
-  store/                     # Zustand 스토어 (설계도·검사 결과 상태)
-  lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리)
+(프로젝트 루트)/
+app/                       # 라우팅만. 로직을 두지 않는다
+  page.tsx                 # S-01 홈
+  projects/page.tsx        # S-02 목록
+  projects/[id]/           # 작업공간 (설정·구조 설계·디자인 시스템·지시서)
+  api/draft/route.ts       # AI 초안 생성
+  api/explain/route.ts     # 위반 설명·정리 제안
+  api/analyze/route.ts     # 업로드 코드 분석
+  api/projects/            # 프로젝트·설계도 저장·조회
+  auth/callback/route.ts   # GitHub 로그인 콜백
+  login/page.tsx           # S-08 로그인
+  account/page.tsx         # S-09 계정
+core/                      # 순수 TypeScript. React·Next.js import 금지
+  schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환)
+  rules/common/            # 공통 검사 규칙 R-01~R-06
+  adapters/framework/      # html, react, next 어댑터
+  adapters/styling/        # css, css-modules, tailwind 어댑터
+  adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서)
+  prompt/                  # 지시서 템플릿·생성기
+components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록)
+store/                     # Zustand 스토어 (설계도·검사 결과 상태)
+lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리)
 ```
 
 `core/`는 화면과 완전히 분리한다. 나중에 CLI나 VS Code 확장에서 그대로 재사용하기 위함.
 
 ## 핵심 데이터 모델
 
-- `Project`: userId, name, stack(framework, styling)
-- `SpecInput`: overview, tokens, layout, componentRules, stateData, accessibility, constraints (7개 항목, 모두 선택이지만 1개 이상 또는 이미지 필요)
-- `Blueprint` → `ComponentNode[]`: name, parentId, responsibilities[], state[], props[], dataFetch, renderMode(server/client), style, assumed(AI가 채운 값인지)
-- `Violation`: ruleId, nodeIds[], severity(info/warning/error), message, status
-- `DesignSystemSpec`, `ComponentInventory`, `CleanupSuggestion`: 기능 B
-- `PromptExport`: sourceType(blueprint/cleanup), format(prompt/CLAUDE.md), content
+스키마의 기준 문서는 `.claude/skills/define-schema/data-model.md`다. 필드 정의·검증 조건은 그 문서를 따른다.
 
-설계도는 Blueprint 테이블의 jsonb 컬럼에 트리 전체를 저장한다 (MVP 기준).
+- 설계도 트리의 원본은 **평면 배열 + parentId**다. 저장 데이터에 `children` 중첩 필드를 두지 않는다.
+- 부모가 자식을 포함하는 트리 형태는 `core/schema/tree.ts`의 `buildTree()`로 계산해 쓰는 보기이며, 저장하지 않는다.
+- 형제 순서는 `order`, 노드의 식별은 `id`로 한다. 이름(`name`)은 바꿔도 `id`는 바뀌지 않는다. 이름은 설계도 내 고유.
+- **배치 책임은 부모에게 있다.** 자식 배치(flex/grid, 방향, 열 수, gap 토큰)는 부모의 `layout`에, 그리드 안 자리는 자식의 `placement`에 적는다.
+- 노드 자신의 모양은 `style.properties`(CSS 속성, 값, 토큰 여부)에 적는다. 배치 속성(display, gap, flex-direction 등)은 `properties`에 쓰지 않는다.
+- 디렉토리 구조 방식은 `stack.architecture`(type-based / feature-based / fsd), 노드별 파일 위치는 `location.dir`에 적는다. Next.js + FSD 조합의 배치 규칙(라우팅 app/과 FSD 계층 src/ 분리, 빈 pages/)은 data-model.md 2-2절을 따른다. (이는 사용자 프로젝트 구조이며 이 저장소는 src/를 쓰지 않는다)
+- 노드 이동(드래그)은 `parentId`·`order`(필요 시 `placement`)만 바꾼다. 루트 이동, 순환, 훅 아래로의 이동은 거부한다.
+- 주요 엔티티: `Project`, `SpecInput`(7개 항목), `Blueprint`(nodes 평면 배열), `Violation`, `DesignSystemSpec`, `ComponentInventory`, `CleanupSuggestion`, `PromptExport`
+- 설계도는 Blueprint 테이블의 jsonb 컬럼에 평면 배열 그대로 저장한다 (MVP 기준).
 
 ## 구조 검사 규칙 (설계도 기준으로 판단)
 
@@ -81,6 +85,9 @@ src/
 | HC-01 | HTML·CSS: 명명 규칙(BEM 등) 불일치 | 경고 |
 | NX-01 | Next.js: 상태·이벤트 노드가 Server Component로 지정 | 오류 |
 | NX-02 | Next.js: Client Component 지정 범위가 필요 이상으로 넓음 | 경고 |
+| AR-01 | FSD: 자식이 부모보다 위 계층 (import 방향 위반) | 오류 |
+| AR-02 | FSD: 같은 계층의 다른 슬라이스를 자식으로 가짐 | 오류 |
+| AR-03 | FSD: kind와 계층·세그먼트 불일치 (page≠pages, hook≠model·api·lib) | 경고 |
 
 규칙 판정은 코드(`core/rules`)로 하고, 위반 이유 설명과 수정 제안만 AI(OpenAI API)에 맡긴다.
 
@@ -103,45 +110,17 @@ src/
 
 ## 스택 어댑터
 
-프레임워크(html/react/next)와 스타일(css/css-modules/tailwind)을 독립된 어댑터로 분리해 3×3 조합을 6개 어댑터 조합으로 지원한다. 새 스택 지원은 어댑터 추가로 처리하고, 기존 어댑터를 수정하지 않는다.
+프레임워크(html/react/next), 스타일(css/css-modules/tailwind), 디렉토리 구조(type-based/feature-based/fsd)를 독립된 어댑터로 분리해 3×3×3 조합을 9개 어댑터로 지원한다. 조합에 따른 특수 규칙(예: Next.js + FSD 배치)은 구조 어댑터가 프레임워크 값을 보고 추가한다. 새 스택 지원은 어댑터 추가로 처리하고, 기존 어댑터를 수정하지 않는다.
 
 ## 일정상 우선순위 (일정이 밀릴 때 줄이는 순서)
 
-1. 계정 화면(S-09)의 사용량 표시
-2. HTML·CSS 어댑터
-3. 기능 B 정리 제안의 AI 설명
-4. 위반 설명 기능(F-008)
+1. 기능 B(디자인 시스템 정리) 전체
+2. 계정 화면(S-09)의 사용량 표시
+3. HTML·CSS 어댑터
+4. FSD 검사 규칙(AR-01~AR-03)
+5. 위반 설명 기능(F-008)
 
-구조 초안 → 검사 → 지시서로 이어지는 핵심 흐름(기능 A)은 끝까지 유지한다.
-
-## 설계도 스키마 예시 (core/schema)
-
-```ts
-import { z } from "zod";
-
-export const ComponentNodeSchema: z.ZodType<ComponentNode> = z.lazy(() =>
-  z.object({
-    id: z.string(),
-    name: z.string(),
-    parentId: z.string().nullable(),
-    responsibilities: z.array(z.string()).max(5),
-    state: z.array(z.string()),
-    props: z.array(z.string()),
-    dataFetch: z.boolean(),
-    renderMode: z.enum(["server", "client"]).nullable(), // Next.js 전용, 그 외 null
-    style: z.object({
-      scope: z.enum(["global", "module", "utility"]),
-      tokens: z.array(z.string()),
-      rawValues: z.array(z.string()),
-    }),
-    assumed: z.boolean(), // AI가 입력 없이 채운 값이면 true
-    children: z.array(z.lazy(() => ComponentNodeSchema)).optional(),
-  })
-);
-```
-
-- OpenAI 호출 시 이 스키마와 동일한 JSON 형식으로만 응답하도록 구조화된 출력(Structured Outputs) 기능을 사용한다. 정확한 사용법은 작업 시 공식 문서로 재확인한다.
-- `responsibilities`는 5개로 상한을 두되, R-01 규칙의 경고 기준(3개 초과)은 더 낮다. 스키마 상한과 검사 규칙 기준값을 혼동하지 않는다.
+기능 A(구조 초안 → 노드·레이아웃 편집 → 검사 → 지시서)는 1순위이며 끝까지 완성한다.
 
 ## 명명 규칙
 
@@ -181,8 +160,9 @@ export const ComponentNodeSchema: z.ZodType<ComponentNode> = z.lazy(() =>
 
 - 새 컴포넌트를 `app/` 안에 만들려는 경우, `components/`로 옮길 수 있는지 먼저 검토한다.
 - 새 Supabase 테이블을 만들 때마다 RLS 정책을 같은 작업 안에서 함께 작성한다. 정책 없이 테이블만 만들고 넘어가지 않는다.
+- 노드 이동·수정 로직은 `parentId`·`order` 외의 하위 노드 데이터를 건드리지 않는다. 트리 형태가 필요하면 `buildTree()`로 변환해 쓴다.
 - 스택 어댑터(`core/adapters`)를 수정할 때는 해당 어댑터에만 영향이 가도록 하고, 다른 어댑터·공통 규칙을 함께 건드리지 않는다.
-- 지시서 템플릿을 고칠 때는 F-002의 7개 입력 항목이 "필수 규칙"·"금지 사항" 섹션에 빠짐없이 반영되는지 확인한다.
+- 지시서 템플릿은 부모 노드별 `layout`을 배치 문장으로, 노드별 `location`을 "파일 위치" 섹션으로 포함해야 한다. 또한 F-002의 7개 입력 항목이 "필수 규칙"·"금지 사항" 섹션에 빠짐없이 반영되는지 확인한다.
 
 ## 비고
 

@@ -37,6 +37,14 @@ export async function createProject(db: SupabaseClient, input: { name: string; s
   return { ok: true, data: toProject(data as Row) };
 }
 
+/** 프로젝트 1개. 없거나 남의 것이면(RLS로 안 보임) not_found */
+export async function getProject(db: SupabaseClient, id: string): Promise<DbResult<Project>> {
+  const { data, error } = await db.from("projects").select(COLUMNS).eq("id", id).maybeSingle();
+  if (error) return fromDbError(error, "프로젝트를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  if (!data) return { ok: false, kind: "not_found", message: "대상을 찾을 수 없습니다." };
+  return { ok: true, data: toProject(data as Row) };
+}
+
 /** 내 프로젝트 목록(최근 수정 순). 다른 사용자의 행은 RLS가 걸러낸다 */
 export async function listProjects(db: SupabaseClient): Promise<DbResult<Project[]>> {
   const { data, error } = await db.from("projects").select(COLUMNS).order("updated_at", { ascending: false }).limit(MAX_PROJECTS);

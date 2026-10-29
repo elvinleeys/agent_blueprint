@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeDb } from "./fake-db";
-import { createProject, listProjects } from "./projects";
+import { createProject, getProject, listProjects } from "./projects";
 
 const STACK = { framework: "next", styling: "tailwind", architecture: "feature-based" };
 const row = { id: "p1", name: "내 프로젝트", framework: "next", styling: "tailwind", architecture: "feature-based", created_at: "2026-10-29T00:00:00Z", updated_at: "2026-10-29T01:00:00Z" };
@@ -56,5 +56,22 @@ describe("listProjects", () => {
 
   it("DB 오류는 unavailable", async () => {
     expect(await listProjects(fakeDb({ error: { code: "XX000" } }).db)).toMatchObject({ ok: false, kind: "unavailable" });
+  });
+});
+
+describe("getProject", () => {
+  it("id로 조회하고 camelCase로 변환한다", async () => {
+    const { db, calls } = fakeDb({ data: row });
+    const r = await getProject(db, "p1");
+    expect(called(calls, "eq")).toEqual(["eq", "id", "p1"]);
+    expect(r).toMatchObject({ ok: true, data: { id: "p1", stack: STACK } });
+  });
+
+  it("없거나 남의 프로젝트(행이 안 보임)는 not_found", async () => {
+    expect(await getProject(fakeDb({ data: null }).db, "p1")).toMatchObject({ ok: false, kind: "not_found" });
+  });
+
+  it("DB 오류는 unavailable", async () => {
+    expect(await getProject(fakeDb({ error: { code: "XX000" } }).db, "p1")).toMatchObject({ ok: false, kind: "unavailable" });
   });
 });

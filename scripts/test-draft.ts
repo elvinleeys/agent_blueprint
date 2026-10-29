@@ -33,6 +33,11 @@ const IMAGE_EXTS: Record<string, DraftImage["mediaType"]> = {
 };
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const RESULT_FILE = "tasks/draft-test-result.md";
+// 결과 표는 항상 이 14열이다(열이 바뀌면 이전 섹션과 열 위치가 달라져 읽기 어려워진다)
+const TABLE_COLUMNS = [
+  "화면", "모드", "모델", "회차", "스키마 통과", "시도", "실패 필드", "응답 시간(초)", "입력 토큰", "출력 토큰",
+  "추론 토큰(출력에 포함)", "예상 비용($)", "마감 초과", "비고",
+] as const;
 
 type Row = {
   model: DraftModel;
@@ -120,6 +125,8 @@ const outDir = join("tasks", "draft-outputs", startedAt.toISOString().replace(/[
 const outputPath = (mode: Mode, model: string, run: number, attempt = 0) =>
   join(outDir, `${screen}-${mode}-${model}-${run}${attempt > 0 ? "-retry" : ""}.json`);
 
+const normalizedPath = (mode: Mode, model: string, run: number) => join(outDir, `${screen}-${mode}-${model}-${run}-normalized.json`);
+
 // 한도(프로퍼티 5000, 중첩 10단계) 확인용
 function schemaStats(node: unknown, depth = 0): { props: number; depth: number } {
   if (typeof node !== "object" || node === null) return { props: 0, depth };
@@ -181,12 +188,15 @@ async function runCase(model: DraftModel, mode: Mode, run: number): Promise<Row>
     row.outTok = result.usage.outputTokens;
     row.reasonTok = result.usage.reasoningTokens;
     row.cost = result.costUsd;
+    const notes: string[] = [];
     if (!result.ok) {
       row.failures = describeFailure(result);
-      if (result.retrySkipped) row.note = "남은 시간 부족으로 재시도 생략";
+      if (result.retrySkipped) notes.push("남은 시간 부족으로 재시도 생략");
     } else if (result.attempts > 1) {
-      row.note = "재시도 후 통과";
+      notes.push("재시도 후 통과");
     }
+    if (result.normalized.length > 0) notes.push(`자동 보정 ${result.normalized.length}건`);
+    row.note = notes.join(", ");
     if (row.reasonTok > row.outTok) console.warn(`경고: 추론 토큰(${row.reasonTok})이 출력 토큰(${row.outTok})보다 큽니다. 비용 계산 방식을 재검토하세요`);
     // 응답 원문은 파싱·검증 전 그대로 저장한다(검증 실패·incomplete 응답 포함). 저장 실패가 실행을 막지 않게 한다
     result.log.forEach((entry, i) => {
@@ -198,6 +208,14 @@ async function runCase(model: DraftModel, mode: Mode, run: number): Promise<Row>
         console.warn(`경고: 응답 원문 저장 실패: ${e instanceof Error ? e.message : String(e)}`);
       }
     });
+    if (result.normalized.length > 0) {
+      try {
+        mkdirSync(outDir, { recursive: true });
+        writeFileSync(normalizedPath(mode, model, run), JSON.stringify(result.normalized, null, 2));
+      } catch (e) {
+        console.warn(`경고: 보정 내역 저장 실패: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
   } catch (e) {
     row.failures = `예외: ${redact(e instanceof Error ? e.message : String(e)).slice(0, 300)}`;
   }
@@ -241,12 +259,28 @@ async function runAll() {
 function report() {
   const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
   const table = [
-    "| 화면 | 모드 | 모델 | 회차 | 스키마 통과 | 시도 | 실패 필드 | 응답 시간(초) | 입력 토큰 | 출력 토큰 | 추론 토큰(출력에 포함) | 예상 비용($) | 마감 초과 | 비고 |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-    ...rows.map(
-      (r) =>
-        `| ${screen} | ${r.mode} | ${r.model} | ${r.run} | ${r.pass ? "O" : "X"} | ${r.attempts} | ${cell(r.failures) || "-"} | ${r.seconds.toFixed(1)} | ${r.inTok} | ${r.outTok} | ${r.reasonTok} | ${r.cost.toFixed(4)} | ${r.seconds > budgetSec(r.mode) ? "초과" : "-"} | ${r.note || "-"} |`,
-    ),
+    `| ${TABLE_COLUMNS.join(" | ")} |`,
+    `| ${TABLE_COLUMNS.map(() => "---").join(" | ")} |`,
+    ...rows.map((r) => {
+      const cells = [
+        screen,
+        r.mode,
+        r.model,
+        r.run,
+        r.pass ? "O" : "X",
+        r.attempts,
+        cell(r.failures) || "-",
+        r.seconds.toFixed(1),
+        r.inTok,
+        r.outTok,
+        r.reasonTok,
+        r.cost.toFixed(4),
+        r.seconds > budgetSec(r.mode) ? "초과" : "-",
+        cell(r.note) || "-",
+      ];
+      if (cells.length !== TABLE_COLUMNS.length) throw new Error("결과 표의 열 수가 맞지 않습니다");
+      return `| ${cells.join(" | ")} |`;
+    }),
   ];
   const prices = Object.entries(PRICES)
     .map(([m, p]) => `${m} $${p.in}/$${p.out}`)

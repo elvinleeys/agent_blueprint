@@ -68,9 +68,13 @@ function sniffImage(b: Uint8Array): DraftImage["mediaType"] | null {
   return null;
 }
 
-export type ParsedDraft = { ok: true; input: DraftInput } | { ok: false; error: HttpError };
+// projectId가 있으면 스택은 프로젝트에 저장된 값을 쓰므로 요청의 stack은 읽지 않고 null로 둔다(호출하는 쪽이 채운다)
+export type ParsedDraftInput = Omit<DraftInput, "stack"> & { stack: DraftInput["stack"] | null };
+export type ParsedDraft = { ok: true; input: ParsedDraftInput; projectId: string | null } | { ok: false; error: HttpError };
 
-/** multipart/form-data: stack(JSON), route(선택), spec(JSON, 선택), images(0~3개), imageMeta(JSON 배열, 선택) */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** multipart/form-data: projectId(선택, uuid), stack(JSON, projectId가 없을 때만 필요), route(선택), spec(JSON, 선택), images(0~3개), imageMeta(JSON 배열, 선택) */
 export async function parseDraftRequest(request: Request): Promise<ParsedDraft> {
   const length = Number(request.headers.get("content-length"));
   if (Number.isFinite(length) && length > MAX_BODY_BYTES) return tooLarge();
@@ -83,10 +87,18 @@ export async function parseDraftRequest(request: Request): Promise<ParsedDraft> 
     return bad("요청 본문을 읽을 수 없습니다.");
   }
 
-  const stackJson = readJson(form.get("stack"));
-  if (!stackJson.ok) return bad("stack은 JSON 문자열이어야 합니다.");
-  const stack = BlueprintSchema.shape.stack.safeParse(stackJson.value);
-  if (!stack.success) return bad("stack 값이 올바르지 않습니다.", issuesToFields("stack", stack.error.issues));
+  const rawProjectId = form.get("projectId");
+  if (rawProjectId !== null && (typeof rawProjectId !== "string" || !UUID.test(rawProjectId))) return bad("projectId는 uuid 형식이어야 합니다.");
+  const projectId = rawProjectId;
+
+  let stackValue: ParsedDraftInput["stack"] = null;
+  if (projectId === null) {
+    const stackJson = readJson(form.get("stack"));
+    if (!stackJson.ok) return bad("stack은 JSON 문자열이어야 합니다.");
+    const stack = BlueprintSchema.shape.stack.safeParse(stackJson.value);
+    if (!stack.success) return bad("stack 값이 올바르지 않습니다.", issuesToFields("stack", stack.error.issues));
+    stackValue = stack.data;
+  }
 
   const rawRoute = form.get("route");
   if (rawRoute !== null && typeof rawRoute !== "string") return bad("route는 문자열이어야 합니다.");
@@ -132,5 +144,5 @@ export async function parseDraftRequest(request: Request): Promise<ParsedDraft> 
   const specChars = Object.values(spec.data).reduce<number>((sum, v) => sum + (typeof v === "string" ? v.length : 0), 0);
   if (specChars > MAX_SPEC_CHARS) return bad(`스펙 텍스트는 합계 ${MAX_SPEC_CHARS}자 이하여야 합니다.`);
 
-  return { ok: true, input: { spec: spec.data, stack: stack.data, route, images } };
+  return { ok: true, input: { spec: spec.data, stack: stackValue, route, images }, projectId };
 }

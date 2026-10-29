@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createBlueprintRevision } from "../db/blueprints";
+import { getProject } from "../db/projects";
 import { createClient } from "../supabase/server";
 import { draftBlueprint, type DraftResult } from "./draft-blueprint";
 import { handleDraftRequest } from "./draft-handler";
@@ -6,6 +8,8 @@ import { handleDraftRequest } from "./draft-handler";
 vi.mock("server-only", () => ({}));
 vi.mock("../supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./draft-blueprint", () => ({ draftBlueprint: vi.fn() }));
+vi.mock("../db/projects", () => ({ getProject: vi.fn() }));
+vi.mock("../db/blueprints", () => ({ createBlueprintRevision: vi.fn() }));
 
 const getClaims = vi.fn();
 const draft = vi.mocked(draftBlueprint);
@@ -28,6 +32,8 @@ beforeEach(() => {
   vi.mocked(createClient).mockResolvedValue({ auth: { getClaims } } as never);
   getClaims.mockResolvedValue({ data: { claims: { sub: "user-1" } }, error: null });
   draft.mockReset();
+  vi.mocked(getProject).mockReset();
+  vi.mocked(createBlueprintRevision).mockReset();
   logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -125,3 +131,101 @@ describe("handleDraftRequest", () => {
     expect(line).not.toContain("base64");
   });
 });
+
+describe("handleDraftRequest — projectId(프로젝트에 새 판으로 저장)", () => {
+  const PID = "3f2b8c1e-9a4d-4e0b-8d7a-1c2b3a4d5e6f";
+  const PROJECT_STACK = { framework: "react", styling: "css", architecture: "type-based" } as const;
+  const project = { id: PID, name: "p", stack: PROJECT_STACK, createdAt: "c", updatedAt: "u" };
+  const withProject = (requestStack: unknown = STACK) => {
+    const f = new FormData();
+    f.set("projectId", PID);
+    if (requestStack !== undefined) f.set("stack", JSON.stringify(requestStack));
+    f.set("spec", JSON.stringify({ overview: "상품 상세" }));
+    return new Request("http://localhost/api/draft", { method: "POST", body: f });
+  };
+
+  beforeEach(() => {
+    vi.mocked(getProject).mockResolvedValue({ ok: true, data: project });
+  });
+
+  it("성공하면 새 판으로 저장하고 meta.saved에 판 번호를 담는다", async () => {
+    draft.mockResolvedValue(ok);
+    vi.mocked(createBlueprintRevision).mockResolvedValue({ ok: true, data: { revision: 4, updatedAt: "t" } });
+    const res = await handleDraftRequest(withProject());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.meta).toMatchObject({ attempts: 1, saved: { revision: 4, updatedAt: "t" } });
+    expect(body.meta).not.toHaveProperty("saveError");
+    expect(createBlueprintRevision).toHaveBeenCalledWith(expect.anything(), PID, { title: "상품 상세" });
+    expect(JSON.parse(String(logSpy.mock.calls[0][0]))).toMatchObject({ saved: true });
+  });
+
+  it("AI 호출 전에 프로젝트를 확인하고, 스택은 요청값이 아니라 프로젝트에 저장된 값을 쓴다", async () => {
+    draft.mockResolvedValue(ok);
+    vi.mocked(createBlueprintRevision).mockResolvedValue({ ok: true, data: { revision: 1, updatedAt: "t" } });
+    await handleDraftRequest(withProject({ framework: "html", styling: "css", architecture: "fsd" })); // 요청의 stack은 무시된다
+    expect(draft.mock.calls[0][0].stack).toEqual(PROJECT_STACK);
+    expect(vi.mocked(getProject).mock.invocationCallOrder[0]).toBeLessThan(draft.mock.invocationCallOrder[0]);
+  });
+
+  it("요청에 stack이 없어도 projectId가 있으면 통과한다", async () => {
+    draft.mockResolvedValue(ok);
+    vi.mocked(createBlueprintRevision).mockResolvedValue({ ok: true, data: { revision: 1, updatedAt: "t" } });
+    expect((await handleDraftRequest(withProject(undefined))).status).toBe(200);
+  });
+
+  it("남의·없는 프로젝트는 404이고 OpenAI(초안 생성)를 호출하지 않는다", async () => {
+    vi.mocked(getProject).mockResolvedValue({ ok: false, kind: "not_found", message: "대상을 찾을 수 없습니다." });
+    const res = await handleDraftRequest(withProject());
+    expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe("not_found");
+    expect(draft).not.toHaveBeenCalled();
+    expect(createBlueprintRevision).not.toHaveBeenCalled();
+  });
+
+  it("프로젝트 조회 중 DB 오류는 503이고 초안 생성을 호출하지 않는다", async () => {
+    vi.mocked(getProject).mockResolvedValue({ ok: false, kind: "unavailable", message: "잠시 후 다시 시도해 주세요." });
+    expect((await handleDraftRequest(withProject())).status).toBe(503);
+    expect(draft).not.toHaveBeenCalled();
+  });
+
+  it("저장이 실패해도 200으로 초안을 돌려주고 meta.saveError로 알린다", async () => {
+    draft.mockResolvedValue(ok);
+    vi.mocked(createBlueprintRevision).mockResolvedValue({ ok: false, kind: "unavailable", message: "설계도를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요." });
+    const res = await handleDraftRequest(withProject());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.blueprint).toEqual({ title: "상품 상세" });
+    expect(body.meta.saveError).toEqual({ code: "db_unavailable", message: "설계도를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요." });
+    expect(body.meta).not.toHaveProperty("saved");
+    expect(JSON.parse(String(logSpy.mock.calls[0][0]))).toMatchObject({ saved: false });
+  });
+
+  it("초안 생성이 실패하면 저장하지 않는다", async () => {
+    draft.mockResolvedValue(failure("invalid_output"));
+    expect((await handleDraftRequest(withProject())).status).toBe(422);
+    expect(createBlueprintRevision).not.toHaveBeenCalled();
+  });
+
+  it("projectId가 없으면 저장도 프로젝트 조회도 하지 않고 meta에 saved가 없다(기존 동작)", async () => {
+    draft.mockResolvedValue(ok);
+    const res = await handleDraftRequest(form());
+    expect(res.status).toBe(200);
+    expect(getProject).not.toHaveBeenCalled();
+    expect(createBlueprintRevision).not.toHaveBeenCalled();
+    const meta = (await res.json()).meta;
+    expect(meta).not.toHaveProperty("saved");
+    expect(meta).not.toHaveProperty("saveError");
+  });
+
+  it("projectId가 uuid가 아니면 400이고 DB·초안 생성을 호출하지 않는다", async () => {
+    const f = new FormData();
+    f.set("projectId", "not-a-uuid");
+    f.set("spec", JSON.stringify({ overview: "x" }));
+    const res = await handleDraftRequest(new Request("http://localhost/api/draft", { method: "POST", body: f }));
+    expect(res.status).toBe(400);
+    expect(getProject).not.toHaveBeenCalled();
+    expect(draft).not.toHaveBeenCalled();
+  });
+});
+

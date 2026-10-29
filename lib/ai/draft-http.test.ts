@@ -7,13 +7,14 @@ const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0];
 
 const png = (extra = 0) => new File([new Uint8Array([...PNG, ...new Array(extra).fill(0)])], "w.png", { type: "image/png" });
 
-type Fields = { stack?: unknown; route?: string; spec?: unknown; images?: File[]; imageMeta?: unknown };
+type Fields = { stack?: unknown; route?: string; spec?: unknown; images?: File[]; imageMeta?: unknown; projectId?: unknown };
 function request(fields: Fields, headers: Record<string, string> = {}) {
   const { route, spec, images = [], imageMeta } = fields;
   const stack = "stack" in fields ? fields.stack : STACK; // stack: undefined를 넘기면 필드 자체를 뺀다
   const form = new FormData();
   if (stack !== undefined) form.set("stack", JSON.stringify(stack));
   if (route !== undefined) form.set("route", route);
+  if (fields.projectId !== undefined) form.set("projectId", String(fields.projectId));
   if (spec !== undefined) form.set("spec", JSON.stringify(spec));
   if (imageMeta !== undefined) form.set("imageMeta", JSON.stringify(imageMeta));
   images.forEach((f) => form.append("images", f));
@@ -59,6 +60,35 @@ describe("parseDraftRequest — 성공", () => {
     const webp = new File([new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0x56])], "a.webp");
     const r = await parseDraftRequest(request({ images: [jpeg, webp] }));
     expect(r.ok && r.input.images.map((i) => i.mediaType)).toEqual(["image/jpeg", "image/webp"]);
+  });
+});
+
+describe("parseDraftRequest — projectId", () => {
+  const PID = "3f2b8c1e-9a4d-4e0b-8d7a-1c2b3a4d5e6f";
+
+  it("projectId가 없으면 projectId는 null이고 요청의 stack을 쓴다", async () => {
+    const r = await parseDraftRequest(request({ spec: { overview: "x" } }));
+    expect(r.ok && r.projectId).toBe(null);
+    expect(r.ok && r.input.stack).toEqual(STACK);
+  });
+
+  it("projectId가 있으면 stack 없이도 통과하고 stack은 null(프로젝트 값으로 채울 자리)", async () => {
+    const r = await parseDraftRequest(request({ stack: undefined, projectId: PID, spec: { overview: "x" } }));
+    expect(r.ok && r.projectId).toBe(PID);
+    expect(r.ok && r.input.stack).toBe(null);
+  });
+
+  it("projectId가 있으면 요청의 stack은 무시한다(잘못된 값이어도 오류 아님)", async () => {
+    const r = await parseDraftRequest(request({ stack: { framework: "vue" }, projectId: PID, spec: { overview: "x" } }));
+    expect(r.ok && r.input.stack).toBe(null);
+  });
+
+  it("projectId가 uuid가 아니면 400", async () => {
+    await expectError(parseDraftRequest(request({ projectId: "../x", spec: { overview: "x" } })), 400, "invalid_input");
+  });
+
+  it("projectId가 없는데 stack도 없으면 기존처럼 400", async () => {
+    await expectError(parseDraftRequest(request({ stack: undefined, spec: { overview: "x" } })), 400, "invalid_input");
   });
 });
 

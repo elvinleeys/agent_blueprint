@@ -61,6 +61,16 @@ describe("handleDraftRequest", () => {
     expect(draft).not.toHaveBeenCalled();
   });
 
+  it("본문이 4MB를 넘으면 413이고 초안 생성은 호출하지 않는다", async () => {
+    const f = new FormData();
+    f.set("stack", JSON.stringify(STACK));
+    f.set("images", new File([new Uint8Array(4_200_000)], "a.png", { type: "image/png" }));
+    const res = await handleDraftRequest(new Request("http://localhost/api/draft", { method: "POST", body: f, headers: { "content-length": "4200500" } }));
+    expect(res.status).toBe(413);
+    expect((await res.json()).error.code).toBe("payload_too_large");
+    expect(draft).not.toHaveBeenCalled();
+  });
+
   it("성공하면 200에 blueprint와 meta(시도 횟수·소요 시간·보정 내역)만 담는다(비용·사용량·원문은 제외)", async () => {
     draft.mockResolvedValue(ok);
     const res = await handleDraftRequest(form());

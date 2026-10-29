@@ -40,13 +40,25 @@ describe("normalizeBlueprint — 보정", () => {
     expect(BlueprintSchema.safeParse(r.blueprint).success).toBe(true);
   });
 
-  it("grid의 responsive 항목에서 direction을 제거한다", () => {
+  it("grid의 responsive 항목에서 direction을 제거한다(columns가 같이 있으면 항목은 유지)", () => {
     const b = sample();
-    find(b, "ProductDetailPage").layout.responsive = [{ breakpoint: "mobile", direction: "column" }];
+    find(b, "ProductDetailPage").layout.responsive = [{ breakpoint: "mobile", direction: "column", columns: 1 }];
     const r = normalizeBlueprint(b);
     expect(r.changes).toEqual([
       expect.objectContaining({ nodeId: "n-page", path: "layout.responsive.0.direction" }),
     ]);
+    expect((find(r.blueprint as Json, "ProductDetailPage").layout.responsive)).toEqual([{ breakpoint: "mobile", columns: 1 }]);
+    expect(BlueprintSchema.safeParse(r.blueprint).success).toBe(true);
+  });
+
+  it("direction 제거 후 breakpoint만 남은 grid responsive 항목은 삭제하고 '의도 확인 필요'를 남긴다(columns 추측 없음)", () => {
+    const b = sample();
+    find(b, "ProductDetailPage").layout.responsive = [{ breakpoint: "mobile", direction: "column" }, { breakpoint: "tablet", columns: 2 }];
+    const r = normalizeBlueprint(b);
+    expect(find(r.blueprint as Json, "ProductDetailPage").layout.responsive).toEqual([{ breakpoint: "tablet", columns: 2 }]);
+    expect(r.changes).toHaveLength(2);
+    expect(r.changes[1]).toMatchObject({ nodeId: "n-page", path: "layout.responsive.0" });
+    expect(r.changes[1].detail).toContain("의도 확인 필요");
     expect(BlueprintSchema.safeParse(r.blueprint).success).toBe(true);
   });
 

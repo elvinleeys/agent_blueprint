@@ -1,4 +1,6 @@
 import { httpError, type HttpError } from "../ai/draft-http";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getProject } from "../db/projects";
 import type { DbFailure } from "../db/result";
 
 export const MAX_JSON_BYTES = 1024 * 1024;
@@ -26,6 +28,12 @@ export function dbFailureToHttp(f: DbFailure, source: "input" | "stored" = "inpu
     case "unavailable":
       return httpError(503, "db_unavailable", f.message, true);
   }
+}
+
+/** 없거나 남의 프로젝트면 404(RLS로 구분 불가), DB 오류면 503. 내 프로젝트면 null */
+export async function projectError(db: SupabaseClient, id: string): Promise<HttpError | null> {
+  const r = await getProject(db, id);
+  return r.ok ? null : dbFailureToHttp(r);
 }
 
 export type JsonRead = { ok: true; value: unknown } | { ok: false; error: HttpError };

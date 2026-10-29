@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBlueprintRevision, listBlueprintRevisions } from "../db/blueprints";
+import { getProject } from "../db/projects";
 import { handleRevisionsGet, handleRevisionsPost } from "./revisions-handler";
 import { requireSession } from "./session";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./session", () => ({ requireSession: vi.fn() }));
 vi.mock("../db/blueprints", () => ({ createBlueprintRevision: vi.fn(), listBlueprintRevisions: vi.fn() }));
+vi.mock("../db/projects", () => ({ getProject: vi.fn() }));
 
 const db = {} as never;
 const ID = "3f2b8c1e-9a4d-4e0b-8d7a-1c2b3a4d5e6f";
@@ -17,6 +19,7 @@ const post = (body: unknown) =>
 
 beforeEach(() => {
   vi.mocked(requireSession).mockReset().mockResolvedValue({ ok: true, db, userId: "u1" });
+  vi.mocked(getProject).mockReset().mockResolvedValue({ ok: true, data: {} as never });
   vi.mocked(createBlueprintRevision).mockReset();
   vi.mocked(listBlueprintRevisions).mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -40,6 +43,21 @@ describe("GET /api/projects/[id]/revisions", () => {
 
   it("DB 오류는 503", async () => {
     vi.mocked(listBlueprintRevisions).mockResolvedValue({ ok: false, kind: "unavailable", message: "m" });
+    expect((await handleRevisionsGet(get(), ctx())).status).toBe(503);
+  });
+});
+
+describe("GET /api/projects/[id]/revisions 소유 확인", () => {
+  it("없거나 남의 프로젝트는 404이고 판 목록을 조회하지 않는다", async () => {
+    vi.mocked(getProject).mockResolvedValue({ ok: false, kind: "not_found", message: "m" });
+    const res = await handleRevisionsGet(get(), ctx());
+    expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe("not_found");
+    expect(listBlueprintRevisions).not.toHaveBeenCalled();
+  });
+
+  it("프로젝트 조회가 DB 오류면 503", async () => {
+    vi.mocked(getProject).mockResolvedValue({ ok: false, kind: "unavailable", message: "m" });
     expect((await handleRevisionsGet(get(), ctx())).status).toBe(503);
   });
 });

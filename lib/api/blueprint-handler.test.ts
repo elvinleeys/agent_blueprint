@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadBlueprint, saveBlueprint } from "../db/blueprints";
+import { getProject } from "../db/projects";
 import { handleBlueprintGet, handleBlueprintPut } from "./blueprint-handler";
 import { requireSession } from "./session";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./session", () => ({ requireSession: vi.fn() }));
 vi.mock("../db/blueprints", () => ({ loadBlueprint: vi.fn(), saveBlueprint: vi.fn() }));
+vi.mock("../db/projects", () => ({ getProject: vi.fn() }));
 
 const db = {} as never;
 const ID = "3f2b8c1e-9a4d-4e0b-8d7a-1c2b3a4d5e6f";
@@ -18,6 +20,7 @@ const blueprint = { title: "상품 상세" };
 
 beforeEach(() => {
   vi.mocked(requireSession).mockReset().mockResolvedValue({ ok: true, db, userId: "u1" });
+  vi.mocked(getProject).mockReset().mockResolvedValue({ ok: true, data: {} as never });
   vi.mocked(loadBlueprint).mockReset();
   vi.mocked(saveBlueprint).mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -51,6 +54,21 @@ describe("GET /api/projects/[id]/blueprint", () => {
 
   it.each([["?revision=0"], ["?revision=-1"], ["?revision=abc"], ["?revision=1.5"], ["?revision="]])("revision 형식이 틀리면 400: %s", async (qs) => {
     expect((await handleBlueprintGet(get(qs), ctx())).status).toBe(400);
+    expect(loadBlueprint).not.toHaveBeenCalled();
+  });
+
+  it("없거나 남의 프로젝트는 404이고 설계도를 조회하지 않는다", async () => {
+    vi.mocked(getProject).mockResolvedValue({ ok: false, kind: "not_found", message: "대상을 찾을 수 없습니다." });
+    const res = await handleBlueprintGet(get(), ctx());
+    expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe("not_found");
+    expect(getProject).toHaveBeenCalledWith(db, ID);
+    expect(loadBlueprint).not.toHaveBeenCalled();
+  });
+
+  it("프로젝트 조회가 DB 오류면 503", async () => {
+    vi.mocked(getProject).mockResolvedValue({ ok: false, kind: "unavailable", message: "m" });
+    expect((await handleBlueprintGet(get(), ctx())).status).toBe(503);
     expect(loadBlueprint).not.toHaveBeenCalled();
   });
 

@@ -30,6 +30,7 @@ npm run lint     # 린트
 
 ```
 (프로젝트 루트)/
+proxy.ts                   # 세션 갱신, 비로그인 사용자의 /projects·/account 접근을 /login으로 이동
 app/                       # 라우팅만. 로직을 두지 않는다
   page.tsx                 # S-01 홈
   projects/page.tsx        # S-02 목록
@@ -42,15 +43,17 @@ app/                       # 라우팅만. 로직을 두지 않는다
   login/page.tsx           # S-08 로그인
   account/page.tsx         # S-09 계정
 core/                      # 순수 TypeScript. React·Next.js import 금지
+  auth/                    # 로그인 후 이동 경로 검증(safeNextPath), 보호 경로 판단(decideRedirect)
   schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환), normalize-blueprint.ts(AI 응답 자동 보정)
   rules/common/            # 공통 검사 규칙 R-01~R-07
   adapters/framework/      # html, react, next 어댑터
   adapters/styling/        # css, css-modules, tailwind 어댑터
   adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서)
   prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
-components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록)
+components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록, auth/ 로그인·계정)
 store/                     # Zustand 스토어 (설계도·검사 결과 상태)
-lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리)
+lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리), proxy.ts(세션 갱신)
+lib/auth/                  # 서버 전용 인증 처리 (callback-handler: /auth/callback 처리)
 lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용, draft-http: 요청 검증·오류 매핑, draft-handler: /api/draft 처리)
 scripts/                   # 개발용 실행 스크립트 (test-draft.ts: lib/ai를 호출하는 초안 생성 검증, 실제 API 호출은 직접 실행)
 fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음)

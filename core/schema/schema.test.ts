@@ -7,7 +7,7 @@ import { SpecInputSchema } from "./spec-input";
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- 테스트용 변형 편의
 
 const load = (): Json =>
-  JSON.parse(readFileSync("sample-test-data/sample-blueprint.json", "utf-8"));
+  JSON.parse(readFileSync("core/schema/sample-blueprint.json", "utf-8"));
 
 // 샘플을 복제해 변형한 뒤 실패해야 하는 케이스들
 const invalid: [string, (b: Json) => void][] = [

@@ -25,7 +25,7 @@ where n.nspname = 'public' and c.relname in ('projects', 'spec_inputs', 'bluepri
 order by c.relname;
 ```
 
-**2-2. 정책** — 14행(projects 4, spec_inputs 4, blueprints 3, prompt_exports 3), 모든 `roles`가 `{authenticated}`.
+**2-2. 정책** — 15행(projects 4, spec_inputs 4, blueprints 4, prompt_exports 3), 모든 `roles`가 `{authenticated}`.
 ```sql
 select tablename, policyname, cmd, roles
 from pg_policies
@@ -35,7 +35,7 @@ order by tablename, policyname;
 
 **2-3. 권한** — `anon` 행이 **없어야** 하고, `authenticated`는 아래와 같아야 한다.
 - projects·spec_inputs: DELETE, INSERT, SELECT, UPDATE
-- blueprints: INSERT, SELECT, UPDATE
+- blueprints: DELETE, INSERT, SELECT, UPDATE
 - prompt_exports: DELETE, INSERT, SELECT
 ```sql
 select table_name, grantee, string_agg(privilege_type, ', ' order by privilege_type) as privileges
@@ -55,14 +55,18 @@ where table_schema = 'public' and table_name in ('projects', 'spec_inputs', 'blu
 order by table_name, ordinal_position;
 ```
 
-## 3. 사용자 A·B 격리 확인 스크립트
+## 3. 사용자 A·B 격리·이력 규칙 확인 스크립트
 1. SQL Editor → New query에 `supabase/tests/rls-isolation.sql` 전체를 붙여넣고 **Run**
 2. **오류 없이 끝나면 통과**다. 임시 사용자·행은 스크립트 끝의 `rollback`으로 모두 취소되어 남지 않는다.
 3. `CHECK FAILED: ...` 오류가 나면 그 메시지를 Claude에게 전달한다.
 4. 편집기 기본 역할(postgres)은 RLS를 우회한다. 그래서 스크립트가 `set local role authenticated`·`anon`으로 역할을 바꿔 검사한다. 편집기에서 `select * from projects`를 그냥 실행해 "내 것만 보인다"를 확인하려는 방식은 RLS 검증이 되지 않는다.
 5. 스크립트가 `auth.users`에 임시 행을 넣는 부분에서 오류가 나면(필수 열 차이 등) 그 오류를 알려 달라. 데이터가 바뀌지 않았으므로 안전하다.
 
-검사 항목: user_id 자동 채움 / revision 자동 부여(클라이언트 값 무시)·수정 불가 / nodes 0개·201개 거부 / blueprint 출처 지시서는 `blueprint_id` 필수 / B에게 A의 프로젝트·설계도·지시서가 안 보임 / B의 A 프로젝트 수정·삭제 0행 / B가 A의 `project_id`로 하위 행 생성 거부 / 다른 프로젝트의 설계도를 지시서에 연결 거부 / blueprints 삭제 불가 / anon 접근 거부.
+검사 항목:
+- 격리: user_id 자동 채움 / B에게 A의 프로젝트·설계도·지시서가 안 보임 / B의 A 프로젝트·설계도 수정·삭제는 0행 / B가 A의 `project_id`로 하위 행 생성 거부 / 다른 프로젝트의 설계도를 지시서에 연결 거부 / anon 접근 거부
+- 제약: revision 자동 부여(클라이언트 값 무시)·수정 불가 / nodes 0개·201개 거부 / blueprint 출처 지시서는 `blueprint_id` 필수
+- **이력 규칙**: 과거 판 수정 거부(BP001), 최신 판 수정 허용 / 최신 판 삭제 거부(BP002) / 지시서와 연결된 판 삭제 거부(BP003) / 연결 없는 과거 판 삭제 허용
+- **연쇄 삭제(중요)**: 프로젝트를 지우면 최신 판·지시서 연결 판을 포함해 하위 데이터가 모두 삭제됨, 사용자(회원 탈퇴)를 지우면 프로젝트와 모든 하위 데이터가 즉시 삭제됨. 이 두 검사가 실패하면 탈퇴·프로젝트 삭제가 막힐 수 있으므로 결과를 꼭 알려 달라.
 
 ## 4. 롤백 (파괴적: 표와 데이터가 모두 삭제됨. 확인 쿼리·스크립트에 문제가 있어 처음부터 다시 할 때만)
 ```sql

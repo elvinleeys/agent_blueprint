@@ -17,11 +17,15 @@
 | prompt_exports | `format`(`prompt`/`claude_md`), `content`(최대 200,000자), `source_type`(`blueprint`/`cleanup`), `blueprint_id`. `source_type = 'blueprint'`이면 `blueprint_id` 필수, `cleanup`이면 null 허용. 지금은 `blueprint`만 쓴다 |
 | blueprint_id 연결 | `(blueprint_id, project_id)` **복합 FK**로 같은 프로젝트의 설계도만 가리킬 수 있다(다른 사용자·다른 프로젝트의 id를 연결하지 못함). FK는 `no action`이라 프로젝트 삭제(연쇄)는 되고, 지시서가 참조하는 판만 따로 지울 수는 없다 |
 | 한도 | `nodes` 1~200개, 지시서 1~200,000자 |
-| 권한 | `authenticated`에만 GRANT, `anon`은 REVOKE. `blueprints`는 **delete 권한·정책 없음**(이력 보존, 프로젝트 삭제 시에만 연쇄 삭제) |
+| 권한 | `authenticated`에만 GRANT, `anon`은 REVOKE |
+| 과거 판 수정 (2차 승인) | DB 트리거가 **해당 프로젝트의 최신 판이 아닌 행의 UPDATE를 거부**(오류 `BP001`). `revision`·`project_id` 변경도 거부. 근거: 설계도 이력은 AI 초안과 지시서로 내보낸 확정본을 보존하기 위한 것이고, 지시서가 출처 판과 연결되기 때문 |
+| 설계도 삭제 (2차 승인) | **조건부 허용**: 최신 판(`BP002`)과 지시서가 연결된 판(`BP003`)은 삭제 거부, 연결 없는 과거 판은 삭제 가능. 프로젝트·사용자 삭제로 인한 연쇄 삭제는 유지(삭제 트리거는 부모 프로젝트 행이 이미 없으면 검사하지 않음). `prompt_exports`의 `(blueprint_id, project_id)` FK는 연쇄 삭제 순서 문제를 피하려고 `on delete cascade`로 두고, 직접 삭제 거부는 트리거가 맡는다. `lib/db`에 `deleteBlueprintRevision` 추가, 삭제 UI는 범위 밖 |
+| 회원 탈퇴 (2차 승인) | 탈퇴하면 사용자와 모든 프로젝트 데이터를 즉시 삭제. `projects.user_id`가 이미 `references auth.users(id) on delete cascade`이고 하위 표는 모두 프로젝트에 cascade이므로 SQL 변경 없음. 격리 스크립트가 사용자 삭제 시 연쇄 삭제를 검증 |
+| 함수 범위 (2차 승인) | 스펙 입력·지시서 저장 함수는 해당 화면을 만들 때 추가(지금은 만들지 않음) |
 | 적용 | 사용자가 대시보드 SQL 편집기에서 직접 실행. 공지는 적용 직전에 사용자가 확인. 프로젝트 생성 시점은 사용자가 확인해 알려줌 |
 
 `lib/db` 함수(수정): `createProject(db, {name, stack})`, `listProjects(db)`, `saveBlueprint(db, projectId, blueprint)`(최근 행 갱신, 행이 없으면 첫 행 생성), `createBlueprintRevision(db, projectId, blueprint)`(새 행), `loadBlueprint(db, projectId, { revision? })`(기본 최신), `listBlueprintRevisions(db, projectId)`(revision 내림차순, nodes 제외한 요약).
-이 구조의 한계: RLS는 "최근 행만 수정 가능"까지 표현하지 못한다. 직접 API 호출로 과거 판을 고치는 것은 **본인 데이터 범위에서는 막지 않는다**(`lib/db`는 최근 행만 갱신).
+(2차 승인으로 과거 판 수정은 DB 트리거가 막는다. 아래 `lib/db` 목록에 `deleteBlueprintRevision(db, projectId, revision)`이 추가된다.)
 
 ## 조사 결과
 

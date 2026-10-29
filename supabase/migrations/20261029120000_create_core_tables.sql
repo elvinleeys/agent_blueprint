@@ -90,8 +90,10 @@ create table public.blueprints (
   unique (id, project_id)
 );
 
--- revision은 INSERT 때 DB가 부여하고(프로젝트별 최대값 + 1), 이후 revision·project_id는 바꿀 수 없다.
--- 동시에 두 행을 넣으면 unique (project_id, revision) 위반으로 한쪽이 실패한다(호출자가 다시 시도).
+-- 이력 보존 규칙 (오류 코드: BP001 수정 거부, BP002 최신 판 삭제 거부, BP003 지시서 연결 판 삭제 거부)
+--  - INSERT: revision은 DB가 부여한다(프로젝트별 최대값 + 1). 동시에 두 행을 넣으면 unique (project_id, revision)
+--    위반으로 한쪽이 실패한다(호출자가 다시 시도).
+--  - UPDATE: revision·project_id는 바꿀 수 없고, 해당 프로젝트의 최신 판이 아닌 행은 수정할 수 없다.
 create function public.blueprints_before_write()
 returns trigger
 language plpgsql
@@ -102,8 +104,13 @@ begin
     new.revision := coalesce(
       (select max(b.revision) from public.blueprints b where b.project_id = new.project_id), 0
     ) + 1;
-  elsif new.revision is distinct from old.revision or new.project_id is distinct from old.project_id then
-    raise exception 'blueprints.revision and project_id cannot be changed';
+  else
+    if new.revision is distinct from old.revision or new.project_id is distinct from old.project_id then
+      raise exception 'blueprints.revision and project_id cannot be changed' using errcode = 'BP001';
+    end if;
+    if old.revision < (select max(b.revision) from public.blueprints b where b.project_id = old.project_id) then
+      raise exception 'only the latest revision can be modified' using errcode = 'BP001';
+    end if;
   end if;
   return new;
 end;
@@ -112,6 +119,32 @@ $$;
 create trigger blueprints_before_write
   before insert or update on public.blueprints
   for each row execute function public.blueprints_before_write();
+
+-- DELETE: 최신 판(BP002)과 지시서(prompt_exports)가 연결된 판(BP003)은 삭제할 수 없다.
+-- 프로젝트·사용자 삭제로 인한 연쇄 삭제는 허용한다: 그때는 부모 프로젝트 행이 이미 삭제된 상태라 조회되지 않는다.
+-- (prompt_exports의 복합 FK를 no action 대신 cascade로 둔 이유: 프로젝트 연쇄 삭제 때 설계도가 지시서보다
+--  먼저 지워지면 no action 검사가 실패할 수 있다. 직접 삭제 거부는 이 트리거가 맡는다.)
+create function public.blueprints_before_delete()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if exists (select 1 from public.projects p where p.id = old.project_id) then
+    if old.revision = (select max(b.revision) from public.blueprints b where b.project_id = old.project_id) then
+      raise exception 'the latest revision cannot be deleted' using errcode = 'BP002';
+    end if;
+    if exists (select 1 from public.prompt_exports e where e.blueprint_id = old.id) then
+      raise exception 'a revision linked to a prompt export cannot be deleted' using errcode = 'BP003';
+    end if;
+  end if;
+  return old;
+end;
+$$;
+
+create trigger blueprints_before_delete
+  before delete on public.blueprints
+  for each row execute function public.blueprints_before_delete();
 
 create trigger blueprints_set_updated_at
   before update on public.blueprints
@@ -132,7 +165,7 @@ create table public.prompt_exports (
   created_at timestamptz not null default now(),
   check (source_type <> 'blueprint' or blueprint_id is not null),
   -- blueprint_id가 null이면 검사하지 않고, 값이 있으면 같은 프로젝트의 설계도여야 한다
-  foreign key (blueprint_id, project_id) references public.blueprints (id, project_id)
+  foreign key (blueprint_id, project_id) references public.blueprints (id, project_id) on delete cascade
 );
 
 create index prompt_exports_project_id_created_at_idx on public.prompt_exports (project_id, created_at desc);
@@ -182,7 +215,7 @@ create policy "spec_inputs_delete_own" on public.spec_inputs
   for delete to authenticated
   using (exists (select 1 from public.projects p where p.id = project_id and p.user_id = (select auth.uid())));
 
--- blueprints: select·insert·update만(이력 보존을 위해 delete 정책 없음)
+-- blueprints: 내 프로젝트의 행만. 과거 판 수정 거부·최신 판/지시서 연결 판 삭제 거부는 위 트리거와 FK가 맡는다
 create policy "blueprints_select_own" on public.blueprints
   for select to authenticated
   using (exists (select 1 from public.projects p where p.id = project_id and p.user_id = (select auth.uid())));
@@ -195,6 +228,10 @@ create policy "blueprints_update_own" on public.blueprints
   for update to authenticated
   using (exists (select 1 from public.projects p where p.id = project_id and p.user_id = (select auth.uid())))
   with check (exists (select 1 from public.projects p where p.id = project_id and p.user_id = (select auth.uid())));
+
+create policy "blueprints_delete_own" on public.blueprints
+  for delete to authenticated
+  using (exists (select 1 from public.projects p where p.id = project_id and p.user_id = (select auth.uid())));
 
 -- prompt_exports: select·insert·delete만(수정 없음)
 create policy "prompt_exports_select_own" on public.prompt_exports
@@ -218,7 +255,7 @@ revoke all on public.projects, public.spec_inputs, public.blueprints, public.pro
 
 grant select, insert, update, delete on public.projects to authenticated;
 grant select, insert, update, delete on public.spec_inputs to authenticated;
-grant select, insert, update on public.blueprints to authenticated;
+grant select, insert, update, delete on public.blueprints to authenticated;
 grant select, insert, delete on public.prompt_exports to authenticated;
 
 commit;

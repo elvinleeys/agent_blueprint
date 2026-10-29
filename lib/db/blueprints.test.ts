@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createBlueprintRevision, listBlueprintRevisions, loadBlueprint, saveBlueprint } from "./blueprints";
+import { createBlueprintRevision, deleteBlueprintRevision, listBlueprintRevisions, loadBlueprint, saveBlueprint } from "./blueprints";
 import { fakeDb } from "./fake-db";
 
 const sample = () => JSON.parse(readFileSync("core/schema/sample-blueprint.json", "utf-8"));
@@ -105,6 +105,38 @@ describe("loadBlueprint", () => {
   it("DB 오류는 unavailable, RLS 거부는 not_found", async () => {
     expect(await loadBlueprint(fakeDb({ error: { code: "XX000" } }).db, "p1")).toMatchObject({ ok: false, kind: "unavailable" });
     expect(await loadBlueprint(fakeDb({ error: { code: "42501" } }).db, "p1")).toMatchObject({ ok: false, kind: "not_found" });
+  });
+});
+
+describe("saveBlueprint — 이전 판 보호", () => {
+  it("DB가 이전 판 수정을 거부(BP001)하면 conflict", async () => {
+    const r = await saveBlueprint(fakeDb({ data: { id: "bp-old" } }, { error: { code: "BP001" } }).db, "p1", sample());
+    expect(r).toEqual({ ok: false, kind: "conflict", message: "이전 판은 수정할 수 없습니다." });
+  });
+});
+
+describe("deleteBlueprintRevision", () => {
+  it("project_id와 revision으로 지우고 삭제된 판 번호를 돌려준다", async () => {
+    const { db, calls } = fakeDb({ data: [{ id: "b2" }] });
+    expect(await deleteBlueprintRevision(db, "p1", 2)).toEqual({ ok: true, data: { revision: 2 } });
+    expect(find(calls, "eq")).toEqual([["eq", "project_id", "p1"], ["eq", "revision", 2]]);
+  });
+
+  it("최신 판(BP002)은 conflict", async () => {
+    expect(await deleteBlueprintRevision(fakeDb({ error: { code: "BP002" } }).db, "p1", 3)).toEqual({ ok: false, kind: "conflict", message: "최신 판은 삭제할 수 없습니다." });
+  });
+
+  it("지시서가 연결된 판(BP003)은 conflict", async () => {
+    expect(await deleteBlueprintRevision(fakeDb({ error: { code: "BP003" } }).db, "p1", 1)).toEqual({ ok: false, kind: "conflict", message: "지시서와 연결된 판은 삭제할 수 없습니다." });
+  });
+
+  it("삭제된 행이 없으면(없거나 남의 판) not_found", async () => {
+    expect(await deleteBlueprintRevision(fakeDb({ data: [] }).db, "p1", 9)).toMatchObject({ ok: false, kind: "not_found" });
+    expect(await deleteBlueprintRevision(fakeDb({ data: null }).db, "p1", 9)).toMatchObject({ ok: false, kind: "not_found" });
+  });
+
+  it("그 외 DB 오류는 unavailable", async () => {
+    expect(await deleteBlueprintRevision(fakeDb({ error: { code: "XX000" } }).db, "p1", 1)).toMatchObject({ ok: false, kind: "unavailable" });
   });
 });
 

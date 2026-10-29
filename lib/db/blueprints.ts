@@ -61,6 +61,14 @@ export async function loadBlueprint(db: SupabaseClient, projectId: string, optio
   return { ok: true, data: parsed.data };
 }
 
+/** 판 삭제. 최신 판과 지시서가 연결된 판은 DB가 거부한다(conflict). 삭제된 행이 없으면 not_found */
+export async function deleteBlueprintRevision(db: SupabaseClient, projectId: string, revision: number): Promise<DbResult<{ revision: number }>> {
+  const { data, error } = await db.from("blueprints").delete().eq("project_id", projectId).eq("revision", revision).select("id");
+  if (error) return fromDbError(error, "판을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  if (!(data as unknown[] | null)?.length) return { ok: false, kind: "not_found", message: "대상을 찾을 수 없습니다." };
+  return { ok: true, data: { revision } };
+}
+
 /** 판 목록(최신 순). nodes는 제외한 요약만 돌려준다 */
 export async function listBlueprintRevisions(db: SupabaseClient, projectId: string): Promise<DbResult<RevisionSummary[]>> {
   const { data, error } = await db

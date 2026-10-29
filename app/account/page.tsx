@@ -1,12 +1,12 @@
-import React from "react";
+import { Suspense } from "react";
+import AccountInfo from "@/components/auth/AccountInfo";
 
 export default function AccountPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen py-2">
-      <h1 className="text-4xl font-bold mb-4">Account Page</h1>
-      <p className="text-lg text-gray-600">
-        This is the account page. You can manage your account settings here.
-      </p>
-    </div>
+    <main className="flex min-h-screen items-center justify-center">
+      <Suspense fallback={<p>불러오는 중…</p>}>
+        <AccountInfo />
+      </Suspense>
+    </main>
   );
 }

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { z } from "zod";
 import { StackSchema } from "../../core/schema/blueprint";
-import { fromDbError, fromZodError, type DbResult } from "./result";
+import { fromDbError, fromZodError, type DbFailure, type DbResult } from "./result";
 
 type Stack = z.infer<typeof StackSchema>;
 
@@ -20,11 +20,18 @@ const toProject = (r: Row): Project => ({
   updatedAt: r.updated_at,
 });
 
-/** 프로젝트를 만든다. user_id는 보내지 않는다(DB가 로그인 세션의 auth.uid()로 채운다) */
-export async function createProject(db: SupabaseClient, input: { name: string; stack: unknown }): Promise<DbResult<Project>> {
-  const name = input.name.trim();
+/** 이름을 다듬고(trim) 1~100자인지 확인한다. 생성과 이름 수정이 같은 규칙을 쓴다 */
+function checkName(raw: string): string | DbFailure {
+  const name = raw.trim();
   if (name.length < 1 || name.length > 100)
     return { ok: false, kind: "invalid_data", message: "프로젝트 이름은 1~100자여야 합니다.", fields: [{ path: "name", message: "1~100자" }] };
+  return name;
+}
+
+/** 프로젝트를 만든다. user_id는 보내지 않는다(DB가 로그인 세션의 auth.uid()로 채운다) */
+export async function createProject(db: SupabaseClient, input: { name: string; stack: unknown }): Promise<DbResult<Project>> {
+  const name = checkName(input.name);
+  if (typeof name !== "string") return name;
   const stack = StackSchema.safeParse(input.stack);
   if (!stack.success) return fromZodError(stack.error, "스택 설정이 올바르지 않습니다.");
 
@@ -41,6 +48,16 @@ export async function createProject(db: SupabaseClient, input: { name: string; s
 export async function getProject(db: SupabaseClient, id: string): Promise<DbResult<Project>> {
   const { data, error } = await db.from("projects").select(COLUMNS).eq("id", id).maybeSingle();
   if (error) return fromDbError(error, "프로젝트를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  if (!data) return { ok: false, kind: "not_found", message: "대상을 찾을 수 없습니다." };
+  return { ok: true, data: toProject(data as Row) };
+}
+
+/** 이름만 바꾼다(스택은 바꾸지 않는다). 없거나 남의 것이면(RLS로 0행) not_found */
+export async function renameProject(db: SupabaseClient, id: string, rawName: string): Promise<DbResult<Project>> {
+  const name = checkName(rawName);
+  if (typeof name !== "string") return name;
+  const { data, error } = await db.from("projects").update({ name }).eq("id", id).select(COLUMNS).maybeSingle();
+  if (error) return fromDbError(error, "프로젝트 이름을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요.");
   if (!data) return { ok: false, kind: "not_found", message: "대상을 찾을 수 없습니다." };
   return { ok: true, data: toProject(data as Row) };
 }

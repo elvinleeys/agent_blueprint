@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeDb } from "./fake-db";
-import { createProject, getProject, listProjects } from "./projects";
+import { createProject, getProject, listProjects, renameProject } from "./projects";
 
 const STACK = { framework: "next", styling: "tailwind", architecture: "feature-based" };
 const row = { id: "p1", name: "내 프로젝트", framework: "next", styling: "tailwind", architecture: "feature-based", created_at: "2026-10-29T00:00:00Z", updated_at: "2026-10-29T01:00:00Z" };
@@ -73,5 +73,31 @@ describe("getProject", () => {
 
   it("DB 오류는 unavailable", async () => {
     expect(await getProject(fakeDb({ error: { code: "XX000" } }).db, "p1")).toMatchObject({ ok: false, kind: "unavailable" });
+  });
+});
+
+describe("renameProject", () => {
+  it("name만 갱신하고 trim한다", async () => {
+    const { db, calls } = fakeDb({ data: { ...row, name: "새 이름" } });
+    const r = await renameProject(db, "p1", "  새 이름 ");
+    expect(called(calls, "update")).toEqual(["update", { name: "새 이름" }]);
+    expect(called(calls, "eq")).toEqual(["eq", "id", "p1"]);
+    expect(r).toMatchObject({ ok: true, data: { id: "p1", name: "새 이름", stack: STACK } });
+  });
+
+  it("빈 이름·100자 초과는 DB를 호출하지 않고 invalid_data", async () => {
+    for (const name of ["   ", "a".repeat(101)]) {
+      const { db, calls } = fakeDb();
+      expect(await renameProject(db, "p1", name)).toMatchObject({ ok: false, kind: "invalid_data", fields: [{ path: "name" }] });
+      expect(calls).toEqual([]);
+    }
+  });
+
+  it("바뀐 행이 없으면(없거나 남의 프로젝트, RLS) not_found", async () => {
+    expect(await renameProject(fakeDb({ data: null }).db, "p1", "x")).toMatchObject({ ok: false, kind: "not_found" });
+  });
+
+  it("DB 오류는 unavailable", async () => {
+    expect(await renameProject(fakeDb({ error: { code: "XX000", name: "PostgrestError" } }).db, "p1", "x")).toMatchObject({ ok: false, kind: "unavailable" });
   });
 });

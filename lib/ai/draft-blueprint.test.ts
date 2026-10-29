@@ -8,9 +8,16 @@ vi.mock("server-only", () => ({}));
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- 테스트용 변형 편의
 
 const sample = (): Json => JSON.parse(readFileSync("core/schema/sample-blueprint.json", "utf-8"));
-// 형제 order가 겹치는 응답(스키마 검증 실패)
+// 이름이 겹치는 응답: 자동 보정 대상이 아니라 스키마 검증 실패로 남는다(재시도 테스트용)
 const invalid = (): Json => {
   const b = sample();
+  b.nodes[2].name = b.nodes[1].name;
+  return b;
+};
+// 자동 보정 대상 오류: grid에 direction, 형제 order 겹침
+const fixable = (): Json => {
+  const b = sample();
+  b.nodes[0].layout.direction = "column";
   b.nodes[2].order = b.nodes[1].order;
   return b;
 };
@@ -142,7 +149,7 @@ describe("draftBlueprint — 재시도", () => {
     expect(items).toHaveLength(3);
     expect(items[1]).toEqual({ role: "assistant", content: bad }); // 직전 출력
     expect(items[2].role).toBe("user");
-    expect(items[2].content).toContain("order"); // 오류 경로·메시지
+    expect(items[2].content).toContain("name"); // 오류 경로·메시지
     expect(items[2].content).toContain("nodes[2]"); // 노드 이름으로 위치를 알려 준다
     expect(r.log[0].fields?.length).toBeGreaterThan(0);
   });
@@ -157,7 +164,7 @@ describe("draftBlueprint — 재시도", () => {
     expect(r.kind).toBe("invalid_output");
     expect(r.attempts).toBe(2);
     expect(r.retrySkipped).toBeUndefined();
-    expect(r.fields?.[0].path).toBe("nodes.2.order");
+    expect(r.fields?.[0].path).toBe("nodes.2.name");
     expect(r.costUsd).toBeCloseTo(0.022, 6); // 실패해도 쓴 비용은 남는다
   });
 
@@ -169,7 +176,7 @@ describe("draftBlueprint — 재시도", () => {
     if (r.ok) return;
     expect(r.kind).toBe("invalid_output");
     expect(r.retrySkipped).toBe(true);
-    expect(r.fields?.[0].path).toBe("nodes.2.order");
+    expect(r.fields?.[0].path).toBe("nodes.2.name");
   });
 
   it.each([
@@ -199,6 +206,66 @@ describe("draftBlueprint — 재시도", () => {
       expect(create).toHaveBeenCalledTimes(1);
       expect(r.ok === false && r.kind).toBe("invalid_output");
     }
+  });
+});
+
+describe("draftBlueprint — 자동 보정", () => {
+  it("보정 가능한 오류만 있으면 재시도 없이 보정해 통과하고 내역을 돌려준다", async () => {
+    const { client, create } = makeClient(response(JSON.stringify(fixable())));
+    const r = await draftBlueprint(input(), { client });
+    expect(r.ok).toBe(true);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(r.attempts).toBe(1);
+    expect(r.normalized.map((c) => c.path).sort()).toEqual(["layout.direction", "order"]);
+    expect(r.normalized.find((c) => c.path === "layout.direction")?.nodeId).toBe("n-page");
+    expect(r.log[0].normalized).toEqual(r.normalized);
+  });
+
+  it("보정이 필요 없는 응답은 normalized가 비어 있다", async () => {
+    const { client } = makeClient(response(JSON.stringify(sample())));
+    expect((await draftBlueprint(input(), { client })).normalized).toEqual([]);
+  });
+
+  it("보정 불가능한 오류는 기존처럼 재시도하고, 재시도 지시문에는 보정으로 해결된 오류가 빠진다", async () => {
+    const mixed = fixable();
+    mixed.nodes[2].name = mixed.nodes[1].name; // 보정 불가 오류도 함께
+    const { client, create } = makeClient(response(JSON.stringify(mixed)), response(JSON.stringify(sample())));
+    const r = await draftBlueprint(input(), { client });
+    expect(r.ok).toBe(true);
+    expect(create).toHaveBeenCalledTimes(2);
+    const repair = create.mock.calls[1][0].input[2].content as string;
+    expect(repair).toContain("name");
+    expect(repair).not.toContain("direction");
+    expect(repair).not.toContain("order");
+  });
+
+  it("재시도 응답에도 자동 보정을 적용한다", async () => {
+    const { client, create } = makeClient(response(JSON.stringify(invalid())), response(JSON.stringify(fixable())));
+    const r = await draftBlueprint(input(), { client });
+    expect(r.ok).toBe(true);
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(r.normalized).toHaveLength(2);
+    expect(r.log[0].normalized).toEqual([]);
+  });
+
+  it("보정 후에도 실패하고 시간이 부족하면 남은 오류만 담아 invalid_output으로 끝낸다", async () => {
+    const mixed = fixable();
+    mixed.nodes[2].name = mixed.nodes[1].name;
+    const { client, create } = makeClient(slow(30_000, JSON.stringify(mixed)));
+    const r = await draftBlueprint(input(), { client });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.retrySkipped).toBe(true);
+    expect(r.fields?.map((f) => f.path)).toEqual(["nodes.2.name"]); // 보정된 direction·order 오류는 남지 않는다
+    expect(r.normalized).toHaveLength(2); // 적용한 보정은 기록으로 남는다
+  });
+
+  it("보정할 것이 없는 오류만 있으면 normalized는 비어 있다", async () => {
+    const { client } = makeClient(response(JSON.stringify(invalid())), response(JSON.stringify(invalid())));
+    const r = await draftBlueprint(input(), { client });
+    expect(r.ok).toBe(false);
+    expect(r.normalized).toEqual([]);
   });
 });
 
@@ -236,7 +303,7 @@ describe("draftBlueprint — 시간 초과와 OpenAI 오류", () => {
     if (r.ok) return;
     expect(r.kind).toBe("timeout");
     expect(r.attempts).toBe(2);
-    expect(r.fields?.[0].path).toBe("nodes.2.order");
+    expect(r.fields?.[0].path).toBe("nodes.2.name");
   });
 
   it.each([

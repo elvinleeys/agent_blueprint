@@ -138,6 +138,7 @@ describe("toErrorResponse", () => {
     ({
       ok: false,
       kind,
+      normalized: [],
       attempts: 1,
       elapsedMs: 1,
       usage: { inputTokens: 0, outputTokens: 0, reasoningTokens: 0 },

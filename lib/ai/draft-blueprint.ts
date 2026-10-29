@@ -4,6 +4,7 @@ import { buildDraftPrompt, hasSpecText } from "../../core/prompt/draft-prompt";
 import { buildRepairPrompt, type RepairIssue } from "../../core/prompt/repair-prompt";
 import { stripOptionalNulls, toStrictJsonSchema } from "../../core/prompt/strict-json-schema";
 import { BlueprintSchema, type Blueprint } from "../../core/schema/blueprint";
+import { normalizeBlueprint, type NormalizeChange } from "../../core/schema/normalize-blueprint";
 import type { SpecInput } from "../../core/schema/spec-input";
 
 // 가격: 1M 토큰당 USD (표준 티어, ≤272K 입력). developers.openai.com/api/docs/models/<id>, 2026-10-29 확인
@@ -39,15 +40,16 @@ export type DraftInput = {
 
 export type Usage = { inputTokens: number; outputTokens: number; reasoningTokens: number };
 export type Field = { path: string; message: string };
-export type AttemptLog = { ms: number; usage: Usage; rawText: string | null; fields?: Field[] };
+export type AttemptLog = { ms: number; usage: Usage; rawText: string | null; fields?: Field[]; normalized?: NormalizeChange[] };
 
 type Shared = { attempts: number; elapsedMs: number; usage: Usage; costUsd: number; log: AttemptLog[] };
 export type DraftFailureKind = "invalid_output" | "rate_limited" | "upstream" | "timeout";
 export type DraftResult =
-  | ({ ok: true; blueprint: Blueprint } & Shared)
+  | ({ ok: true; blueprint: Blueprint; normalized: NormalizeChange[] } & Shared)
   | ({
       ok: false;
       kind: DraftFailureKind;
+      normalized: NormalizeChange[]; // 마지막으로 평가한 응답에 적용한 자동 보정(그래도 실패한 경우 포함)
       fields?: Field[];
       retrySkipped?: boolean;
       upstreamStatus?: number;
@@ -120,9 +122,9 @@ const toFields = (issues: RepairIssue[]): Field[] =>
   issues.slice(0, 10).map((i) => ({ path: i.path.map(String).join(".") || "(root)", message: i.message }));
 
 type Evaluation =
-  | { ok: true; blueprint: Blueprint }
-  | { ok: false; fields: Field[]; retryable: false }
-  | { ok: false; fields: Field[]; retryable: true; issues: RepairIssue[]; nodeNames: string[] };
+  | { ok: true; blueprint: Blueprint; normalized: NormalizeChange[] }
+  | { ok: false; fields: Field[]; retryable: false; normalized: NormalizeChange[] }
+  | { ok: false; fields: Field[]; retryable: true; issues: RepairIssue[]; nodeNames: string[]; normalized: NormalizeChange[] };
 
 // 모델이 바꾸거나 틀릴 수 있는 값은 요청 값으로 덮어쓴다(검증 전에 적용)
 function enforce(json: unknown, input: DraftInput): unknown {
@@ -138,7 +140,7 @@ function enforce(json: unknown, input: DraftInput): unknown {
 }
 
 function evaluate(res: DraftResponse, input: DraftInput): Evaluation {
-  const stop = (message: string): Evaluation => ({ ok: false, retryable: false, fields: [{ path: "(response)", message }] });
+  const stop = (message: string): Evaluation => ({ ok: false, retryable: false, fields: [{ path: "(response)", message }], normalized: [] });
   if (res.status === "incomplete") return stop(`응답이 중간에 끝났습니다(${res.incomplete_details?.reason ?? "unknown"})`);
   const refusal = (res.output ?? []).flatMap((o) => (o.type === "message" ? o.content : [])).find((c) => c.type === "refusal");
   if (refusal) return stop("모델이 응답을 거부했습니다");
@@ -149,13 +151,23 @@ function evaluate(res: DraftResponse, input: DraftInput): Evaluation {
   } catch {
     return stop("응답이 JSON이 아닙니다");
   }
-  const parsed = BlueprintSchema.safeParse(enforce(stripOptionalNulls(BlueprintSchema, json), input));
-  if (parsed.success) return { ok: true, blueprint: parsed.data };
+  const forced = enforce(stripOptionalNulls(BlueprintSchema, json), input);
+  const parsed = BlueprintSchema.safeParse(forced);
+  if (parsed.success) return { ok: true, blueprint: parsed.data, normalized: [] };
 
-  const issues = parsed.error.issues.map((i) => ({ path: i.path, message: i.message }));
+  // 기계적으로 고칠 수 있는 오류만 보정해 다시 검증한다. 그래도 실패하면 남은 오류만 재시도 지시문에 쓴다
+  const { blueprint: fixed, changes } = normalizeBlueprint(forced);
+  let error = parsed.error;
+  if (changes.length > 0) {
+    const again = BlueprintSchema.safeParse(fixed);
+    if (again.success) return { ok: true, blueprint: again.data, normalized: changes };
+    error = again.error;
+  }
+
+  const issues = error.issues.map((i) => ({ path: i.path, message: i.message }));
   const nodes = isObj(json) && Array.isArray(json.nodes) ? json.nodes : [];
   const nodeNames = nodes.map((n) => (isObj(n) && typeof n.name === "string" ? n.name : ""));
-  return { ok: false, retryable: true, fields: toFields(issues), issues, nodeNames };
+  return { ok: false, retryable: true, fields: toFields(issues), issues, nodeNames, normalized: changes };
 }
 
 export async function draftBlueprint(input: DraftInput, options: DraftOptions = {}): Promise<DraftResult> {
@@ -224,6 +236,7 @@ export async function draftBlueprint(input: DraftInput, options: DraftOptions = 
   const errorResult = (e: { kind: DraftFailureKind; status?: number; name?: string }, fields?: Field[]): DraftResult => ({
     ok: false,
     kind: e.kind,
+    normalized: [],
     fields,
     upstreamStatus: e.status,
     errorName: e.name,
@@ -233,14 +246,17 @@ export async function draftBlueprint(input: DraftInput, options: DraftOptions = 
   const first = await attempt(firstInput, remainingMs());
   if (first.type === "error") return errorResult(first);
   const firstEval = evaluate(first.res, input);
-  if (firstEval.ok) return { ok: true, blueprint: firstEval.blueprint, ...summary() };
+  first.entry.normalized = firstEval.normalized;
+  if (firstEval.ok) return { ok: true, blueprint: firstEval.blueprint, normalized: firstEval.normalized, ...summary() };
   first.entry.fields = firstEval.fields;
-  if (!firstEval.retryable) return { ok: false, kind: "invalid_output", fields: firstEval.fields, ...summary() };
+  if (!firstEval.retryable) {
+    return { ok: false, kind: "invalid_output", fields: firstEval.fields, normalized: firstEval.normalized, ...summary() };
+  }
 
   // 남은 시간이 부족하면 재시도하지 않고 첫 시도의 오류로 끝낸다
   const remaining = remainingMs();
   if (remaining < Math.max(first.entry.ms, MIN_RETRY_MS)) {
-    return { ok: false, kind: "invalid_output", fields: firstEval.fields, retrySkipped: true, ...summary() };
+    return { ok: false, kind: "invalid_output", fields: firstEval.fields, normalized: firstEval.normalized, retrySkipped: true, ...summary() };
   }
 
   const retryInput: OpenAI.Responses.ResponseInput = [
@@ -251,7 +267,8 @@ export async function draftBlueprint(input: DraftInput, options: DraftOptions = 
   const second = await attempt(retryInput, remaining);
   if (second.type === "error") return errorResult(second, firstEval.fields);
   const secondEval = evaluate(second.res, input);
-  if (secondEval.ok) return { ok: true, blueprint: secondEval.blueprint, ...summary() };
+  second.entry.normalized = secondEval.normalized;
+  if (secondEval.ok) return { ok: true, blueprint: secondEval.blueprint, normalized: secondEval.normalized, ...summary() };
   second.entry.fields = secondEval.fields;
-  return { ok: false, kind: "invalid_output", fields: secondEval.fields, ...summary() };
+  return { ok: false, kind: "invalid_output", fields: secondEval.fields, normalized: secondEval.normalized, ...summary() };
 }

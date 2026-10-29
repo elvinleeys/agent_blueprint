@@ -18,9 +18,10 @@ const form = (over: { stack?: unknown; spec?: unknown } = { spec: { overview: "�
   return new Request("http://localhost/api/draft", { method: "POST", body: f });
 };
 
+const change = { nodeId: "n-page", path: "layout.direction", detail: "grid에는 direction을 쓸 수 없어 제거(값: column)" };
 const shared = { attempts: 1, elapsedMs: 1200, usage: { inputTokens: 10, outputTokens: 20, reasoningTokens: 0 }, costUsd: 0.0001, log: [{ ms: 1, usage: { inputTokens: 1, outputTokens: 1, reasoningTokens: 0 }, rawText: "RAW-MODEL-OUTPUT" }] };
-const ok = { ok: true, blueprint: { title: "상품 상세" }, ...shared } as unknown as DraftResult;
-const failure = (kind: string, extra: object = {}) => ({ ok: false, kind, upstreamStatus: 500, errorName: "InternalServerError", ...shared, ...extra }) as unknown as DraftResult;
+const ok = { ok: true, blueprint: { title: "상품 상세" }, normalized: [change], ...shared } as unknown as DraftResult;
+const failure = (kind: string, extra: object = {}) => ({ ok: false, kind, normalized: [], upstreamStatus: 500, errorName: "InternalServerError", ...shared, ...extra }) as unknown as DraftResult;
 
 let logSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
@@ -60,12 +61,12 @@ describe("handleDraftRequest", () => {
     expect(draft).not.toHaveBeenCalled();
   });
 
-  it("성공하면 200에 blueprint와 meta만 담는다(비용·사용량·원문은 제외)", async () => {
+  it("성공하면 200에 blueprint와 meta(시도 횟수·소요 시간·보정 내역)만 담는다(비용·사용량·원문은 제외)", async () => {
     draft.mockResolvedValue(ok);
     const res = await handleDraftRequest(form());
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body).toEqual({ blueprint: { title: "상품 상세" }, meta: { attempts: 1, elapsedMs: 1200 } });
+    expect(body).toEqual({ blueprint: { title: "상품 상세" }, meta: { attempts: 1, elapsedMs: 1200, normalized: [change] } });
     expect(JSON.stringify(body)).not.toContain("RAW-MODEL-OUTPUT");
   });
 
@@ -109,7 +110,7 @@ describe("handleDraftRequest", () => {
     draft.mockResolvedValue(ok);
     await handleDraftRequest(form());
     const line = String(logSpy.mock.calls[0][0]);
-    expect(JSON.parse(line)).toMatchObject({ event: "draft", userId: "user-1", ok: true, attempts: 1, costUsd: 0.0001 });
+    expect(JSON.parse(line)).toMatchObject({ event: "draft", userId: "user-1", ok: true, attempts: 1, normalized: 1, costUsd: 0.0001 });
     expect(line).not.toContain("RAW-MODEL-OUTPUT");
     expect(line).not.toContain("base64");
   });

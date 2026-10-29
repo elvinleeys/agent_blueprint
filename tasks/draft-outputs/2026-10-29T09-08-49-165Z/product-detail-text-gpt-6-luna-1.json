@@ -1,0 +1,617 @@
+{
+  "version": "1.2",
+  "title": "상품 상세 화면",
+  "stack": {
+    "framework": "next",
+    "styling": "css-modules",
+    "architecture": "fsd"
+  },
+  "route": "/products/[id]",
+  "source": {
+    "hasSpec": true,
+    "imageCount": 0
+  },
+  "generatedBy": "ai",
+  "nodes": [
+    {
+      "id": "productDetailPage",
+      "name": "ProductDetailPage",
+      "parentId": null,
+      "order": 0,
+      "location": {
+        "dir": "pages/product-detail/ui"
+      },
+      "kind": "page",
+      "responsibilities": [
+        "상품 데이터를 한 번 조회한다",
+        "상품 상세 화면의 전체 구성을 제공한다"
+      ],
+      "state": [],
+      "props": [],
+      "events": [],
+      "dataFetch": true,
+      "renderMode": "server",
+      "layout": {
+        "display": "grid",
+        "direction": null,
+        "columns": 2,
+        "gap": "spacing.6",
+        "align": "start",
+        "justify": null,
+        "responsive": [
+          {
+            "breakpoint": "mobile",
+            "direction": null,
+            "columns": 1
+          }
+        ]
+      },
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [
+          {
+            "property": "max-width",
+            "value": "layout.maxWidth",
+            "isToken": true
+          },
+          {
+            "property": "margin-inline",
+            "value": "auto",
+            "isToken": false
+          }
+        ],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "productHeader",
+      "name": "ProductHeader",
+      "parentId": "productDetailPage",
+      "order": 0,
+      "location": {
+        "dir": "widgets/product-header/ui"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "상품명을 표시한다",
+        "상품 정보·상품 상세·리뷰 탭과 리뷰 수를 표시한다",
+        "선택된 탭을 관리한다"
+      ],
+      "state": [
+        {
+          "name": "selectedTab",
+          "description": "현재 선택된 상품 정보 탭"
+        }
+      ],
+      "props": [
+        {
+          "name": "productName",
+          "type": "string"
+        },
+        {
+          "name": "reviewCount",
+          "type": "number"
+        }
+      ],
+      "events": [
+        "onTabChange"
+      ],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": {
+        "display": "flex",
+        "direction": "column",
+        "columns": null,
+        "gap": "spacing.4",
+        "align": "stretch",
+        "justify": null,
+        "responsive": null
+      },
+      "placement": {
+        "span": "full"
+      },
+      "style": {
+        "scope": "module",
+        "properties": [
+          {
+            "property": "color",
+            "value": "color.text",
+            "isToken": true
+          }
+        ],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "productGallery",
+      "name": "ProductGallery",
+      "parentId": "productDetailPage",
+      "order": 1,
+      "location": {
+        "dir": "widgets/product-gallery/ui"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "상품의 큰 이미지를 표시한다",
+        "이전·다음 이미지 이동을 제공한다",
+        "썸네일 목록과 이미지 대체 텍스트를 표시한다"
+      ],
+      "state": [
+        {
+          "name": "activeImageIndex",
+          "description": "현재 선택된 상품 이미지의 인덱스"
+        }
+      ],
+      "props": [
+        {
+          "name": "images",
+          "type": "ProductImage[]"
+        }
+      ],
+      "events": [
+        "onPreviousImage",
+        "onNextImage",
+        "onThumbnailSelect"
+      ],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": {
+        "display": "flex",
+        "direction": "column",
+        "columns": null,
+        "gap": "spacing.4",
+        "align": "stretch",
+        "justify": null,
+        "responsive": null
+      },
+      "placement": {
+        "span": 1
+      },
+      "style": {
+        "scope": "module",
+        "properties": [],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "productInfo",
+      "name": "ProductInfo",
+      "parentId": "productDetailPage",
+      "order": 2,
+      "location": {
+        "dir": "widgets/product-info/ui"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "상품 가격·할인율과 평점·리뷰 수를 표시한다",
+        "색상·사이즈·수량 선택을 관리한다",
+        "장바구니 담기와 찜하기를 제공한다",
+        "배송·반품 안내와 결제 수단을 구성한다"
+      ],
+      "state": [
+        {
+          "name": "selectedColor",
+          "description": "선택한 상품 색상"
+        },
+        {
+          "name": "selectedSize",
+          "description": "선택한 상품 사이즈"
+        },
+        {
+          "name": "quantity",
+          "description": "구매할 상품 수량"
+        },
+        {
+          "name": "isWishlisted",
+          "description": "상품 찜하기 여부"
+        }
+      ],
+      "props": [
+        {
+          "name": "product",
+          "type": "Product"
+        }
+      ],
+      "events": [
+        "onColorChange",
+        "onSizeChange",
+        "onQuantityChange",
+        "onAddToCart",
+        "onWishlistToggle",
+        "onSizeGuideOpen",
+        "onShare"
+      ],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": {
+        "display": "flex",
+        "direction": "column",
+        "columns": null,
+        "gap": "spacing.4",
+        "align": "stretch",
+        "justify": null,
+        "responsive": null
+      },
+      "placement": {
+        "span": 1
+      },
+      "style": {
+        "scope": "module",
+        "properties": [
+          {
+            "property": "color",
+            "value": "color.text",
+            "isToken": true
+          }
+        ],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "useCart",
+      "name": "useCart",
+      "parentId": "productInfo",
+      "order": 0,
+      "location": {
+        "dir": "features/cart/model"
+      },
+      "kind": "hook",
+      "responsibilities": [
+        "장바구니 상태와 상품 추가 기능을 관리한다"
+      ],
+      "state": [
+        {
+          "name": "cartCount",
+          "description": "장바구니에 담긴 상품 개수"
+        }
+      ],
+      "props": [],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": null,
+      "layout": null,
+      "placement": null,
+      "style": null,
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "productPrice",
+      "name": "ProductPrice",
+      "parentId": "productInfo",
+      "order": 1,
+      "location": {
+        "dir": "entities/product/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "상품 가격과 할인율을 표시한다"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "price",
+          "type": "number"
+        },
+        {
+          "name": "discountRate",
+          "type": "number"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [
+          {
+            "property": "color",
+            "value": "color.primary",
+            "isToken": true
+          }
+        ],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "productRating",
+      "name": "ProductRating",
+      "parentId": "productInfo",
+      "order": 2,
+      "location": {
+        "dir": "entities/product/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "상품 평점과 리뷰 수를 표시한다"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "rating",
+          "type": "number"
+        },
+        {
+          "name": "reviewCount",
+          "type": "number"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "productOptions",
+      "name": "ProductOptions",
+      "parentId": "productInfo",
+      "order": 3,
+      "location": {
+        "dir": "features/product-options/ui"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "색상과 사이즈 선택지를 표시한다",
+        "사이즈 가이드 링크를 제공한다"
+      ],
+      "state": [
+        {
+          "name": "selectedColor",
+          "description": "현재 선택된 색상"
+        },
+        {
+          "name": "selectedSize",
+          "description": "현재 선택된 사이즈"
+        }
+      ],
+      "props": [
+        {
+          "name": "colors",
+          "type": "ProductColor[]"
+        },
+        {
+          "name": "sizes",
+          "type": "ProductSize[]"
+        },
+        {
+          "name": "onColorChange",
+          "type": "(color: ProductColor) => void"
+        },
+        {
+          "name": "onSizeChange",
+          "type": "(size: ProductSize) => void"
+        },
+        {
+          "name": "onSizeGuideOpen",
+          "type": "() => void"
+        }
+      ],
+      "events": [
+        "onColorChange",
+        "onSizeChange",
+        "onSizeGuideOpen"
+      ],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": {
+        "display": "flex",
+        "direction": "column",
+        "columns": null,
+        "gap": "spacing.4",
+        "align": "stretch",
+        "justify": null,
+        "responsive": null
+      },
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "purchaseActions",
+      "name": "PurchaseActions",
+      "parentId": "productInfo",
+      "order": 4,
+      "location": {
+        "dir": "features/product-purchase/ui"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "상품 수량 선택을 제공한다",
+        "장바구니 담기와 찜하기 버튼을 제공한다"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "quantity",
+          "type": "number"
+        },
+        {
+          "name": "isWishlisted",
+          "type": "boolean"
+        },
+        {
+          "name": "onQuantityChange",
+          "type": "(quantity: number) => void"
+        },
+        {
+          "name": "onAddToCart",
+          "type": "() => void"
+        },
+        {
+          "name": "onWishlistToggle",
+          "type": "() => void"
+        }
+      ],
+      "events": [
+        "onQuantityChange",
+        "onAddToCart",
+        "onWishlistToggle"
+      ],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": {
+        "display": "flex",
+        "direction": "row",
+        "columns": null,
+        "gap": "spacing.4",
+        "align": "center",
+        "justify": null,
+        "responsive": [
+          {
+            "breakpoint": "mobile",
+            "direction": "column",
+            "columns": null
+          }
+        ]
+      },
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "shippingReturns",
+      "name": "ShippingReturns",
+      "parentId": "productInfo",
+      "order": 5,
+      "location": {
+        "dir": "widgets/product-info/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "배송 안내를 표시한다",
+        "반품 안내를 표시한다"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "shippingInfo",
+          "type": "string"
+        },
+        {
+          "name": "returnInfo",
+          "type": "string"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "paymentMethods",
+      "name": "PaymentMethods",
+      "parentId": "productInfo",
+      "order": 6,
+      "location": {
+        "dir": "widgets/product-info/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "이용 가능한 결제 수단을 표시한다"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "paymentMethods",
+          "type": "PaymentMethod[]"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    },
+    {
+      "id": "productShare",
+      "name": "ProductShare",
+      "parentId": "productInfo",
+      "order": 7,
+      "location": {
+        "dir": "features/product-share/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "상품 공유 기능을 제공한다"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "onShare",
+          "type": "() => void"
+        }
+      ],
+      "events": [
+        "onShare"
+      ],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": false,
+      "assumedFields": null
+    }
+  ]
+}

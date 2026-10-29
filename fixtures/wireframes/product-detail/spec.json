@@ -1,5 +1,10 @@
 {
-  "stack": { "framework": "next", "styling": "css-modules", "architecture": "fsd" },
+  "stack": {
+    "framework": "next",
+    "styling": "css-modules",
+    "architecture": "fsd"
+  },
+  "route": "/products/[id]",
   "version": "1.2",
   "imageCount": 0,
   "overview": "상품 상세 화면(/products/[id]). 맨 위에 상품명과 탭 영역(일반 정보·상품 상세·리뷰, 리뷰 수 표시)이 있다. 그 아래 왼쪽은 상품 이미지 영역(큰 이미지, 이전·다음 이동, 썸네일 목록), 오른쪽은 상품 정보 영역(가격·할인율, 평점·리뷰 수, 색상·사이즈 선택, 사이즈 가이드 링크, 수량, 장바구니 담기, 찜하기, 배송 안내, 반품 안내, 공유, 결제 수단 표시)이다.",

@@ -18,22 +18,28 @@ const parseRow = (r: Row) => BlueprintSchema.safeParse({ version: r.version, tit
 
 const validate = (blueprint: unknown) => BlueprintSchema.safeParse(blueprint);
 
-/** 편집 중 자동 저장: 가장 최근 판을 갱신한다. 판이 하나도 없으면 첫 판을 만든다 */
+/**
+ * 편집 중 자동 저장: 가장 최근 판을 갱신한다. 판이 하나도 없으면 첫 판을 만든다.
+ * 단, 최신 판이 AI 초안(generated_by "ai")이고 저장하려는 설계도가 사용자 수정본("user")이면
+ * AI 원본을 덮어쓰지 않도록 새 판을 추가한다. 그 뒤의 자동 저장은 그 새 판을 갱신한다.
+ */
 export async function saveBlueprint(db: SupabaseClient, projectId: string, blueprint: unknown): Promise<DbResult<RevisionInfo>> {
   const parsed = validate(blueprint);
   if (!parsed.success) return fromZodError(parsed.error, "설계도가 올바르지 않아 저장하지 않았습니다.");
   const payload = toPayload(parsed.data);
 
-  const latest = await db.from("blueprints").select("id").eq("project_id", projectId).order("revision", { ascending: false }).limit(1).maybeSingle();
+  const latest = await db.from("blueprints").select("id, generated_by").eq("project_id", projectId).order("revision", { ascending: false }).limit(1).maybeSingle();
   if (latest.error) return fromDbError(latest.error, SAVE_FAILED);
 
-  const write = latest.data
-    ? db.from("blueprints").update(payload).eq("id", (latest.data as { id: string }).id)
+  const row = latest.data as { id: string; generated_by: string } | null;
+  const keepAiDraft = row?.generated_by === "ai" && parsed.data.generatedBy === "user";
+  const write = row && !keepAiDraft
+    ? db.from("blueprints").update(payload).eq("id", row.id)
     : db.from("blueprints").insert({ project_id: projectId, ...payload });
   const { data, error } = await write.select("revision, updated_at").single();
   if (error) return fromDbError(error, SAVE_FAILED);
-  const row = data as { revision: number; updated_at: string };
-  return { ok: true, data: { revision: row.revision, updatedAt: row.updated_at } };
+  const saved = data as { revision: number; updated_at: string };
+  return { ok: true, data: { revision: saved.revision, updatedAt: saved.updated_at } };
 }
 
 /** 새 판 추가: AI 초안 생성·지시서 내보내기 시점에만 쓴다. revision 번호는 DB가 매긴다 */

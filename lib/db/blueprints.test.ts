@@ -108,6 +108,41 @@ describe("loadBlueprint", () => {
   });
 });
 
+describe("AI 초안 판 보존", () => {
+  const as = (generatedBy: "ai" | "user") => ({ ...sample(), generatedBy });
+
+  it("최신 판이 AI 초안이고 사용자 수정본을 저장하면 update가 아니라 새 판을 insert한다", async () => {
+    const { db, calls } = fakeDb({ data: { id: "b1", generated_by: "ai" } }, { data: { revision: 2, updated_at: "t" } });
+    const r = await saveBlueprint(db, "p1", as("user"));
+    expect(r).toMatchObject({ ok: true, data: { revision: 2 } });
+    expect(find(calls, "update")).toEqual([]);
+    expect(find(calls, "insert")[0][1]).toMatchObject({ project_id: "p1", generated_by: "user" });
+  });
+
+  it("최신 판이 AI 초안이어도 저장하려는 설계도가 아직 ai(수정 없음)이면 그 판을 갱신한다", async () => {
+    const { db, calls } = fakeDb({ data: { id: "b1", generated_by: "ai" } }, { data: { revision: 1, updated_at: "t" } });
+    await saveBlueprint(db, "p1", as("ai"));
+    expect(find(calls, "insert")).toEqual([]);
+    expect(find(calls, "update")).toHaveLength(1);
+  });
+
+  it("초안 생성 → 첫 수정 저장은 새 판 → 두 번째 저장은 그 판을 갱신", async () => {
+    const { db, calls } = fakeDb(
+      { data: { revision: 1, updated_at: "t1" } },                       // 초안 생성: 새 판(1판, ai)
+      { data: { id: "b1", generated_by: "ai" } }, { data: { revision: 2, updated_at: "t2" } }, // 첫 수정 저장 → 새 판(2판, user)
+      { data: { id: "b2", generated_by: "user" } }, { data: { revision: 2, updated_at: "t3" } }, // 두 번째 저장 → 2판 갱신
+    );
+    const draft = await createBlueprintRevision(db, "p1", as("ai"));
+    const first = await saveBlueprint(db, "p1", as("user"));
+    const second = await saveBlueprint(db, "p1", as("user"));
+
+    expect([draft, first, second].map((r) => (r.ok ? r.data.revision : -1))).toEqual([1, 2, 2]);
+    expect(calls.filter((c) => c[0] === "insert" || c[0] === "update").map((c) => c[0])).toEqual(["insert", "insert", "update"]);
+    expect(find(calls, "eq")).toContainEqual(["eq", "id", "b2"]); // 갱신 대상은 AI 원본(b1)이 아니라 새 판(b2)
+    expect(find(calls, "eq")).not.toContainEqual(["eq", "id", "b1"]);
+  });
+});
+
 describe("saveBlueprint — 이전 판 보호", () => {
   it("DB가 이전 판 수정을 거부(BP001)하면 conflict", async () => {
     const r = await saveBlueprint(fakeDb({ data: { id: "bp-old" } }, { error: { code: "BP001" } }).db, "p1", sample());

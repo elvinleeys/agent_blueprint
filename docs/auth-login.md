@@ -32,8 +32,11 @@ f.set("spec", JSON.stringify({}));
 const r = await fetch("/api/draft", { method: "POST", body: f });
 console.log(r.status, await r.json());
 
-// 2) 실제 초안 생성 (OpenAI 호출, 1회 약 $0.01~0.02, 약 30초). 직접 실행할 때만
-f.set("spec", JSON.stringify({ overview: "상품 상세 페이지: 갤러리, 정보, 장바구니 담기" }));
-const r2 = await fetch("/api/draft", { method: "POST", body: f });
+// 2) 실제 초안 생성 (OpenAI 호출, 1회 약 $0.01~0.02, 약 15~30초). 직접 실행할 때만
+//    예시 1과 별개로 단독 실행된다(FormData를 새로 만든다)
+const g = new FormData();
+g.set("stack", JSON.stringify({ framework: "next", styling: "tailwind", architecture: "feature-based" }));
+g.set("spec", JSON.stringify({ overview: "상품 상세 페이지: 갤러리, 정보, 장바구니 담기" }));
+const r2 = await fetch("/api/draft", { method: "POST", body: g });
 console.log(r2.status, await r2.json());
 ```

@@ -1,0 +1,593 @@
+{
+  "version": "1.2",
+  "title": "Product Detail",
+  "stack": {
+    "framework": "next",
+    "styling": "css-modules",
+    "architecture": "fsd"
+  },
+  "route": null,
+  "source": {
+    "hasSpec": false,
+    "imageCount": 1
+  },
+  "generatedBy": "ai",
+  "nodes": [
+    {
+      "id": "product-page",
+      "name": "ProductPage",
+      "parentId": null,
+      "order": 0,
+      "location": {
+        "dir": "pages/product-detail/page"
+      },
+      "kind": "page",
+      "responsibilities": [
+        "Render the product detail screen",
+        "Compose product gallery and purchase information"
+      ],
+      "state": [],
+      "props": [],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "server",
+      "layout": {
+        "display": "block",
+        "direction": null,
+        "columns": null,
+        "gap": null,
+        "align": null,
+        "justify": null,
+        "responsive": null
+      },
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [
+          {
+            "property": "max-width",
+            "value": "1200px",
+            "isToken": false
+          },
+          {
+            "property": "margin-inline",
+            "value": "auto",
+            "isToken": false
+          },
+          {
+            "property": "padding",
+            "value": "24px",
+            "isToken": false
+          }
+        ],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": true,
+      "assumedFields": [
+        "location.dir",
+        "style.properties"
+      ]
+    },
+    {
+      "id": "product-heading",
+      "name": "ProductHeading",
+      "parentId": "product-page",
+      "order": 0,
+      "location": {
+        "dir": "widgets/product-detail/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "Display the product name"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "title",
+          "type": "string"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "server",
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [
+          {
+            "property": "font-size",
+            "value": "36px",
+            "isToken": false
+          },
+          {
+            "property": "font-weight",
+            "value": "700",
+            "isToken": false
+          },
+          {
+            "property": "color",
+            "value": "#20212b",
+            "isToken": false
+          }
+        ],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": true,
+      "assumedFields": [
+        "props",
+        "style.properties"
+      ]
+    },
+    {
+      "id": "product-tabs",
+      "name": "ProductTabs",
+      "parentId": "product-page",
+      "order": 1,
+      "location": {
+        "dir": "widgets/product-detail/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "Display product information tabs",
+        "Show the review count"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "tabs",
+          "type": "ProductTab[]"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "server",
+      "layout": {
+        "display": "flex",
+        "direction": "row",
+        "columns": null,
+        "gap": "spacing.6",
+        "align": "center",
+        "justify": "start",
+        "responsive": null
+      },
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [
+          {
+            "property": "border-bottom",
+            "value": "1px solid #e5e7eb",
+            "isToken": false
+          },
+          {
+            "property": "padding-block",
+            "value": "16px",
+            "isToken": false
+          }
+        ],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": true,
+      "assumedFields": [
+        "props",
+        "style.properties"
+      ]
+    },
+    {
+      "id": "product-content",
+      "name": "ProductContent",
+      "parentId": "product-page",
+      "order": 2,
+      "location": {
+        "dir": "widgets/product-detail/ui"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "Arrange the gallery and purchase details",
+        "Provide the main two-column product layout"
+      ],
+      "state": [],
+      "props": [],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "server",
+      "layout": {
+        "display": "grid",
+        "direction": null,
+        "columns": 2,
+        "gap": "spacing.10",
+        "align": "start",
+        "justify": "start",
+        "responsive": [
+          {
+            "breakpoint": "mobile",
+            "direction": "column",
+            "columns": null
+          }
+        ]
+      },
+      "placement": null,
+      "style": null,
+      "assumed": true,
+      "assumedFields": [
+        "layout"
+      ]
+    },
+    {
+      "id": "product-gallery",
+      "name": "ProductGallery",
+      "parentId": "product-content",
+      "order": 0,
+      "location": {
+        "dir": "features/product-gallery/ui"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "Display the selected product image",
+        "Provide image navigation and thumbnail selection"
+      ],
+      "state": [
+        {
+          "name": "selectedImage",
+          "description": "Index of the currently displayed product image"
+        }
+      ],
+      "props": [
+        {
+          "name": "images",
+          "type": "ProductImage[]"
+        }
+      ],
+      "events": [
+        "onPreviousImage",
+        "onNextImage",
+        "onSelectImage"
+      ],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": {
+        "display": "block",
+        "direction": null,
+        "columns": null,
+        "gap": null,
+        "align": null,
+        "justify": null,
+        "responsive": null
+      },
+      "placement": {
+        "span": 1
+      },
+      "style": null,
+      "assumed": true,
+      "assumedFields": [
+        "state",
+        "props",
+        "events"
+      ]
+    },
+    {
+      "id": "purchase-panel",
+      "name": "PurchasePanel",
+      "parentId": "product-content",
+      "order": 1,
+      "location": {
+        "dir": "features/product-purchase/ui"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "Show price, rating, and purchase controls",
+        "Present delivery and return information",
+        "Provide sharing and payment details"
+      ],
+      "state": [],
+      "props": [],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "server",
+      "layout": {
+        "display": "block",
+        "direction": null,
+        "columns": null,
+        "gap": null,
+        "align": null,
+        "justify": null,
+        "responsive": null
+      },
+      "placement": {
+        "span": 1
+      },
+      "style": null,
+      "assumed": true,
+      "assumedFields": [
+        "location.dir"
+      ]
+    },
+    {
+      "id": "product-offer",
+      "name": "ProductOffer",
+      "parentId": "purchase-panel",
+      "order": 0,
+      "location": {
+        "dir": "features/product-purchase/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "Display current and previous prices",
+        "Show the discount and review rating"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "price",
+          "type": "string"
+        },
+        {
+          "name": "originalPrice",
+          "type": "string"
+        },
+        {
+          "name": "discount",
+          "type": "string"
+        },
+        {
+          "name": "rating",
+          "type": "number"
+        },
+        {
+          "name": "reviewCount",
+          "type": "number"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "server",
+      "layout": {
+        "display": "flex",
+        "direction": "row",
+        "columns": null,
+        "gap": "spacing.3",
+        "align": "center",
+        "justify": "between",
+        "responsive": null
+      },
+      "placement": null,
+      "style": null,
+      "assumed": true,
+      "assumedFields": [
+        "props"
+      ]
+    },
+    {
+      "id": "product-options",
+      "name": "ProductOptions",
+      "parentId": "purchase-panel",
+      "order": 1,
+      "location": {
+        "dir": "features/product-purchase/ui"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "Allow color and size selection",
+        "Provide size chart access",
+        "Handle quantity and purchase actions"
+      ],
+      "state": [
+        {
+          "name": "selectedColor",
+          "description": "Currently selected product color"
+        },
+        {
+          "name": "selectedSize",
+          "description": "Currently selected product size"
+        },
+        {
+          "name": "quantity",
+          "description": "Quantity to add to cart"
+        }
+      ],
+      "props": [
+        {
+          "name": "colors",
+          "type": "ProductColor[]"
+        },
+        {
+          "name": "sizes",
+          "type": "string[]"
+        }
+      ],
+      "events": [
+        "onColorChange",
+        "onSizeChange",
+        "onQuantityChange",
+        "onAddToCart",
+        "onToggleFavorite",
+        "onOpenSizeChart"
+      ],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": {
+        "display": "block",
+        "direction": null,
+        "columns": null,
+        "gap": null,
+        "align": null,
+        "justify": null,
+        "responsive": null
+      },
+      "placement": null,
+      "style": null,
+      "assumed": true,
+      "assumedFields": [
+        "state",
+        "props",
+        "events"
+      ]
+    },
+    {
+      "id": "delivery-info",
+      "name": "DeliveryInfo",
+      "parentId": "purchase-panel",
+      "order": 2,
+      "location": {
+        "dir": "features/product-purchase/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "Display delivery options and costs",
+        "Show estimated delivery times"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "deliveryOptions",
+          "type": "DeliveryOption[]"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "server",
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "module",
+        "properties": [
+          {
+            "property": "border-top",
+            "value": "1px solid #e5e7eb",
+            "isToken": false
+          },
+          {
+            "property": "border-bottom",
+            "value": "1px solid #e5e7eb",
+            "isToken": false
+          }
+        ],
+        "ownsOuterSpacing": false,
+        "classPattern": null
+      },
+      "assumed": true,
+      "assumedFields": [
+        "props",
+        "style.properties"
+      ]
+    },
+    {
+      "id": "return-info",
+      "name": "ReturnInfo",
+      "parentId": "purchase-panel",
+      "order": 3,
+      "location": {
+        "dir": "features/product-purchase/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "Explain the return window",
+        "List available return methods"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "returnWindowDays",
+          "type": "number"
+        },
+        {
+          "name": "methods",
+          "type": "string[]"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "server",
+      "layout": null,
+      "placement": null,
+      "style": null,
+      "assumed": true,
+      "assumedFields": [
+        "props"
+      ]
+    },
+    {
+      "id": "share-links",
+      "name": "ShareLinks",
+      "parentId": "purchase-panel",
+      "order": 4,
+      "location": {
+        "dir": "features/product-purchase/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "Display social sharing options"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "platforms",
+          "type": "string[]"
+        }
+      ],
+      "events": [
+        "onShare"
+      ],
+      "dataFetch": false,
+      "renderMode": "client",
+      "layout": {
+        "display": "flex",
+        "direction": "row",
+        "columns": null,
+        "gap": "spacing.4",
+        "align": "center",
+        "justify": "start",
+        "responsive": null
+      },
+      "placement": null,
+      "style": null,
+      "assumed": true,
+      "assumedFields": [
+        "props",
+        "events"
+      ]
+    },
+    {
+      "id": "payment-methods",
+      "name": "PaymentMethods",
+      "parentId": "purchase-panel",
+      "order": 5,
+      "location": {
+        "dir": "features/product-purchase/ui"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "Display accepted payment methods"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "methods",
+          "type": "string[]"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": "server",
+      "layout": {
+        "display": "flex",
+        "direction": "row",
+        "columns": null,
+        "gap": "spacing.4",
+        "align": "center",
+        "justify": "start",
+        "responsive": null
+      },
+      "placement": null,
+      "style": null,
+      "assumed": true,
+      "assumedFields": [
+        "props"
+      ]
+    }
+  ]
+}

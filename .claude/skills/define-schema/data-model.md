@@ -231,12 +231,15 @@ StyleProperty:
 | R-04 데이터 요청 위치 | `kind === "presentational"` && `dataFetch === true` |
 | R-05 재사용 후보 | `name`, `responsibilities` 유사도 |
 | R-06 레이아웃 책임 | 자식 노드의 `style.ownsOuterSpacing` (간격은 부모 `layout.gap`으로 줘야 함) |
+| R-07 데이터 요청 노드 부재 | 설계도 전체 `nodes` 중 `dataFetch === true`인 노드의 수 (0개면 위반) |
 | CM-01 스타일 범위 | `style.scope === "global"` (CSS Modules 스택에서) |
 | TW-01 임의값 | `style.properties[].isToken === false` (Tailwind 스택에서) |
 | TW-02 클래스 반복 | 형제 노드들의 `style.properties` 조합 반복 |
 | HC-01 클래스 명명 | `style.classPattern` |
 | NX-01 클라이언트 경계 | (`state` 또는 `events` 존재) && `renderMode === "server"` |
 | NX-02 경계 범위 | 상위 노드의 `renderMode === "client"` 여부 |
+| NX-03 훅 부모 경계 | `kind === "hook"`인 노드의 부모 `renderMode === "server"` |
+| NX-04 client 자손 server 금지 | 조상 중 `renderMode === "client"`인 노드가 있는데 자신의 `renderMode === "server"` |
 | AR-01 계층 방향 (FSD) | 부모·자식의 `location.dir` 계층 순서. 자식은 부모와 같거나 더 아래 계층이어야 함 |
 | AR-02 같은 계층 교차 (FSD) | 부모·자식이 같은 계층(pages·widgets·features·entities)인데 슬라이스가 다르면 위반 |
 | AR-03 세그먼트·역할 불일치 (FSD) | `kind`와 세그먼트 대응: page는 `pages` 계층, hook은 `model`·`api`·`lib`, 화면 컴포넌트는 `ui` |
@@ -251,6 +254,18 @@ StyleProperty:
 
 설계도의 "부모가 자식을 포함한다"는 실제 코드에서 "부모 파일이 자식 파일을 import한다"에 해당하므로,
 FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있다. 같은 계층·같은 슬라이스 안의 부모·자식은 허용한다.
+
+### 초안 생성 테스트로 추가된 검사 규칙 상세
+
+| 규칙 | 적용 조건 | 판단 | 심각도 |
+| --- | --- | --- | --- |
+| R-07 데이터 요청 노드 부재 | 모든 스택 | `nodes` 전체에 `dataFetch: true`인 노드가 하나도 없으면 위반 (표시 노드가 받는 데이터의 출처가 설계도에 없음) | 경고 |
+| NX-03 훅 부모 경계 | framework = next | `kind: hook`인 노드의 부모가 `renderMode: "server"`이면 위반 (훅은 클라이언트에서만 동작하므로 부모가 client여야 함) | 오류 |
+| NX-04 client 자손 server 금지 | framework = next | 조상 중 `renderMode: "client"`인 노드가 있는데 자신이 `"server"`이면 위반. `renderMode`가 null인 훅은 대상이 아님 | 오류 |
+
+- 설계도의 부모-자식은 import 관계이므로, client 파일이 불러온 컴포넌트는 server로 남을 수 없다(NX-04). 같은 이유로 훅은 client 노드가 불러야 한다(NX-03).
+- 결과 목록의 표시 우선순위: NX-04 > NX-03 > R-07.
+- 근거: `tasks/draft-test-result.md`의 채점 사례 C1(client 아래 server 자식), C2(server 아래 훅), C6(조회 노드 부재). 이 사례들은 모두 스키마 검증을 통과했다.
 
 ## 6. 트리 변환과 노드 편집 규칙
 
@@ -303,6 +318,7 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 - v1.1 (C안): `layout`(부모의 배치 규칙), `placement`(그리드 내 자리) 추가, `style.tokens`·`rawValues`를 `style.properties`(속성-값-토큰 여부)로 통합, 이름 고유·형식 검증 추가
 - v1.2 보완 (DS): 토큰 그룹 단수형(color·spacing·radius·font·layout), color·spacing 필수·키 1개 이상, 선택 그룹도 있으면 키 1개 이상, variant kebab-case, props type 자유 문자열
 - v1.2 보완: `columns`·`span`을 정수 1~12로 제한, `span`은 부모 열 수 이하, 루트에서 도달할 수 없는 노드·순환 거부
+- v1.2 보완 (테스트 결과 반영): 검사 규칙 NX-03, NX-04, R-07 추가(스키마 필드 변경 없음, version 유지). OpenAI 호출 타임아웃 기준을 텍스트만 45초·이미지 포함 60초로 조정(CLAUDE.md)
 - v1.2: `stack.architecture`(type-based / feature-based / fsd), `route`, 노드 `location` 추가, Next.js + FSD 배치 규칙, FSD 검사 규칙 AR-01~AR-03
 
 위 내용은 기획서(F-001, F-006, F-012, 3.2, 3.3, 4.2, 5.3, 6.4, 일정)와 CLAUDE.md에 반영되었다.

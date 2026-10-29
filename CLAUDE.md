@@ -43,7 +43,7 @@ app/                       # 라우팅만. 로직을 두지 않는다
   account/page.tsx         # S-09 계정
 core/                      # 순수 TypeScript. React·Next.js import 금지
   schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환)
-  rules/common/            # 공통 검사 규칙 R-01~R-06
+  rules/common/            # 공통 검사 규칙 R-01~R-07
   adapters/framework/      # html, react, next 어댑터
   adapters/styling/        # css, css-modules, tailwind 어댑터
   adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서)
@@ -79,12 +79,15 @@ lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분�
 | R-04 데이터 요청 위치 | 표시 전용 노드에 API 호출 배정 | 오류 |
 | R-05 재사용 후보 | 이름·책임이 유사한 노드가 따로 존재 | 정보 |
 | R-06 레이아웃 책임 | 자식이 배치 스타일(margin 등)을 소유 | 경고 |
+| R-07 데이터 요청 노드 부재 | 설계도 전체에 dataFetch가 true인 노드가 하나도 없음 | 경고 |
 | CM-01 | CSS Modules: 컴포넌트 전용 스타일이 전역 CSS에 있음 | 경고 |
 | TW-01 | Tailwind: 토큰 대신 임의값 사용 | 경고 |
 | TW-02 | Tailwind: 유틸리티 조합이 3회 이상 반복 | 정보 |
 | HC-01 | HTML·CSS: 명명 규칙(BEM 등) 불일치 | 경고 |
 | NX-01 | Next.js: 상태·이벤트 노드가 Server Component로 지정 | 오류 |
 | NX-02 | Next.js: Client Component 지정 범위가 필요 이상으로 넓음 | 경고 |
+| NX-03 | Next.js: 훅 노드의 부모가 Server Component로 지정 | 오류 |
+| NX-04 | Next.js: 조상 중 Client Component가 있는데 자신이 Server Component로 지정 (부모-자식은 import 관계라 client 파일이 불러온 컴포넌트는 server일 수 없음) | 오류 |
 | AR-01 | FSD: 자식이 부모보다 위 계층 (import 방향 위반) | 오류 |
 | AR-02 | FSD: 같은 계층의 다른 슬라이스를 자식으로 가짐 | 오류 |
 | AR-03 | FSD: kind와 계층·세그먼트 불일치 (page≠pages, hook≠model·api·lib) | 경고 |
@@ -145,7 +148,7 @@ lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분�
 
 ## 에러 처리 공통 규칙
 
-- OpenAI 호출 실패·타임아웃(30초 초과): 사용자에게 재시도 버튼 제공, 입력 내용은 보존한다.
+- OpenAI 호출 실패·타임아웃(텍스트만 45초, 이미지 포함 60초 초과): 사용자에게 재시도 버튼 제공, 입력 내용은 보존한다.
 - 스키마 검증 실패: 1회 자동 재시도 → 재실패 시 오류 메시지와 함께 원인 필드를 사용자에게 보여준다.
 - Supabase 쿼리 실패: 에러를 그대로 노출하지 않고, 사용자용 메시지로 변환해 보여준다. 원본 에러는 서버 로그에만 남긴다.
 - 업로드 용량·개수 초과(이미지 5MB/3장, 코드 30개): 업로드 전에 클라이언트에서 먼저 검사해 불필요한 호출을 막는다.

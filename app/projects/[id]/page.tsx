@@ -1,0 +1,16 @@
+import { Suspense } from "react";
+import AppHeader from "@/components/projects/AppHeader";
+import WorkspaceLoader from "@/components/workspace/WorkspaceLoader";
+
+export default function WorkspacePage({ params }: PageProps<"/projects/[id]">) {
+  return (
+    <>
+      <AppHeader />
+      <main className="mx-auto w-full max-w-5xl px-4 py-8">
+        <Suspense fallback={<p className="text-sm text-slate-500">불러오는 중…</p>}>
+          <WorkspaceLoader params={params} />
+        </Suspense>
+      </main>
+    </>
+  );
+}

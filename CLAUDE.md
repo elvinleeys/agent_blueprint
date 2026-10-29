@@ -38,7 +38,7 @@ app/                       # 라우팅만. 로직을 두지 않는다
   api/draft/route.ts       # AI 초안 생성
   api/explain/route.ts     # 위반 설명·정리 제안
   api/analyze/route.ts     # 업로드 코드 분석
-  api/projects/            # 프로젝트·설계도 저장·조회
+  api/projects/            # 프로젝트 목록·생성, [id]/blueprint(불러오기·자동 저장), [id]/revisions(판 목록·새 판 추가)
   auth/callback/route.ts   # GitHub 로그인 콜백
   login/page.tsx           # S-08 로그인
   account/page.tsx         # S-09 계정
@@ -57,6 +57,7 @@ lib/auth/                  # 서버 전용 인증 처리 (callback-handler: /aut
 lib/db/                    # DB 접근 함수 (projects, blueprints: 클라이언트를 인자로 받고 결과를 DbResult로 반환, 저장 전·읽은 뒤 Zod 검증)
 supabase/migrations/       # 표·RLS·GRANT SQL (대시보드 SQL 편집기로 직접 실행, 절차는 docs/db-migration.md)
 supabase/tests/            # RLS 격리 확인 스크립트(적용 후 실행, 끝에 rollback)
+lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, http: 오류 매핑·JSON 읽기, *-handler: 라우트별 처리)
 lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용, draft-http: 요청 검증·오류 매핑, draft-handler: /api/draft 처리)
 scripts/                   # 개발용 실행 스크립트 (test-draft.ts: lib/ai를 호출하는 초안 생성 검증, 실제 API 호출은 직접 실행)
 fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음)
@@ -148,10 +149,12 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 
 | 경로 | 메서드 | 입력 | 출력 | 비고 |
 | --- | --- | --- | --- | --- |
-| `/api/draft` | POST | `multipart/form-data`: stack, route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | `{ blueprint, meta(attempts, elapsedMs, normalized) }` | OpenAI 호출, 스키마 검증, 검증 실패 시 자동 보정 후 재검증, 그래도 실패하면 1회 재시도. 오류는 400·401·413·422·429·502·504로 구분. 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초 |
+| `/api/draft` | POST | `multipart/form-data`: stack(projectId가 없을 때만 필요), projectId(선택, 있으면 프로젝트 소유를 AI 호출 전에 확인하고 스택은 프로젝트 값을 쓰며 성공한 초안을 새 판으로 저장), route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | `{ blueprint, meta(attempts, elapsedMs, normalized, saved 또는 saveError) }` | OpenAI 호출, 스키마 검증, 검증 실패 시 자동 보정 후 재검증, 그래도 실패하면 1회 재시도. 오류는 400·401·404(projectId)·413·422·429·502·503(projectId 조회)·504로 구분. 저장 실패해도 초안은 200으로 돌려주고 meta.saveError로 알림. 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초 |
 | `/api/explain` | POST | 위반 1건 또는 정리 대상 | 설명·수정 제안 | OpenAI 호출 |
 | `/api/analyze` | POST | 업로드 컴포넌트 코드 | props·variant·스타일 값 | 코드 원본 저장 안 함 |
-| `/api/projects` | GET/POST | 프로젝트 데이터 | 저장·조회 결과 | 로그인 세션 필수 |
+| `/api/projects` | GET/POST | POST: JSON `{ name, stack }` | `{ projects }` / 201 `{ project }` | 로그인 세션 필수, 본인 프로젝트만(RLS) |
+| `/api/projects/[id]/blueprint` | GET/PUT | GET: `?revision=N`(생략 시 최신 판) / PUT: 설계도 JSON | `{ blueprint }`(판이 없으면 null) / `{ revision, updatedAt }` | PUT은 자동 저장: 최신 판 갱신. 최신 판이 AI 초안이고 저장본이 사용자 수정본이면 새 판 추가(AI 원본 보존) |
+| `/api/projects/[id]/revisions` | GET/POST | POST: 설계도 JSON | `{ revisions }` / 201 `{ revision, updatedAt }` | POST는 새 판 추가(지시서 내보내기 시점). 요청 본문 1MB 이하·JSON만. 오류는 400·401·404·409·413·422·503 |
 | `/auth/callback` | GET | GitHub OAuth code | 세션 쿠키 설정 후 리다이렉트 | Supabase 세션 교환 |
 
 모든 API 라우트는 처리 전 Supabase 세션 유무를 먼저 확인하고, 없으면 401을 반환한다(로그인 화면은 제외).

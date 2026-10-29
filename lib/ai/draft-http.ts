@@ -10,9 +10,9 @@ export const MAX_SPEC_CHARS = 20_000; // 스펙 텍스트 7개 항목 합계(프
 const MAX_ORIGINAL_WIDTH = 20_000;
 
 export type ErrorBody = { error: { code: string; message: string; retryable: boolean; fields?: Field[] } };
-export type HttpError = { status: 400 | 401 | 413 | 422 | 429 | 500 | 502 | 504; body: ErrorBody };
+export type HttpError = { status: 400 | 401 | 404 | 409 | 413 | 422 | 429 | 500 | 502 | 503 | 504; body: ErrorBody };
 
-const httpError = (status: HttpError["status"], code: string, message: string, retryable: boolean, fields?: Field[]): HttpError => ({
+export const httpError = (status: HttpError["status"], code: string, message: string, retryable: boolean, fields?: Field[]): HttpError => ({
   status,
   body: { error: { code, message, retryable, ...(fields ? { fields } : {}) } },
 });

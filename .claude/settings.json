@@ -1,8 +1,6 @@
 {
   "permissions": {
     "deny": [
-      "Edit(app/**)",
-      "Edit(components/**)",
       "Read(.env.local)"
     ]
   },

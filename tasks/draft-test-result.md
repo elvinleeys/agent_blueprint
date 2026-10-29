@@ -55,7 +55,7 @@
 
 - 대상: `tasks/draft-outputs/2026-10-29T06-30-55-935Z/`의 응답 원문 6개. 판정은 응답 원문을 읽고 한 수동 판정이며, 스키마 밖 문제는 원문을 훑는 스크립트로 먼저 걸러낸 뒤 확인했다. API 호출 없음.
 - 열 이름: `T`=text, `I`=image, `B`=both, `t`=terra, `l`=luna (예: `T-t` = text × terra).
-- 판정 기준(사용자 확정): 이름이 달라도 역할이 맞으면 O. 수량·장바구니·찜을 한 노드가 겸하면 그 노드의 책임이 3개 이하(R-01 기준)일 때 O이며, 옵션 선택은 별도 노드여야 한다. 옵션까지 한 노드에 모두 있으면 X(옵션·수량·장바구니 항목). 찜하기는 별도 노드 없이 옵션까지 겸한 노드에 흡수되면 애매. image 모드의 "상품 조회는 page만" 항목은 N/A(채점 제외)이며 아래 "이미지 단독 입력의 한계"에 따로 적었다.
+- 판정 기준(사용자 확정): 이름이 달라도 역할이 맞으면 O. 수량·장바구니·찜을 한 노드가 겸하면 그 노드의 책임이 3개 이하(R-01 기준)일 때 O이며, 옵션 선택은 별도 노드여야 한다. 옵션까지 한 노드에 모두 있으면 X(옵션·수량·장바구니 항목). 찜하기도 옵션까지 겸한 노드에 흡수되면 X(I-t, I-l, 사용자 확정). image 모드의 "상품 조회는 page만" 항목은 N/A(채점 제외)이며 아래 "이미지 단독 입력의 한계"에 따로 적었다.
 - 스키마 통과: T-t O, T-l O, I-t O, I-l **X**, B-t O, B-l **X**.
 
 | 항목 | T-t | T-l | I-t | I-l | B-t | B-l |
@@ -63,7 +63,7 @@
 | **구조** 루트 page, pages 계층 | O ProductDetailPage `pages/product-detail/ui` | O 동일 | O ProductPage `pages/product-detail/ui` | O ProductPage, 계층은 pages이나 세그먼트가 `page`¹ | O ProductPage `pages/product-detail/ui` | O ProductPage `pages/products/ui` |
 | 상품명·탭 / 이미지 / 상품 정보 영역 노드 | O ProductHeader(+ProductTabs), ProductGallery, ProductInfo | O ProductHeader, ProductGallery, ProductInfo | O ProductHeading, ProductTabs, ProductGallery, ProductDetails | O ProductHeading, ProductTabs, ProductGallery, PurchasePanel | O ProductHeading, ProductTabs, ProductGallery, ProductInfo | O ProductHeading, ProductTabs, ProductGallery, ProductInformation |
 | 옵션·수량·장바구니 노드 | O ProductOptions, QuantityControl, AddToCartButton 각각 존재 | O VariantSelector(옵션) + PurchaseControls(수량·장바구니·찜, 책임 2개) | X PurchaseOptions 한 노드에 색상·사이즈·수량·장바구니·찜 전부 | X ProductOptions 한 노드에 옵션+수량+구매 전부 | O VariantSelector(옵션) + PurchaseActions(수량·장바구니·찜, 책임 2개) | O ProductOptions(옵션) + PurchaseControls(수량·장바구니·찜, 책임 3개) |
-| 찜하기 노드 | O WishlistButton | O PurchaseControls가 겸함(책임 2개, 이벤트 onToggleWishlist) | 애매 옵션까지 겸한 PurchaseOptions에 흡수(상태 favourited) | 애매 옵션까지 겸한 ProductOptions에 흡수(이벤트 onToggleFavorite) | O PurchaseActions가 겸함(책임 2개, 이벤트 onFavoriteToggle·상태 isFavorite) | O PurchaseControls가 겸함(책임 3개, 이벤트 onToggleFavorite) |
+| 찜하기 노드 | O WishlistButton | O PurchaseControls가 겸함(책임 2개, 이벤트 onToggleWishlist) | X 옵션까지 겸한 PurchaseOptions에 흡수(상태 favourited) | X 옵션까지 겸한 ProductOptions에 흡수(이벤트 onToggleFavorite) | O PurchaseActions가 겸함(책임 2개, 이벤트 onFavoriteToggle·상태 isFavorite) | O PurchaseControls가 겸함(책임 3개, 이벤트 onToggleFavorite) |
 | **배치** 이미지·상품 정보 같은 줄 | O 루트 grid 2열 | O ProductContent grid 2열 | O ProductContent grid 2열 | O ProductContent grid 2열 | O 루트 grid 2열 | O 루트 grid 2열 |
 | 상품명·탭 영역 한 줄 전체 | O ProductHeader placement span "full" | O ProductHeader가 2열 영역(ProductContent) 위 별도 줄 | O ProductHeading·ProductTabs가 flex column에서 ProductContent 위 | O 루트 block에서 ProductContent 위 | O ProductHeading·ProductTabs 모두 span "full" | O ProductHeading·ProductTabs 모두 span "full" |
 | 모바일 1열 | O 루트 responsive mobile:1 | O ProductContent mobile:1 (tablet·desktop 2) | O ProductContent mobile:1 | 애매 grid인 ProductContent에 `mobile: direction "column"`(올바른 필드는 columns 1, 스키마 실패 원인) | O 루트 mobile:1 | O 루트 mobile:1 |
@@ -74,7 +74,7 @@
 | **규칙** presentational은 dataFetch false | O | O | O | O | O | O |
 | 자식 노드 ownsOuterSpacing true 없음 | O | O | O 루트 ProductPage만 true(자식 아님)⁴ | O | O | O |
 | 상태·이벤트 노드는 client | O | O | O | O | O | O |
-| **O / X / 애매** (14항목, image 모드는 N/A 제외 13항목) | **14 / 0 / 0** | **14 / 0 / 0** | **10 / 2 / 1** | **8 / 3 / 2** | **14 / 0 / 0** | **14 / 0 / 0** |
+| **O / X / 애매** (14항목, image 모드는 N/A 제외 13항목) | **14 / 0 / 0** | **14 / 0 / 0** | **10 / 3 / 0** | **8 / 4 / 1** | **14 / 0 / 0** | **14 / 0 / 0** |
 
 1. I-l 루트의 `pages/product-detail/page`: 계층은 pages라 O로 봤지만 FSD 세그먼트 형식 위반이며, 스키마 실패 원인 중 하나다.
 2. image 모드는 텍스트 스펙이 없어 상품 데이터를 어디서 조회하는지 단서가 이미지에 없다. 사용자 결정으로 채점에서 제외(N/A)하고 "이미지 단독 입력의 한계"로 따로 기록했다.

@@ -166,4 +166,4 @@ SOFTWARE.
 
 ## 4. 함께 설치된 패키지
 
-`radix-ui`(MIT), `class-variance-authority`(Apache-2.0), `cn`(MIT), `lucide-react`(ISC), `tw-animate-css`(MIT), `shadcn` CLI(MIT)는 npm 패키지로 설치된다. 전문은 `node_modules/<패키지>/LICENSE`에 있다.
+`radix-ui`(MIT), `clsx`(MIT), `tailwind-merge`(MIT), `class-variance-authority`(Apache-2.0), `lucide-react`(ISC), `tw-animate-css`(MIT), `shadcn` CLI(MIT)는 npm 패키지로 설치된다. 전문은 `node_modules/<패키지>/LICENSE`에 있다.

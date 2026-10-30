@@ -121,7 +121,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 
 - 클라이언트 컴포넌트에서 `SUPABASE_SERVICE_ROLE_KEY` 또는 OpenAI API 키를 import하거나 참조하지 않는다.
 - `core/` 아래 파일에서 React, Next.js, 브라우저 전용 API를 import하지 않는다.
-- 인라인 스타일(`style={{ ... }}`)과 `!important`를 사용하지 않는다. Tailwind 프로젝트에서는 테마에 없는 임의값(대괄호 값)을 기본값으로 쓰지 않는다.
+- 인라인 스타일(`style={{ ... }}`)과 `!important`를 사용하지 않는다. Tailwind 프로젝트에서는 테마에 없는 임의값(대괄호 값)을 기본값으로 쓰지 않는다. 단 `components/ui/`의 shadcn 생성 코드는 이 임의값 규칙의 예외다(생성 코드를 그대로 둔다).
 - AI 응답을 검증 없이 그대로 설계도에 반영하지 않는다.
 - `app/` 아래에 라우팅 파일(`page.tsx`, `route.ts`, `layout.tsx`)이 아닌 일반 컴포넌트나 로직 파일을 두지 않는다. 그런 코드는 `components/` 또는 `core/`로 보낸다.
 

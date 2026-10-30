@@ -95,6 +95,22 @@
 - 요청된 값: 대표 색 `#0066FF`(호버 `#005EEB`, 누름 `#0054D1`), 옅은 면 `#EAF2FE`. 상태: 정상 `#00BF40`, 경고 `#FF9200`, 오류 `#FF4242`(배경은 각 8% 투명도). 글자 `#171719`, 보조 글자는 같은 회색의 투명도 단계, 구역 배경 `#F7F7F8`, 선은 회색 투명도. 글꼴 Pretendard, 간격 4px 단위, 카드·입력창·큰 버튼 모서리 12px.
 - 사용 규칙: 파란색은 행동(버튼·선택)에만, 초록·주황·빨강은 상태 표시에만.
 
+
+### D0 대조 결과 (2026-10-30, montage-web `d2d49a5`)
+| 항목 | 요청 값 | 공식 토큰(`packages/theme`) | 판정 |
+| --- | --- | --- | --- |
+| 대표 색 / 호버 / 누름 | #0066FF / #005EEB / #0054D1 | blue 50 / 45 / 40 = 같은 값 (`surface.brand.primary·strong·heavy`) | 일치 |
+| 옅은 면 | #EAF2FE | blue 95 = #EAF2FE. 단 공식 의미 토큰 `surface.brand.subtle`은 blue 50의 5% 투명도 | 값 일치, 쓰임은 다름(요청대로 #EAF2FE 사용) |
+| 정상 / 경고 / 오류 | #00BF40 / #FF9200 / #FF4242 | green 50 / orange 50 / red 50 = 같은 값 | 일치 |
+| 상태 배경 | 각 색의 8% | `surface.positive·cautionary·negative.primary` = 각 색 50의 opacity 8 | 일치 |
+| 글자 | #171719 | coolNeutral 10 = #171719 (`foreground.neutral.primary`) | 일치 |
+| 보조 글자 | 같은 회색의 투명도 단계 | secondary = coolNeutral 22(#2E2F33) 88%, tertiary = coolNeutral 25(#37383C) 61%, quaternary = 25의 28% | 공식 값 사용(회색 두 단계 + 투명도 3단계) |
+| 구역 배경 | #F7F7F8 | coolNeutral 99 = #F7F7F8 (`background.neutral.secondary`) | 일치 |
+| 선 | 회색 투명도 | coolNeutral 50(#70737C)의 22% / 16% / 8% (`line.neutral`) | 공식 값 사용(기본 선 22%) |
+| 글꼴 | Pretendard | `reset.mjs`의 font-family가 Pretendard Variable 우선, 로드는 CDN 안내(jsdelivr, v1.3.9) | 일치. 이 프로젝트는 파일을 `app/fonts/`에 두고 `next/font/local`로 불러옴(OFL) |
+| 간격 단위 | 4px | spacing 단계 2·4·6·8·10·12·14·16·20·24… (4의 배수만은 아님) | Tailwind 기본 4px 단위 사용, 기준값과 충돌 없음 |
+| 모서리 | 카드·입력창·큰 버튼 12px | radius 단계 4·8·10·12·14·16·20·24·28·32, full | 12px 단계 존재. 컴포넌트별 사용값은 대조하지 않음 |
+
 ### 적용 방식
 - `app/globals.css`에 값을 CSS 변수로 정의한다(`:root` = 라이트). Tailwind 4의 `@theme inline`과 shadcn/ui의 색 변수(`--primary`, `--background`, `--border`, `--ring`, `--destructive` 등)에 연결한다. **화면 코드에는 색상값을 직접 쓰지 않는다**(클래스는 `bg-primary` 같은 의미 이름만).
 - 다크 모드는 지금 넣지 않는다. 현재 `globals.css`의 `prefers-color-scheme: dark` 블록은 제거해(다크 값이 몽타주 기준이 아니므로), 나중에 `.dark { … }` 변수만 추가하면 되는 구조로 둔다.

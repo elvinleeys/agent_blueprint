@@ -61,12 +61,12 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 - 체크포인트: vitest·tsc·eslint·build 보고 → 커밋 → **[P 확인]**
 
 ### 단계 D (디자인 기준값·공통 부품)
-- [ ] **D0** 사전 확인·보고(코드 변경 없음): ① montage-web `packages/theme` 토큰과 요청 값 대조표(차이가 있으면 질문) ② MIT 고지 방법 ③ shadcn/ui와 Next 16.4.3·React 19.3·Tailwind 4.3 호환, 설치될 의존성 목록 ④ Pretendard 불러오기 방식(라이선스·파일). **보고 후 진행 확인**
-- [ ] **D1** `app/globals.css` 토큰 CSS 변수(라이트만, 다크 추가용 구조, 다크 미디어쿼리 블록 제거) + `@theme inline` 연결 + 폰트. Verify: `build`
-- [ ] **D2** shadcn/ui 초기화(`components.json`)·부품 10종(`components/ui/`): 버튼, 입력, 여러 줄 입력, 선택, 카드, 탭, 배지, 드롭다운 메뉴, 대화상자, 알림. 커밋 `chore:`(설치)와 `feat:`(토큰 연결) 분리
-- [ ] **D3** 기존 화면의 `slate`·`indigo` 클래스를 토큰·부품으로 교체(동작 불변). 색상값 직접 사용 검색으로 확인. Files가 많으면 화면별로 나눠 커밋
-- [ ] **D4** 헤더 계정 메뉴(프로필 → 계정 설정·로그아웃, `LogoutButton` 재사용)
-- [ ] **D5** 저장소 루트 `THIRD_PARTY_NOTICES.md`: 몽타주 토큰 출처(저장소·경로·확인 날짜)와 MIT 전문(Copyright 2026 Wanted Lab, Inc.), Pretendard 등 서드파티 고지. 커밋 `docs:`
+- [x] **D0** 사전 확인·보고(코드 변경 없음): ① montage-web `packages/theme` 토큰과 요청 값 대조표(차이가 있으면 질문) ② MIT 고지 방법 ③ shadcn/ui와 Next 16.4.3·React 19.3·Tailwind 4.3 호환, 설치될 의존성 목록 ④ Pretendard 불러오기 방식(라이선스·파일). **보고 후 진행 확인**
+- [x] **D1** `app/globals.css` 토큰 CSS 변수(라이트만, 다크 추가용 구조, 다크 미디어쿼리 블록 제거) + `@theme inline` 연결 + 폰트. Verify: `build`
+- [x] **D2** shadcn/ui 초기화(`components.json`)·부품 10종(`components/ui/`): 버튼, 입력, 여러 줄 입력, 선택, 카드, 탭, 배지, 드롭다운 메뉴, 대화상자, 알림. 커밋 `chore:`(설치)와 `feat:`(토큰 연결) 분리
+- [x] **D3** 기존 화면의 `slate`·`indigo` 클래스를 토큰·부품으로 교체(동작 불변). 색상값 직접 사용 검색으로 확인. Files가 많으면 화면별로 나눠 커밋
+- [x] **D4** 헤더 계정 메뉴(프로필 → 계정 설정·로그아웃, `LogoutButton` 재사용)
+- [x] **D5** 저장소 루트 `THIRD_PARTY_NOTICES.md`: 몽타주 토큰 출처(저장소·경로·확인 날짜)와 MIT 전문(Copyright 2026 Wanted Lab, Inc.), Pretendard 등 서드파티 고지. 커밋 `docs:`
 - 체크포인트: vitest·tsc·eslint·build + D0 대조·라이선스 결과 → **[D 확인]**
 - 디자인 시스템 스펙 JSON은 D에서 만들지 않는다(디자인 값의 정본은 CSS 변수). **기능 B 시작 시** `DesignSystemSpecSchema`를 `data-model.md` 기준(color·spacing·radius·font·layout 단수형 그룹)으로 맞춘 뒤(별도 커밋), 이 값으로 예시 JSON을 생성한다.
 

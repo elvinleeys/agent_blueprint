@@ -30,8 +30,10 @@ npm run lint     # 린트
 
 ```
 (프로젝트 루트)/
+components.json            # shadcn/ui 설정
+THIRD_PARTY_NOTICES.md     # 서드파티(몽타주 토큰·Pretendard·shadcn/ui) 출처와 라이선스 고지
 proxy.ts                   # 세션 갱신, 비로그인 사용자의 /projects·/account 접근을 /?next=로 이동, /login은 /로 이동, 로그인 상태의 /는 next 또는 /projects로 이동
-app/                       # 라우팅만. 로직을 두지 않는다
+app/                       # 라우팅만. 로직을 두지 않는다 (globals.css가 디자인 기준값 CSS 변수의 정본, fonts/ 글꼴 파일)
   page.tsx                 # S-01 홈 (서비스 소개 + GitHub로 시작하기)
   projects/page.tsx        # S-02 목록
   projects/[id]/           # 작업공간 (설정·구조 설계·디자인 시스템·지시서)
@@ -50,8 +52,9 @@ core/                      # 순수 TypeScript. React·Next.js import 금지
   adapters/styling/        # css, css-modules, tailwind 어댑터
   adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서)
   prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
-components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록, home/ 홈 소개·로그인, layout/ 공통 헤더, auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정)
+components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, 트리 캔버스, 편집 패널, 결과 목록, home/ 홈 소개·로그인, layout/ 공통 헤더, auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정)
 store/                     # Zustand 스토어 (설계도·검사 결과 상태)
+lib/utils.ts              # cn 클래스 병합(shadcn)
 lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리), proxy.ts(세션 갱신)
 lib/auth/                  # 서버 전용 인증 처리 (callback-handler: /auth/callback 처리)
 lib/db/                    # DB 접근 함수 (projects, blueprints: 클라이언트를 인자로 받고 결과를 DbResult로 반환, 저장 전·읽은 뒤 Zod 검증)

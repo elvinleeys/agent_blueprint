@@ -73,8 +73,8 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 ### 단계 S (스트리밍)
 - [x] **S0** Vercel 공식 문서로 스트리밍 응답과 함수 실행 시간 한도(`maxDuration`) 관계 확인 → 사용자에게 보고(필요하면 `maxDuration` 조정 제안).
 - [x] **S1** `lib/ai/draft-blueprint.ts`에 `onProgress` 콜백(accepted 제외: generating·validating·normalizing·regenerating) + 테스트. 동작은 콜백 없이 기존과 동일해야 함.
-- [ ] **S2** `lib/ai/draft-handler.ts`: 사전 오류는 상태 코드, 이후 NDJSON 스트림(stage/done/error, 저장 단계, 저장 실패 시 blueprint 포함, **10초 하트비트 `ping`**) + `route.ts` 응답 헤더. 기존 테스트 수정 + 단계 순서·오류 알림·**하트비트 간격과 종료 시 타이머 정리** 테스트 추가. 로컬 `next start`에서 줄이 도착 시점에 나뉘어 오는지 curl로 확인하고, 묶이면 압축 방지 헤더(`no-transform` 등) 추가.
-- [ ] **S3** `scripts/test-draft.ts`가 같은 콜백으로 단계 출력(실행은 사용자).
+- [x] **S2** `lib/ai/draft-handler.ts`: 사전 오류는 상태 코드, 이후 NDJSON 스트림(stage/done/error, 저장 단계, 저장 실패 시 blueprint 포함, **10초 하트비트 `ping`**) + `route.ts` 응답 헤더. 기존 테스트 수정 + 단계 순서·오류 알림·**하트비트 간격과 종료 시 타이머 정리** 테스트 추가. 로컬 `next start`에서 줄이 도착 시점에 나뉘어 오는지 curl로 확인하고, 묶이면 압축 방지 헤더(`no-transform` 등) 추가.
+- [x] **S3** `scripts/test-draft.ts`가 같은 콜백으로 단계 출력(실행은 사용자).
 - [ ] **S4** CLAUDE.md `/api/draft` 행, `SPEC-draft-route.md`, `docs/projects-api.md` 갱신. 커밋은 S1~S2 `feat:`, S3 `chore:`, S4 `docs:`로 분리.
 - **[S 확인]**
 

@@ -7,18 +7,22 @@
 - `.env.local`에 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (이 작업에서는 `SUPABASE_SERVICE_ROLE_KEY`를 쓰지 않는다)
 
 ## 2. 동작
+홈(`/`)이 서비스 소개와 로그인("GitHub로 시작하기" 버튼 하나, 첫 로그인이 곧 회원가입)을 맡는다. 이동 판단은 `core/auth/redirect.ts`의 `decideRedirect`, 실행은 `proxy.ts`.
+
 | 상황 | 결과 |
 | --- | --- |
-| 비로그인으로 `/projects`, `/account` 접근 | `/login?next=<원래 경로>`로 이동 (`proxy.ts`) |
+| 비로그인으로 `/projects`, `/account` 접근 | `/?next=<원래 경로>`로 이동 (`proxy.ts`) |
 | 로그인 성공 | `next`(같은 사이트 안의 경로만 허용, 없으면 `/projects`)로 이동 |
-| 로그인 실패·취소 | `/login?error=auth`와 안내 문구 |
-| 로그인 상태에서 `/login` | `next` 또는 `/projects`로 이동 |
-| 로그아웃 | `signOut()` → `/login` 이동 + `router.refresh()` |
+| 로그인 실패·취소 | `/auth/callback`이 `/login?error=auth`로 보내고, `/login`이 `/?error=auth`로 넘겨 홈에 안내 문구 |
+| 비로그인 `/login` | 쿼리(`next`, `error`)를 유지한 채 `/`로 이동 (`app/login/page.tsx`는 같은 이동을 하는 안전망) |
+| 로그인 상태에서 `/` 또는 `/login` | `next` 또는 `/projects`로 이동(`next`가 홈 자신이면 `/projects`) |
+| 로그아웃 | `signOut()` → `/` 이동 + `router.refresh()` |
 
 ## 3. 로컬 확인
-1. `npm run dev` 후 로그아웃 상태에서 `http://localhost:3000/projects` → `/login?next=%2Fprojects`
-2. `http://localhost:3000/login?next=//evil.com` 에서 로그인 → `/projects`로 도착(외부로 나가지 않음)
-3. `/account`에서 이메일·GitHub 이름 확인 → 로그아웃 → `/projects` 접근 시 다시 `/login`
+1. `npm run dev` 후 로그아웃 상태에서 `http://localhost:3000/projects` → `/?next=%2Fprojects`, 소개와 "GitHub로 시작하기" 버튼
+2. `http://localhost:3000/?next=//evil.com` 에서 로그인 → `/projects`로 도착(외부로 나가지 않음)
+3. 로그인 상태에서 `/`, `/login` 접근 → `/projects`
+4. `/account`에서 이메일·GitHub 이름 확인 → 로그아웃 → `/` 도착, `/projects` 접근 시 다시 `/?next=…`
 
 ## 4. `/api/draft` 브라우저 콘솔 확인
 로그인한 탭의 개발자 도구 콘솔에서 실행한다.

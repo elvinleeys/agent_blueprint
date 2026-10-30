@@ -30,9 +30,9 @@ npm run lint     # 린트
 
 ```
 (프로젝트 루트)/
-proxy.ts                   # 세션 갱신, 비로그인 사용자의 /projects·/account 접근을 /login으로 이동
+proxy.ts                   # 세션 갱신, 비로그인 사용자의 /projects·/account 접근을 /?next=로 이동, /login은 /로 이동, 로그인 상태의 /는 next 또는 /projects로 이동
 app/                       # 라우팅만. 로직을 두지 않는다
-  page.tsx                 # S-01 홈
+  page.tsx                 # S-01 홈 (서비스 소개 + GitHub로 시작하기)
   projects/page.tsx        # S-02 목록
   projects/[id]/           # 작업공간 (설정·구조 설계·디자인 시스템·지시서)
   api/draft/route.ts       # AI 초안 생성
@@ -40,7 +40,7 @@ app/                       # 라우팅만. 로직을 두지 않는다
   api/analyze/route.ts     # 업로드 코드 분석
   api/projects/            # 프로젝트 목록·생성, [id]/blueprint(불러오기·자동 저장), [id]/revisions(판 목록·새 판 추가)
   auth/callback/route.ts   # GitHub 로그인 콜백
-  login/page.tsx           # S-08 로그인
+  login/page.tsx           # 쿼리를 유지해 홈(/)으로 보내는 주소 (로그인은 홈이 맡음)
   account/page.tsx         # S-09 계정
 core/                      # 순수 TypeScript. React·Next.js import 금지
   auth/                    # 로그인 후 이동 경로 검증(safeNextPath), 보호 경로 판단(decideRedirect)
@@ -50,7 +50,7 @@ core/                      # 순수 TypeScript. React·Next.js import 금지
   adapters/styling/        # css, css-modules, tailwind 어댑터
   adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서)
   prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
-components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록, auth/ 로그인·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정)
+components/                # 화면 컴포넌트 (트리 캔버스, 편집 패널, 결과 목록, home/ 홈 소개·로그인, layout/ 공통 헤더, auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정)
 store/                     # Zustand 스토어 (설계도·검사 결과 상태)
 lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리), proxy.ts(세션 갱신)
 lib/auth/                  # 서버 전용 인증 처리 (callback-handler: /auth/callback 처리)

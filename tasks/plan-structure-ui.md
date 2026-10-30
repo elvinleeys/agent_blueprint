@@ -108,7 +108,7 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 ## 디자인 다듬기 목록 (나중에, 지금은 고치지 않음)
 - 모바일 작업공간 탭 넘침 표시(가로 스크롤은 동작하지만 넘친다는 표시가 없음)
 - 작업공간 본문은 `max-w-7xl`인데 헤더는 `max-w-5xl`이라 폭이 어긋남
-- **선택 상자 통일(2026-10-30 추가)**: `components/projects/NewProjectForm.tsx`의 브라우저 기본 `select` 3개(프레임워크·스타일 방식·디렉토리 구조)를 shadcn/ui `Select`로 교체한다. 이때 목록은 선택된 항목 위치에 맞추지 말고 **항상 선택 상자 아래에 열리게** 한다: `components/ui/select.tsx`의 `SelectContent` 기본값이 `position="item-aligned"`(선택 항목을 상자 위에 겹쳐 연다)이므로 `position="popper"`(+ `side="bottom"`)로 바꾸거나 기본값을 바꾼다. 같은 부품을 쓰는 노드 편집 패널의 선택 상자(`components/structure/edit/controls.tsx`)도 지금은 `item-aligned`라 함께 바뀐다. 지금은 고치지 않는다.
+- **선택 상자 통일(2026-10-30 추가)**: `components/projects/NewProjectForm.tsx`의 브라우저 기본 `select` 3개(프레임워크·스타일 방식·디렉토리 구조)를 shadcn/ui `Select`로 교체한다. **목록이 선택 상자 아래에 열리게 하는 부분은 2026-10-30에 이미 처리했다**: `components/ui/select.tsx`의 `SelectContent` 기본 `position`을 `"popper"`로 바꿨다(노드 편집 패널의 선택 상자에 적용됨). 남은 일은 `NewProjectForm`의 기본 `select` 교체뿐이며 디자인 다듬기 때 한다. 참고: 아래에 자리가 없으면 Radix가 목록을 위로 뒤집는다(항상 아래로 고정하려면 `avoidCollisions={false}`가 필요하지만 화면 아래쪽에서는 목록이 매우 작아진다).
 
 ## 메모 (이후 단계에서 처리)
 - **지시서 생성 단계**: 설계도의 기본 layout은 데스크톱 기준이고 responsive는 태블릿·모바일에서 바뀌는 값이다. 지시서에서 Tailwind 스택이면 이를 **모바일 우선(`min-width`) 클래스**로 변환해야 한다(예: 기본 `grid-cols-2` + mobile `columns: 1` → `grid-cols-1 md:grid-cols-2`). CSS·CSS Modules 스택은 `max-width` 미디어 쿼리(데스크톱 우선) 그대로 써도 된다.

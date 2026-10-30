@@ -59,7 +59,7 @@ function SelectTrigger({
 function SelectContent({
   className,
   children,
-  position = "item-aligned",
+  position = "popper", // 목록을 선택 상자 아래에 연다(item-aligned는 선택된 항목을 상자 위에 겹쳐 열어 위아래로 흔들린다). 아래에 자리가 없을 때만 Radix가 위로 뒤집는다
   align = "center",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {

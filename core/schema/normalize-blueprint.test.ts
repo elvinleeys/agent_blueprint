@@ -13,6 +13,29 @@ const issuePaths = (b: unknown) => {
 };
 
 describe("normalizeBlueprint — 보정", () => {
+
+  it("부모 열 수보다 큰 span을 열 수로 줄이고 기록한다", () => {
+    const b = sample();
+    find(b, "ProductGallery").placement = { span: 5 }; // 부모 ProductDetailPage는 2열
+    expect(issuePaths(b)).toContain("nodes.1.placement.span");
+
+    const r = normalizeBlueprint(b);
+    expect(r.changes).toEqual([{ nodeId: "n-gallery", path: "placement.span", detail: "span이 부모 열 수(2)보다 커서 5 → 2로 줄임" }]);
+    expect(BlueprintSchema.safeParse(r.blueprint).success).toBe(true);
+    expect(find(b, "ProductGallery").placement.span).toBe(5); // 입력은 그대로
+  });
+
+  it("열 수 이하의 span과 full은 그대로 둔다", () => {
+    const b = sample();
+    find(b, "ProductGallery").placement = { span: 2 };
+    expect(normalizeBlueprint(b).changes).toEqual([]);
+  });
+
+  it("부모가 grid가 아닌 placement는 span을 건드리지 않는다", () => {
+    const b = sample();
+    find(b, "PriceTag").placement = { span: 9 }; // 부모 ProductInfo는 flex
+    expect(normalizeBlueprint(b).changes).toEqual([]);
+  });
   it("올바른 설계도는 바꾸지 않고 내역도 없다", () => {
     const b = sample();
     const r = normalizeBlueprint(b);

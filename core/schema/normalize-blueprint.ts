@@ -6,7 +6,7 @@ const isObj = (v: unknown): v is Obj => typeof v === "object" && v !== null && !
 
 /**
  * AI가 만든 설계도에서 기계적으로 고칠 수 있는 오류만 보정한다. 스키마 검증 전의 원시 JSON을 받고 입력은 바꾸지 않는다.
- * 보정: grid의 layout·responsive에 있는 direction 제거(responsive 항목에 breakpoint만 남으면 항목 삭제, '의도 확인 필요' 표시), flex의 columns 제거, 같은 부모 아래 order 중복 시 0부터 재정렬.
+ * 보정: grid의 layout·responsive에 있는 direction 제거(responsive 항목에 breakpoint만 남으면 항목 삭제, '의도 확인 필요' 표시), flex의 columns 제거, 부모 열 수보다 큰 span은 열 수로 줄이기, 같은 부모 아래 order 중복 시 0부터 재정렬.
  * 보정하지 않음: FSD location 형식, 이름 형식·중복, 루트 개수 등 의미 판단이 필요한 오류(모델이 다시 만들어야 한다).
  */
 export function normalizeBlueprint(input: unknown): NormalizeResult {
@@ -45,6 +45,20 @@ export function normalizeBlueprint(input: unknown): NormalizeResult {
         }
         return true;
       });
+    }
+  });
+
+  // 부모 열 수보다 큰 span은 열 수로 줄인다. 부모가 grid가 아닌 placement는 의미 판단이 필요해 건드리지 않는다
+  const columnsOf = new Map<string, number>();
+  nodes.forEach((n) => {
+    if (isObj(n) && typeof n.id === "string" && isObj(n.layout) && n.layout.display === "grid" && typeof n.layout.columns === "number") columnsOf.set(n.id, n.layout.columns);
+  });
+  nodes.forEach((n, i) => {
+    if (!isObj(n) || !isObj(n.placement) || typeof n.placement.span !== "number" || typeof n.parentId !== "string") return;
+    const columns = columnsOf.get(n.parentId);
+    if (columns !== undefined && n.placement.span > columns) {
+      changes.push({ nodeId: idOf(n, i), path: "placement.span", detail: `span이 부모 열 수(${columns})보다 커서 ${n.placement.span} → ${columns}로 줄임` });
+      n.placement.span = columns;
     }
   });
 

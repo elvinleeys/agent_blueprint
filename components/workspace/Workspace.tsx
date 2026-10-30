@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { Project } from "../../lib/db/projects";
 import { stackSummary } from "../projects/stack-labels";
@@ -21,6 +22,13 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   return (
     <div className="flex flex-col gap-6">
       <div>
+        <nav aria-label="경로" className="mb-2 flex items-center gap-1 text-sm text-slate-500">
+          <Link href="/projects" className="hover:text-indigo-600">
+            프로젝트
+          </Link>
+          <span aria-hidden>›</span>
+          <span aria-current="page" className="truncate">{project.name}</span>
+        </nav>
         <h1 className="text-2xl font-bold text-slate-900">{project.name}</h1>
         <p className="mt-1 text-sm text-slate-600">{stackSummary(project.stack)}</p>
       </div>

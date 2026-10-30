@@ -2,7 +2,7 @@ import type { Blueprint, ComponentNode } from "../schema/blueprint";
 import { commitNodes, reject, type EditResult } from "./result";
 
 export type NodePatch = Partial<
-  Pick<ComponentNode, "name" | "kind" | "responsibilities" | "state" | "props" | "events" | "dataFetch" | "renderMode" | "location">
+  Pick<ComponentNode, "name" | "kind" | "responsibilities" | "state" | "props" | "events" | "dataFetch" | "renderMode" | "location" | "layout" | "placement" | "style">
 >;
 
 // 사용자가 고친 필드는 AI 가정 표시에서 뺀다. assumedFields는 "props"·"layout.gap"처럼 최상위 필드명으로 시작한다
@@ -33,5 +33,17 @@ export function updateNode(bp: Blueprint, id: string, patch: NodePatch): EditRes
 
   const changed = Object.fromEntries(keys.map((k) => [k, patch[k]]));
   const next = clearAssumed({ ...node, ...changed }, keys);
-  return commitNodes(bp, bp.nodes.map((n) => (n.id === id ? next : n)), id);
+
+  const columns = next.layout?.display === "grid" ? next.layout.columns : undefined;
+  if (columns !== undefined) {
+    const tooWide = bp.nodes.filter((c) => c.parentId === id && typeof c.placement?.span === "number" && c.placement.span > columns);
+    if (tooWide.length > 0) return reject(`${tooWide.map((c) => c.name).join(", ")}의 차지 칸이 ${columns}열보다 큽니다. 먼저 차지 칸을 줄이세요.`, id, ["layout", "columns"]);
+  }
+  // grid가 아니게 되면 자식들의 차지 칸은 의미가 없다
+  const clearPlacement = node.layout?.display === "grid" && next.layout?.display !== "grid";
+  return commitNodes(
+    bp,
+    bp.nodes.map((n) => (n.id === id ? next : clearPlacement && n.parentId === id && n.placement ? { ...n, placement: null } : n)),
+    id,
+  );
 }

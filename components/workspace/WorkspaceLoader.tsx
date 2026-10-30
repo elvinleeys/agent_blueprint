@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { connection } from "next/server";
 import { isUuid } from "../../lib/api/http";
 import { loadBlueprint } from "../../lib/db/blueprints";
 import { getProject } from "../../lib/db/projects";
@@ -9,6 +10,8 @@ import Workspace from "./Workspace";
 
 // params와 세션을 읽으므로 호출하는 쪽에서 Suspense로 감싼다. Proxy를 거치지 않은 경우를 대비해 로그인도 여기서 확인한다
 export default async function WorkspaceLoader({ params }: { params: Promise<{ id: string }> }) {
+  // getClaims()가 토큰 만료를 Date.now()로 확인하므로, 요청 시점에 렌더링되도록 먼저 connection()을 부른다(Next.js 16 Cache Components)
+  await connection();
   const { id } = await params;
   if (!isUuid(id)) notFound();
 

@@ -80,3 +80,10 @@ commit;
 
 ## 참고: CLI로 적용하려면 (이번에는 사용하지 않음)
 `supabase/` 폴더는 이미 마이그레이션 위치(`supabase/migrations/`)를 따른다. CLI를 쓰려면 `npx supabase init`(설정 파일 생성), `npx supabase login`, `npx supabase link --project-ref <ref>`, `npx supabase db push` 순서이며 DB 비밀번호가 필요하다. 새 도구 도입이므로 쓰기 전에 Claude에게 먼저 알려 달라(승인 필요 항목).
+
+## 5. 추가 마이그레이션: spec_inputs.route (2026-10-30)
+대상 SQL: `supabase/migrations/20261030120000_spec_inputs_route.sql` — `spec_inputs`에 화면 주소 열 `route`(text, 선택, `/`로 시작하는 공백 없는 200자 이하)를 추가한다. RLS 정책·GRANT는 표 단위라 그대로 적용된다.
+1. SQL Editor → New query에 파일 전체를 붙여넣고 **Run** (오류 없이 Success)
+2. 확인: `select column_name, data_type, is_nullable from information_schema.columns where table_schema = 'public' and table_name = 'spec_inputs' and column_name = 'route';` → 1행(text, YES)
+3. 적용 전에는 초안 생성 시 스펙 입력 저장이 실패한다(서버 로그 `specSaved: false`). 초안 생성과 설계도 저장에는 영향이 없다.
+4. 롤백: `alter table public.spec_inputs drop column route;`

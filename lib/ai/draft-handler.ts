@@ -2,6 +2,7 @@ import "server-only";
 import { dbFailureToHttp } from "../api/http";
 import { createBlueprintRevision } from "../db/blueprints";
 import { getProject } from "../db/projects";
+import { saveSpecInput } from "../db/spec-inputs";
 import { createClient } from "../supabase/server";
 import { draftBlueprint } from "./draft-blueprint";
 import { ndjsonResponse } from "./draft-stream";
@@ -42,7 +43,10 @@ export async function handleDraftRequest(request: Request): Promise<Response> {
     return ndjsonResponse(async (send) => {
       try {
         send({ type: "stage", stage: "accepted" });
+        // 스펙 입력(7개 항목·화면 주소·이미지 수)은 AI 호출과 나란히 저장한다. 실패해도 초안 생성은 계속한다(이미지 원본은 저장하지 않는다)
+        const specSave = projectId ? saveSpecInput(supabase, projectId, { spec: input.spec, route: input.route }) : null;
         const result = await draftBlueprint(input, { startedAt, onProgress: (e) => send({ type: "stage", ...e }) });
+        const specSaved = specSave ? (await specSave).ok : null;
 
         // 저장이 실패해도 초안은 버리지 않는다(이미 AI 비용이 들었다). 오류 알림에 초안을 함께 담아 클라이언트가 다시 저장할 수 있게 한다
         let saved: Awaited<ReturnType<typeof createBlueprintRevision>> | null = null;
@@ -61,6 +65,7 @@ export async function handleDraftRequest(request: Request): Promise<Response> {
             attempts: result.attempts,
             normalized: result.normalized.length,
             ...(saved ? { saved: saved.ok } : {}),
+            ...(specSaved === null ? {} : { specSaved }),
             elapsedMs: result.elapsedMs,
             usage: result.usage,
             costUsd: result.costUsd,

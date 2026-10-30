@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createBlueprintRevision } from "../db/blueprints";
 import { getProject } from "../db/projects";
+import { saveSpecInput } from "../db/spec-inputs";
 import { createClient } from "../supabase/server";
 import { draftBlueprint, type DraftResult } from "./draft-blueprint";
 import { handleDraftRequest } from "./draft-handler";
@@ -10,6 +11,7 @@ vi.mock("../supabase/server", () => ({ createClient: vi.fn() }));
 vi.mock("./draft-blueprint", () => ({ draftBlueprint: vi.fn() }));
 vi.mock("../db/projects", () => ({ getProject: vi.fn() }));
 vi.mock("../db/blueprints", () => ({ createBlueprintRevision: vi.fn() }));
+vi.mock("../db/spec-inputs", () => ({ saveSpecInput: vi.fn() }));
 
 const getClaims = vi.fn();
 const draft = vi.mocked(draftBlueprint);
@@ -39,6 +41,8 @@ beforeEach(() => {
   draft.mockReset();
   vi.mocked(getProject).mockReset();
   vi.mocked(createBlueprintRevision).mockReset();
+  vi.mocked(saveSpecInput).mockReset();
+  vi.mocked(saveSpecInput).mockResolvedValue({ ok: true, data: null });
   logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -190,6 +194,35 @@ describe("handleDraftRequest — projectId(프로젝트에 새 판으로 저장)
     expect(body.meta).toMatchObject({ attempts: 1, saved: { revision: 4, updatedAt: "t" } });
     expect(createBlueprintRevision).toHaveBeenCalledWith(expect.anything(), PID, { title: "상품 상세" });
     expect(JSON.parse(String(logSpy.mock.calls[0][0]))).toMatchObject({ saved: true });
+  });
+
+  it("스펙 입력(7개 항목·화면 주소·이미지 수)을 프로젝트에 저장한다. 저장이 실패해도 초안은 계속된다", async () => {
+    draft.mockResolvedValue(ok);
+    vi.mocked(createBlueprintRevision).mockResolvedValue({ ok: true, data: { revision: 1, updatedAt: "t" } });
+    vi.mocked(saveSpecInput).mockResolvedValue({ ok: false, kind: "unavailable", message: "스펙 입력을 저장하지 못했습니다." });
+    const f = new FormData();
+    f.set("projectId", PID);
+    f.set("route", "/products/[id]");
+    f.set("spec", JSON.stringify({ overview: "상품 상세" }));
+    const msgs = await lines(await handleDraftRequest(new Request("http://localhost/api/draft", { method: "POST", body: f })));
+    expect(msgs.at(-1).type).toBe("done"); // 스펙 저장 실패가 초안을 막지 않는다
+    expect(saveSpecInput).toHaveBeenCalledWith(expect.anything(), PID, {
+      spec: expect.objectContaining({ overview: "상품 상세", imageCount: 0 }),
+      route: "/products/[id]",
+    });
+    expect(JSON.parse(String(logSpy.mock.calls[0][0]))).toMatchObject({ specSaved: false });
+  });
+
+  it("projectId가 없으면 스펙 입력을 저장하지 않는다", async () => {
+    draft.mockResolvedValue(ok);
+    await lines(await handleDraftRequest(form()));
+    expect(saveSpecInput).not.toHaveBeenCalled();
+  });
+
+  it("초안 생성이 실패해도 스펙 입력은 저장된다(다음에 입력칸에 불러오기 위해)", async () => {
+    draft.mockResolvedValue(failure("timeout"));
+    await lines(await handleDraftRequest(withProject()));
+    expect(saveSpecInput).toHaveBeenCalledTimes(1);
   });
 
   it("AI 호출 전에 프로젝트를 확인하고, 스택은 요청값이 아니라 프로젝트에 저장된 값을 쓴다", async () => {

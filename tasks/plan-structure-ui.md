@@ -82,7 +82,7 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 - [ ] **B1** `core/schema/tree.ts` `buildTree()` + 테스트(order 순, 루트 1개, 연결 안 된 노드 처리). Verify: `vitest`
 - [ ] **B2** dagre 좌표 계산 `components/structure/toFlow.ts` + 테스트(노드·엣지 수, 부모가 자식보다 위). Verify: `vitest`
 - [ ] **B3** `TreeView.tsx`·`TreeNodeCard.tsx`(React Flow 읽기 전용, **카드는 이름·kind 배지 정도로 단순**, 클릭하면 선택). 클라이언트 전용으로만 불러온다(`next/dynamic`, SSR 끔을 `"use client"` 래퍼에서). Verify: `build`, 로컬에서 `fixtures`/sample 설계도로 확인
-- [ ] **BP1** `core/preview/`: 평면 `nodes` → 배치 상자 트리(부모 `layout`의 grid·flex·방향·열 수·gap, 자식 `placement`, `order`), 데스크톱/모바일 반응형 적용, 그려지지 않는 노드 분리 + 테스트. **시작 전 `data-model.md`의 layout·placement·responsive·kind 정의를 읽고 변환표를 보고**. Files ≤3. Verify: `vitest`
+- [ ] **BP1** `core/preview/`: 평면 `nodes` → 배치 상자 트리(부모 `layout`의 grid·flex·방향·열 수·gap, 자식 `placement`, `order`), 데스크톱/모바일 반응형 적용, 그려지지 않는 노드 분리 + 테스트. 변환 규칙은 `SPEC-structure-ui.md`의 "미리보기 변환표"(`data-model.md` 기준, 사용자 확인 대기). Files ≤3. Verify: `vitest`
 - [ ] **BP2** `components/structure/PreviewCanvas.tsx`(상자·배치 표시, 클릭 선택, 데스크톱·모바일 전환, "그려지지 않는 노드" 목록). Verify: `build`, `sample-blueprint.json`으로 직접 확인
 - [ ] **BP3** `NodeInfoPanel.tsx`(보기만) + `selectedNodeId`(B7 스토어와 연결)
 - [ ] **B4** `core/image/fit-size.ts` + 테스트(1,200 초과 축소·이하 유지, 합계 4MB 판정, 품질 단계). Verify: `vitest`
@@ -100,7 +100,9 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 ## 배포 체크리스트 (첫 Vercel 배포 때)
 - [ ] 스트리밍 응답이 줄 단위로 도착하는지 확인(`curl -N`으로 `/api/draft` 호출 또는 브라우저 네트워크 탭): 단계 알림과 `ping`이 모아서 한꺼번에 오지 않고 도착 시점에 나뉘어 오는지. 묶여 오면 응답 헤더·압축 설정 조정.
 - [ ] 하트비트가 AI 응답 대기 중(15~30초)에도 10초 간격으로 도착하는지.
-- [ ] 프로젝트의 Fluid compute 설정과 요금제 확인(`maxDuration = 70`이 한도 안인지, 문서 기준 Hobby 300초·Pro 800초).
+- [ ] 배포 환경: **Vercel Hobby(무료) + Fluid compute**(사용자 확인). `maxDuration = 70`은 문서 기준 Hobby 한도(300초) 안이다. Hobby는 **개인·비상업 용도 전용**이며, 한도를 넘으면 요금이 청구되는 것이 아니라 **사용이 중지**된다.
+- [ ] **발표 전날** 대시보드에서 함수 호출 수·메모리 사용량을 확인한다(한도에 가까우면 호출을 줄이거나 발표 전까지 시연 횟수 조정).
+- [ ] 로그 보관 기간이 짧으므로, **배포 직후 스트리밍 확인 때 함수 로그를 바로 확인**한다(`draft` 로그 한 줄: 시도 횟수·소요 시간·비용·오류 종류 포함 여부).
 - [ ] 실제 OpenAI 호출 1회(사용자 직접)로 `done`까지 도착하고 새 판이 저장되는지.
 
 ## 제외 확인

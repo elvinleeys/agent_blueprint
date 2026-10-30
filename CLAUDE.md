@@ -47,17 +47,20 @@ app/                       # 라우팅만. 로직을 두지 않는다 (globals.c
 core/                      # 순수 TypeScript. React·Next.js import 금지
   auth/                    # 로그인 후 이동 경로 검증(safeNextPath), 보호 경로 판단(decideRedirect)
   schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환), normalize-blueprint.ts(AI 응답 자동 보정)
+  image/                   # 이미지 전송 전 축소 규칙(fit-size: 가로 1,200px·합계 4MB·품질 단계, 고를 때 검사)
+  preview/                 # 구조 미리보기 계산(설계도 layout·placement·order·반응형 → 상자 트리, 훅 분리)
   rules/common/            # 공통 검사 규칙 R-01~R-07
   adapters/framework/      # html, react, next 어댑터
   adapters/styling/        # css, css-modules, tailwind 어댑터
   adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서)
   prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
-components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, 트리 캔버스, 편집 패널, 결과 목록, home/ 홈 소개·로그인, layout/ 공통 헤더, auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정)
-store/                     # Zustand 스토어 (설계도·검사 결과 상태)
+components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, 트리 캔버스, 편집 패널, 결과 목록, home/ 홈 소개·로그인, layout/ 공통 헤더, auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정, structure/ 구조 설계 탭: 스펙 입력·진행·오류·미리보기·트리·노드 정보)
+store/                     # Zustand 스토어 (structure-store: 작업공간별 설계도·스펙 입력·초안 진행·선택·보기 상태)
 lib/utils.ts              # cn 클래스 병합(shadcn)
 lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리), proxy.ts(세션 갱신)
 lib/auth/                  # 서버 전용 인증 처리 (callback-handler: /auth/callback 처리)
-lib/db/                    # DB 접근 함수 (projects, blueprints: 클라이언트를 인자로 받고 결과를 DbResult로 반환, 저장 전·읽은 뒤 Zod 검증)
+lib/client/                # 브라우저 전용 (resize-images: 캔버스 축소, draft-request: 요청 구성, draft-stream: NDJSON 읽기·끊김 감지, run-draft: 초안 생성 한 번의 흐름)
+lib/db/                    # DB 접근 함수 (projects, blueprints, spec-inputs: 클라이언트를 인자로 받고 결과를 DbResult로 반환, 저장 전·읽은 뒤 Zod 검증)
 supabase/migrations/       # 표·RLS·GRANT SQL (대시보드 SQL 편집기로 직접 실행, 절차는 docs/db-migration.md)
 supabase/tests/            # RLS 격리 확인 스크립트(적용 후 실행, 끝에 rollback)
 lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, http: 오류 매핑·JSON 읽기, *-handler: 라우트별 처리)
@@ -152,7 +155,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 
 | 경로 | 메서드 | 입력 | 출력 | 비고 |
 | --- | --- | --- | --- | --- |
-| `/api/draft` | POST | `multipart/form-data`: stack(projectId가 없을 때만 필요), projectId(선택, 있으면 프로젝트 소유를 AI 호출 전에 확인하고 스택은 프로젝트 값을 쓰며 성공한 초안을 새 판으로 저장), route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | 시작 전 오류는 상태 코드 + JSON. 통과하면 200 NDJSON 스트림(줄마다 JSON): `stage`(accepted·generating·validating·normalizing·regenerating·saving), `ping`(10초 하트비트), 마지막 줄 `done`(`{ blueprint, meta(attempts, elapsedMs, normalized, saved) }`) 또는 `error`(`status`와 `error`, 저장 실패는 `blueprint` 포함) | OpenAI 호출, 스키마 검증, 검증 실패 시 자동 보정 후 재검증, 그래도 실패하면 1회 재시도. 사전 오류는 400·401·404(projectId)·413·503(projectId 조회), 시작 후 오류는 스트림 `error`의 status로 422·429·502·504·503(저장 실패). 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초. 클라이언트는 `done`·`error` 없이 끝나거나 30초 무수신이면 끊긴 것으로 처리 |
+| `/api/draft` | POST | `multipart/form-data`: stack(projectId가 없을 때만 필요), projectId(선택, 있으면 프로젝트 소유를 AI 호출 전에 확인하고 스택은 프로젝트 값을 쓰며 성공한 초안을 새 판으로 저장하고 스펙 입력(7개 항목·route·이미지 수, 이미지 원본 제외)을 spec_inputs에 저장), route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | 시작 전 오류는 상태 코드 + JSON. 통과하면 200 NDJSON 스트림(줄마다 JSON): `stage`(accepted·generating·validating·normalizing·regenerating·saving), `ping`(10초 하트비트), 마지막 줄 `done`(`{ blueprint, meta(attempts, elapsedMs, normalized, saved) }`) 또는 `error`(`status`와 `error`, 저장 실패는 `blueprint` 포함) | OpenAI 호출, 스키마 검증, 검증 실패 시 자동 보정 후 재검증, 그래도 실패하면 1회 재시도. 사전 오류는 400·401·404(projectId)·413·503(projectId 조회), 시작 후 오류는 스트림 `error`의 status로 422·429·502·504·503(저장 실패). 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초. 클라이언트는 `done`·`error` 없이 끝나거나 30초 무수신이면 끊긴 것으로 처리 |
 | `/api/explain` | POST | 위반 1건 또는 정리 대상 | 설명·수정 제안 | OpenAI 호출 |
 | `/api/analyze` | POST | 업로드 컴포넌트 코드 | props·variant·스타일 값 | 코드 원본 저장 안 함 |
 | `/api/projects` | GET/POST | POST: JSON `{ name, stack }` | `{ projects }` / 201 `{ project }` | 로그인 세션 필수, 본인 프로젝트만(RLS) |

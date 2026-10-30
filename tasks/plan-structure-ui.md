@@ -85,16 +85,16 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 - [x] **BP1** `core/preview/`: 평면 `nodes` → 배치 상자 트리(부모 `layout`의 grid·flex·방향·열 수·gap, 자식 `placement`, `order`), 데스크톱/모바일 반응형 적용, 그려지지 않는 노드 분리 + 테스트. 변환 규칙은 `SPEC-structure-ui.md`의 "미리보기 변환표"(`data-model.md` 기준, 사용자 확인 대기). Files ≤3. Verify: `vitest`
 - [x] **BP2** `components/structure/PreviewCanvas.tsx`(상자·배치 표시, 클릭 선택, 데스크톱·모바일 전환, "그려지지 않는 노드" 목록). Verify: `build`, `sample-blueprint.json`으로 직접 확인
 - [x] **BP3** `NodeInfoPanel.tsx`(보기만) + `selectedNodeId`(B7 스토어와 연결)
-- [ ] **B4** `core/image/fit-size.ts` + 테스트(1,200 초과 축소·이하 유지, 합계 4MB 판정, 품질 단계). Verify: `vitest`
-- [ ] **B5** `lib/client/resize-images.ts`(캔버스, 5MB 선검사, 4MB 루프). Verify: 수동(큰 이미지 3장 합계 확인)
-- [ ] **B6** `lib/client/draft-request.ts`(FormData·imageMeta) + `draft-stream.ts`(NDJSON 줄 파싱, 잘린 줄 이어 붙이기, JSON/스트림 구분, 타임아웃 해석, **`ping` 무시, 마지막 줄 후 30초 무수신 시 "연결이 끊겼습니다", `done`·`error` 없이 끝난 스트림을 오류로 처리**) + 테스트(가짜 타이머). Verify: `vitest`
-- [ ] **B7** `store/structure-store.ts`(spec, route, images, status, error, blueprint, normalized, selectedNodeId, previewViewport). Verify: `tsc`
-- [ ] **B8** `SpecForm.tsx`("화면 주소 (선택)" + 안내 문구, 버튼 활성 조건, 재생성 시 "새 판으로 추가되며 기존 초안은 보존됩니다" 한 줄)·`ImagePicker.tsx`(이미지만 안내). Files ≤3
-- [ ] **B9** `DraftProgress.tsx`·`DraftError.tsx`·`NormalizedList.tsx`. Files ≤3
-- [ ] **B10** `StructurePanel.tsx` 조립: 3열(왼쪽 입력·초안 후 접기, 가운데 미리보기(기본)/트리 전환, 오른쪽 정보 패널)+아래 검사 결과 자리, 작업공간 연결(서버가 읽은 최신 판 초기값). Files ≤3
+- [x] **B4** `core/image/fit-size.ts` + 테스트(1,200 초과 축소·이하 유지, 합계 4MB 판정, 품질 단계). Verify: `vitest`
+- [x] **B5** `lib/client/resize-images.ts`(캔버스, 5MB 선검사, 4MB 루프). Verify: 수동(큰 이미지 3장 합계 확인)
+- [x] **B6** `lib/client/draft-request.ts`(FormData·imageMeta) + `draft-stream.ts`(NDJSON 줄 파싱, 잘린 줄 이어 붙이기, JSON/스트림 구분, 타임아웃 해석, **`ping` 무시, 마지막 줄 후 30초 무수신 시 "연결이 끊겼습니다", `done`·`error` 없이 끝난 스트림을 오류로 처리**) + 테스트(가짜 타이머). Verify: `vitest`
+- [x] **B7** `store/structure-store.ts`(spec, route, images, status, error, blueprint, normalized, selectedNodeId, previewViewport). Verify: `tsc`
+- [x] **B8** `SpecForm.tsx`("화면 주소 (선택)" + 안내 문구, 버튼 활성 조건, 재생성 시 "새 판으로 추가되며 기존 초안은 보존됩니다" 한 줄)·`ImagePicker.tsx`(이미지만 안내). Files ≤3
+- [x] **B9** `DraftProgress.tsx`·`DraftError.tsx`·`NormalizedList.tsx`. Files ≤3
+- [x] **B10** `StructurePanel.tsx` 조립: 3열(왼쪽 입력·초안 후 접기, 가운데 미리보기(기본)/트리 전환, 오른쪽 정보 패널)+아래 검사 결과 자리, 작업공간 연결(서버가 읽은 최신 판 초기값). Files ≤3
   - Acceptance: 스펙 성공 기준 3~6(미리보기·3열 포함)
   - Verify: 수동 체크리스트 + `vitest`·`tsc`·`eslint`·`build`
-- [ ] **B11** CLAUDE.md 폴더 구조·`docs/` 갱신, 개발 일지는 마무리 때 요청 시.
+- [x] **B11** CLAUDE.md 폴더 구조·`docs/` 갱신, 개발 일지는 마무리 때 요청 시.
 - **[B 확인]**: 결과 보고, 브라우저에서 초안 생성 1회는 사용자가 실행.
 
 ## 배포 체크리스트 (첫 Vercel 배포 때)

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { BlueprintSchema, type Blueprint } from "../schema/blueprint";
-import { updateNode } from "./update-node";
+import { isAssumedField, updateNode } from "./update-node";
 
 const sample = () => BlueprintSchema.parse(JSON.parse(readFileSync("core/schema/sample-blueprint.json", "utf-8")));
 const node = (bp: Blueprint, id: string) => bp.nodes.find((n) => n.id === id)!;
@@ -134,6 +134,16 @@ describe("updateNode", () => {
       const out = node(must(updateNode(sample(), "n-review", { dataFetch: true })), "n-review");
       expect(out.assumed).toBe(true);
       expect(out.assumedFields).toEqual(["responsibilities", "props"]);
+    });
+    it("isAssumedField: 최상위 필드명·하위 경로·인덱스로 가정을 판정하고, assumed가 false면 항상 false", () => {
+      const review = node(sample(), "n-review");
+      expect(isAssumedField(review, "props")).toBe(true);
+      expect(isAssumedField(review, "state")).toBe(false);
+      const sub = { ...review, assumedFields: ["layout.gap", "responsibilities[0]"] };
+      expect(isAssumedField(sub, "layout")).toBe(true);
+      expect(isAssumedField(sub, "responsibilities")).toBe(true);
+      expect(isAssumedField(sub, "lay")).toBe(false); // 이름이 앞부분만 같은 다른 필드
+      expect(isAssumedField({ ...review, assumed: false }, "props")).toBe(false);
     });
     it("가정한 필드 목록이 없으면 표시를 그대로 둔다", () => {
       const bp = sample();

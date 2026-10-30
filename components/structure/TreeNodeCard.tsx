@@ -10,7 +10,7 @@ import { useStructureStore } from "./StructureStoreProvider";
 // 카드 안의 button이 키보드(Tab·Enter·Space)와 클릭 선택을 맡는다. React Flow의 노드 자체 포커스는 꺼 두어 탭 정지가 겹치지 않게 한다
 export default function TreeNodeCard({ id, data }: NodeProps<FlowNode>) {
   const selected = useStructureStore((s) => s.selectedNodeId === id);
-  const select = useStructureStore((s) => s.select);
+  const select = useStructureStore((s) => s.requestSelect); // 화면에만 있는 틀린 입력이 있으면 확인을 거친다
 
   return (
     <>

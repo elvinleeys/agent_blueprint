@@ -69,7 +69,7 @@ export default function PreviewCanvas() {
   const blueprint = useStructureStore((s) => s.blueprint);
   const viewport = useStructureStore((s) => s.viewport);
   const selectedId = useStructureStore((s) => s.selectedNodeId);
-  const select = useStructureStore((s) => s.select);
+  const select = useStructureStore((s) => s.requestSelect); // 화면에만 있는 틀린 입력이 있으면 확인을 거친다
   const setViewport = useStructureStore((s) => s.setViewport);
 
   const preview = useMemo(() => (blueprint ? buildPreview(blueprint.nodes, viewport) : null), [blueprint, viewport]); // 선택만 바뀔 때는 다시 계산하지 않는다

@@ -5,10 +5,16 @@ export type NodePatch = Partial<
   Pick<ComponentNode, "name" | "kind" | "responsibilities" | "state" | "props" | "events" | "dataFetch" | "renderMode" | "location" | "layout" | "placement" | "style">
 >;
 
-// 사용자가 고친 필드는 AI 가정 표시에서 뺀다. assumedFields는 "props"·"layout.gap"처럼 최상위 필드명으로 시작한다
+// assumedFields의 항목은 "props"·"layout.gap"·"responsibilities[0]"처럼 최상위 필드명으로 시작한다
+const coversField = (assumedField: string, key: string) => assumedField === key || assumedField.startsWith(`${key}.`) || assumedField.startsWith(`${key}[`);
+
+/** AI가 이 필드(최상위 필드명)를 가정으로 채웠다고 표시했는가. 편집 패널의 "AI 가정" 표시에 쓴다 */
+export const isAssumedField = (node: ComponentNode, key: string): boolean => node.assumed && (node.assumedFields?.some((f) => coversField(f, key)) ?? false);
+
+// 사용자가 고친 필드는 AI 가정 표시에서 뺀다
 function clearAssumed(node: ComponentNode, keys: string[]): ComponentNode {
   if (!node.assumed || !node.assumedFields?.length) return node; // 가정한 필드를 알 수 없으면 표시를 그대로 둔다
-  const left = node.assumedFields.filter((f) => !keys.some((k) => f === k || f.startsWith(`${k}.`) || f.startsWith(`${k}[`)));
+  const left = node.assumedFields.filter((f) => !keys.some((k) => coversField(f, k)));
   if (left.length === node.assumedFields.length) return node;
   const next: ComponentNode = { ...node, assumedFields: left };
   if (left.length === 0) {

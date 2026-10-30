@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { StructureInit, StructureView } from "../../store/structure-store";
 import DraftError from "./DraftError";
 import DraftProgress from "./DraftProgress";
-import NodeInfoPanel from "./NodeInfoPanel";
+import NodeEditPanel from "./NodeEditPanel";
 import NormalizedList from "./NormalizedList";
 import PreviewCanvas from "./PreviewCanvas";
 import SpecForm from "./SpecForm";
@@ -62,7 +62,7 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
           </Card>
         )}
 
-        <Card className={cn(inputOpen ? "lg:col-span-6" : "lg:col-span-9")}>
+        <Card className={cn(inputOpen ? "lg:col-span-5" : "lg:col-span-8")}>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               화면 구조
@@ -98,12 +98,12 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>노드 정보</CardTitle>
+            <CardTitle>노드 편집</CardTitle>
           </CardHeader>
           <CardContent>
-            <NodeInfoPanel />
+            <NodeEditPanel />
           </CardContent>
         </Card>
       </div>

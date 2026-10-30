@@ -6,6 +6,7 @@ export type Viewport = "desktop" | "mobile";
 export type PreviewBox = {
   id: string;
   name: string;
+  assumed: boolean; // AI가 입력 없이 채운 값이 있는 노드
   display: "block" | "flex" | "grid" | null; // null: 자식 없는 단말 상자
   direction: "row" | "column" | null;
   columns: number | null;
@@ -44,7 +45,7 @@ function resolveLayout(layout: NonNullable<ComponentNode["layout"]>, viewport: V
   return { direction, columns };
 }
 
-function gapStep(token: string | null): { step: number; estimated: boolean } {
+export function gapStep(token: string | null): { step: number; estimated: boolean } {
   if (token === null) return { step: 0, estimated: false };
   const m = /^spacing\.(\d+)$/.exec(token);
   if (!m) return { step: DEFAULT_GAP_STEP, estimated: true };
@@ -79,6 +80,7 @@ function toBox(node: TreeNode, parent: PreviewBox | null, viewport: Viewport, ho
   const box: PreviewBox = {
     id: node.id,
     name: node.name,
+    assumed: node.assumed,
     display,
     direction,
     columns,

@@ -24,6 +24,13 @@ describe("buildPreview — 샘플 설계도", () => {
     expect(get(root, "ProductInfo")).toMatchObject({ direction: "column" }); // 오버라이드가 없는 노드는 그대로
   });
 
+  it("assumed가 true인 노드는 상자에도 표시한다", () => {
+    const n = nodes().map((x) => (x.id === "n-price" ? { ...x, assumed: true, assumedFields: ["state"] } : x));
+    const { root } = buildPreview(n, "desktop")!;
+    expect(get(root, "PriceTag")?.assumed).toBe(true);
+    expect(get(root, "ProductInfo")?.assumed).toBe(false);
+  });
+
   it("훅은 상자로 그리지 않고 목록으로 분리한다(부모 이름, dataFetch)", () => {
     const { root, hooks } = buildPreview(nodes(), "desktop")!;
     expect(get(root, "useCart")).toBeUndefined();

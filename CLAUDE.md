@@ -24,6 +24,7 @@ AI 에이전트가 코드를 쓰기 전에 프론트엔드 구조를 설계·검
 npm run dev      # 개발 서버
 npm run build    # 빌드
 npm run lint     # 린트
+npm test         # 단위 테스트 (vitest run)
 ```
 
 ## 폴더 구조와 책임
@@ -31,6 +32,7 @@ npm run lint     # 린트
 ```
 (프로젝트 루트)/
 components.json            # shadcn/ui 설정
+vitest.config.mts          # 테스트 설정 (tsconfig의 "@/" 경로 별칭만. 컴포넌트 렌더링 스모크 테스트가 쓴다)
 THIRD_PARTY_NOTICES.md     # 서드파티(몽타주 토큰·Pretendard·shadcn/ui) 출처와 라이선스 고지
 proxy.ts                   # 세션 갱신, 비로그인 사용자의 /projects·/account 접근을 /?next=로 이동, /login은 /로 이동, 로그인 상태의 /는 next 또는 /projects로 이동
 app/                       # 라우팅만. 로직을 두지 않는다 (globals.css가 디자인 기준값 CSS 변수의 정본, fonts/ 글꼴 파일)
@@ -49,17 +51,18 @@ core/                      # 순수 TypeScript. React·Next.js import 금지
   schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환), normalize-blueprint.ts(AI 응답 자동 보정)
   image/                   # 이미지 전송 전 축소 규칙(fit-size: 가로 1,200px·합계 4MB·품질 단계, 고를 때 검사)
   preview/                 # 구조 미리보기 계산(설계도 layout·placement·order·반응형 → 상자 트리, 훅 분리)
-  rules/common/            # 공통 검사 규칙 R-01~R-07
-  adapters/framework/      # html, react, next 어댑터
-  adapters/styling/        # css, css-modules, tailwind 어댑터
-  adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서)
+  rules/common/            # 공통 검사 규칙 R-01~R-07 (아직 구현 전, 빈 폴더)
+  adapters/framework/      # html, react, next 어댑터 (아직 구현 전, 빈 폴더)
+  adapters/styling/        # css, css-modules, tailwind 어댑터 (아직 구현 전, 빈 폴더)
+  adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서) (아직 구현 전, 폴더 없음)
   prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
-components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, 트리 캔버스, 편집 패널, 결과 목록, home/ 홈 소개·로그인, layout/ 공통 헤더, auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정, structure/ 구조 설계 탭: 스펙 입력·진행·오류·미리보기·트리·노드 정보)
-store/                     # Zustand 스토어 (structure-store: 작업공간별 설계도·스펙 입력·초안 진행·선택·보기 상태)
+  edit/                    # 노드 편집 연산(순수 함수: 성공 시 새 설계도, 실패 시 거부 이유·노드·경로). update-node(내용·배치·차지 칸·스타일, 값 검증은 스키마로), layout(display 전환·반응형 한 줄·영향 계산·빈 스타일), move-node(+부모 후보), reorder-node, add-child, delete-node, notice(자동 변경 안내 문구). 드래그 편집도 같은 연산을 쓴다
+components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, home/ 홈 소개·로그인, layout/ 공통 헤더·GuardedLink(저장 안 된 수정이 있으면 이동 전에 묻는 링크), auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정(스토어와 저장 큐를 탭 바깥에서 들고 있음), structure/ 구조 설계 탭: 스펙 입력·진행·오류·미리보기·트리, NodeEditPanel(노드 편집 패널), edit/(구역·입력칸·목록·확인 창: 연산을 부르고 결과만 반영), auto-save·SaveQueueProvider·SaveStatus(자동 저장), generate(초안 생성 흐름: 시작→저장 정리→생성), regenerate-confirm(다시 생성 확인 조건))
+store/                     # Zustand 스토어 (structure-store: 작업공간별 설계도·스펙 입력·초안 진행·선택·보기 상태, applyEdit(편집 적용)·editRevision·저장 상태·입력 오류·노드 선택 확인)
 lib/utils.ts              # cn 클래스 병합(shadcn)
 lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리), proxy.ts(세션 갱신)
 lib/auth/                  # 서버 전용 인증 처리 (callback-handler: /auth/callback 처리)
-lib/client/                # 브라우저 전용 (resize-images: 캔버스 축소, draft-request: 요청 구성, draft-stream: NDJSON 읽기·끊김 감지, run-draft: 초안 생성 한 번의 흐름)
+lib/client/                # 브라우저 전용 (resize-images: 캔버스 축소, draft-request: 요청 구성, draft-stream: NDJSON 읽기·끊김 감지, run-draft: 초안 생성 한 번의 흐름, save-queue: 자동 저장 큐(800ms 디바운스·한 번에 하나·settle), save-blueprint: 설계도 저장 PUT과 사용자용 오류 문구, leave-guard: 저장 안 된 수정이 있을 때 떠나기 전 경고)
 lib/db/                    # DB 접근 함수 (projects, blueprints, spec-inputs: 클라이언트를 인자로 받고 결과를 DbResult로 반환, 저장 전·읽은 뒤 Zod 검증)
 supabase/migrations/       # 표·RLS·GRANT SQL (대시보드 SQL 편집기로 직접 실행, 절차는 docs/db-migration.md)
 supabase/tests/            # RLS 격리 확인 스크립트(적용 후 실행, 끝에 rollback)
@@ -185,6 +188,8 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 - 새 컴포넌트를 `app/` 안에 만들려는 경우, `components/`로 옮길 수 있는지 먼저 검토한다.
 - 새 Supabase 테이블을 만들 때마다 RLS 정책을 같은 작업 안에서 함께 작성한다. 정책 없이 테이블만 만들고 넘어가지 않는다.
 - 노드 이동·수정 로직은 `parentId`·`order` 외의 하위 노드 데이터를 건드리지 않는다. 트리 형태가 필요하면 `buildTree()`로 변환해 쓴다.
+- 설계도 편집은 `core/edit`의 순수 함수(연산)로만 한다. 화면(컴포넌트)은 연산을 부르고 결과(`EditResult`)만 반영하며, 스토어의 `applyEdit`을 거치지 않고 설계도 객체를 직접 고치지 않는다. 연산은 결과 전체를 `BlueprintSchema`로 검증해 통과한 것만 돌려주므로 저장되는 설계도는 항상 유효하다. 새 편집 규칙은 연산과 단위 테스트에 넣고, 같은 규칙을 화면에도 중복해서 쓰지 않는다(화면은 선택지를 숨길 때만 같은 판단 함수를 쓴다).
+- 설계도 저장(`PUT /api/projects/[id]/blueprint`)은 화면에서 직접 `fetch`하지 않고 저장 큐(`lib/client/save-queue`)를 거친다: 마지막 편집 후 800ms 디바운스, 한 번에 하나씩 순서대로, 전송 중 편집은 합쳐 최신본만. 초안을 다시 생성할 때는 먼저 편집을 막고(`startDraft`) 큐를 정리(`settle`)한 뒤 생성한다(`components/structure/generate.ts`). 이 순서를 바꾸면 이전 편집이 새 AI 초안 위에 저장될 수 있다.
 - 스택 어댑터(`core/adapters`)를 수정할 때는 해당 어댑터에만 영향이 가도록 하고, 다른 어댑터·공통 규칙을 함께 건드리지 않는다.
 - 파일을 만들거나 고칠 때는 Write·Edit 도구를 쓴다. 셸 heredoc(`cat <<EOF`, `python - <<EOF`)로 긴 내용을 쓰지 않는다(인용 부호·한글·`'''`가 섞이면 구문 오류로 명령 전체가 실행되지 않는다). 셸은 실행·검사 명령에만 쓴다.
 - 서버(`next start`·`next dev` 등)를 띄워 확인할 때는 직접 띄운 포트의 프로세스만 종료한다. `taskkill /IM node.exe`처럼 node 프로세스 전체를 종료하지 않는다(사용자가 켜 둔 개발 서버가 꺼진다). 포트는 사용자가 쓰는 3000이 아닌 다른 번호를 쓰고, 포트로 PID를 찾아 그 PID만 종료한다.

@@ -109,6 +109,9 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 - 모바일 작업공간 탭 넘침 표시(가로 스크롤은 동작하지만 넘친다는 표시가 없음)
 - 작업공간 본문은 `max-w-7xl`인데 헤더는 `max-w-5xl`이라 폭이 어긋남
 - **선택 상자 통일(2026-10-30 추가)**: `components/projects/NewProjectForm.tsx`의 브라우저 기본 `select` 3개(프레임워크·스타일 방식·디렉토리 구조)를 shadcn/ui `Select`로 교체한다. **목록이 선택 상자 아래에 열리게 하는 부분은 2026-10-30에 이미 처리했다**: `components/ui/select.tsx`의 `SelectContent` 기본 `position`을 `"popper"`로 바꿨다(노드 편집 패널의 선택 상자에 적용됨). 남은 일은 `NewProjectForm`의 기본 `select` 교체뿐이며 디자인 다듬기 때 한다. 참고: 아래에 자리가 없으면 Radix가 목록을 위로 뒤집는다(항상 아래로 고정하려면 `avoidCollisions={false}`가 필요하지만 화면 아래쪽에서는 목록이 매우 작아진다).
+- **확인 창을 앱 대화상자로 교체할지 검토(2026-10-30 추가)**: 떠나기 전 경고(링크 이동·로그아웃)와 다시 생성 전 확인 중 링크·로그아웃 경고는 브라우저 기본 `window.confirm`이라 앱의 다른 대화상자(`ConfirmDialog`)와 모양이 다르다. 바꾸려면 코드로 하는 이동(로그아웃의 `router.replace`)과 `Link`의 `onNavigate`(동기 `preventDefault`)를 비동기 확인 흐름으로 바꿔야 해서 단순 교체가 아니다(`onNavigate`는 이벤트를 동기로 취소해야 하므로 먼저 취소하고 확인 뒤 `router.push`로 이동하는 방식을 검토). `beforeunload`(탭 닫기·새로고침)는 브라우저 기본 창을 못 바꾼다.
+- 홈 화면: 지금은 한 줄 소개와 버튼만 있는 최소 구성(2026-10-30 일지에서 이어짐)
+- 디자인 세부 전반(큰 문제 없어 나중에 다듬기). Pretendard 파일(약 2MB) 줄이기
 
 ## 메모 (이후 단계에서 처리)
 - **지시서 생성 단계**: 설계도의 기본 layout은 데스크톱 기준이고 responsive는 태블릿·모바일에서 바뀌는 값이다. 지시서에서 Tailwind 스택이면 이를 **모바일 우선(`min-width`) 클래스**로 변환해야 한다(예: 기본 `grid-cols-2` + mobile `columns: 1` → `grid-cols-1 md:grid-cols-2`). CSS·CSS Modules 스택은 `max-width` 미디어 쿼리(데스크톱 우선) 그대로 써도 된다.

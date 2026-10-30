@@ -23,7 +23,7 @@
 - `app/projects/page.tsx`는 "Login Page" 문구가 든 임시 파일, `app/projects/[id]/`는 빈 폴더. `components/`엔 `auth/`만, `store/`는 비어 있음.
 - `core/schema/tree.ts`(`buildTree`)는 **아직 없다**(data-model 6절에만 정의). 이번에 만든다.
 - `@xyflow/react`, `dagre`, `zustand`는 설치돼 있고 사용처는 없음. 컴포넌트 테스트 도구(jsdom 등)는 없다.
-- `/api/draft` 응답: `{ blueprint, meta: { attempts, elapsedMs, normalized: NormalizeChange[], saved | saveError } }`. 실패는 `{ error: { code, message, retryable, fields? } }`.
+- `/api/draft` 응답(단계 S 반영 후): 시작 전 오류는 상태 코드 + `{ error: { code, message, retryable, fields? } }`, 통과하면 NDJSON 스트림이고 마지막 줄이 `{ type: "done", blueprint, meta: { attempts, elapsedMs, normalized, saved } }` 또는 `{ type: "error", status, error, blueprint? }`(저장 실패는 `blueprint` 포함). 형식은 `SPEC-draft-route.md`·`docs/projects-api.md`.
 - `getProject`(lib/db)는 있다. 현재 `GET .../blueprint`·`GET .../revisions`는 프로젝트 소유를 확인하지 않는다.
 
 ## Assumptions (틀리면 알려주세요)

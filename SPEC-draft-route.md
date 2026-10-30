@@ -37,7 +37,7 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 
 ## Assumptions (틀리면 알려주세요)
 1. 모델은 `gpt-6.1-terra`, 추론 강도 `low`, 호출당 `max_output_tokens` 16000(`lib`의 옵션으로 변경 가능, 기본값만 위 값).
-2. 이 라우트는 초안을 **반환만** 하고 저장하지 않는다(저장은 `/api/projects`의 일). 응답 원문·이미지는 서버에 저장하지 않는다.
+2. 이 라우트는 `projectId`가 없으면 초안을 **반환만** 한다. `projectId`가 있으면 소유를 확인하고 성공한 초안을 새 판으로 저장한다(`SPEC-projects-api.md`). 응답 원문·이미지는 서버에 저장하지 않는다.
 3. 요청은 항상 `multipart/form-data`(텍스트만이어도 동일): 필드 `stack`(JSON), `spec`(JSON, 7개 텍스트 항목), `images`(0~3개 파일).
 4. `imageCount`는 요청 필드가 아니라 **전송된 파일 수**로 서버가 계산한다. 클라이언트 값을 믿지 않는다.
 5. AI 응답은 받는 즉시 검증하고, `stack`·`source`·`generatedBy`·`version`은 서버가 **요청값으로 덮어쓴다**(모델이 바꾸거나 틀리는 일을 원천 차단, CLAUDE.md "AI 응답을 검증 없이 반영하지 않는다"를 더 강하게 적용). 스키마 변경 없음.
@@ -51,9 +51,29 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 | --- | --- |
 | 요청 | `POST /api/draft`, `multipart/form-data`: `stack`(JSON `{framework, styling, architecture}`), `spec`(JSON, `overview`~`constraints` 선택 문자열), `images`(0~3개, png·jpeg·webp, 파일 시그니처로 확인) |
 | 입력 조건 | 스펙 7개 중 1개 이상 또는 이미지 1장 이상(`SpecInputSchema`), `stack`은 `BlueprintSchema.shape.stack` |
-| 성공 200 | `{ "blueprint": Blueprint, "meta": { "attempts": 1\|2, "elapsedMs": number, "normalized": { "nodeId", "path", "detail" }[] } }` |
-| 실패 | `{ "error": { "code": string, "message": string(사용자용, 한국어), "retryable": boolean, "fields"?: { "path": string, "message": string }[] } }` |
+| 성공 200 | **줄 단위 JSON(NDJSON) 스트림**(`application/x-ndjson`). 마지막 줄 `{ "type": "done", "blueprint": Blueprint, "meta": { "attempts": 1\|2, "elapsedMs": number, "normalized": { "nodeId", "path", "detail" }[], "saved"?: { "revision", "updatedAt" } } }`. 앞 줄은 단계 알림(아래 "응답 스트림") |
+| 실패 | 시작 전 오류는 상태 코드 + `{ "error": { "code": string, "message": string(사용자용, 한국어), "retryable": boolean, "fields"?: { "path": string, "message": string }[] } }`(JSON). 시작 후 오류는 200 스트림의 마지막 줄 `{ "type": "error", "status": number, "error": 같은 형식 }` |
 | 로그(서버만) | 시도 횟수, 소요 시간, 토큰, 예상 비용, 오류 종류, 사용자 id(claims `sub`). 키·이미지·응답 원문·원본 에러는 남기지 않거나 서버 로그에만 남긴다 |
+
+### 응답 스트림 (개정 2026-10-30, `SPEC-structure-ui.md` 단계 S)
+시작 전에 알 수 있는 오류(401·400·413·404·503)는 위 표처럼 **상태 코드 + JSON**(`Content-Type: application/json`)이고, 통과하면 200 `Content-Type: application/x-ndjson`(`Cache-Control: no-cache, no-transform`) 스트림이다. 줄마다 JSON 하나:
+
+| 줄 | 의미 |
+| --- | --- |
+| `{"type":"stage","stage":"accepted"}` | 요청 확인(세션·입력·프로젝트 소유 확인 끝) |
+| `{"type":"stage","stage":"generating","attempt":1}` · `validating` | AI 생성 중 · 검증 |
+| `{"type":"stage","stage":"normalizing","changes":3}` | 자동 보정(일어났을 때만) |
+| `{"type":"stage","stage":"regenerating","attempt":2}` | 재시도(뒤에 `validating`이 한 번 더) |
+| `{"type":"stage","stage":"saving"}` | 새 판 저장(`projectId`가 있고 생성에 성공했을 때만) |
+| `{"type":"ping"}` | 하트비트(10초마다, 클라이언트는 무시) |
+| `{"type":"done","blueprint":...,"meta":...}` | 성공(마지막 줄, 한 번만) |
+| `{"type":"error","status":504,"error":{...}}` | 시작 후 실패(마지막 줄). 아래 오류 매핑의 상태 코드를 `status`로 담는다 |
+
+- **저장 실패**: 초안은 만들어졌지만 저장에 실패하면 `error`(`status` 503, `code` `db_unavailable`)에 `blueprint`를 함께 담아 초안을 버리지 않는다(이전의 "200 + `meta.saveError`" 방식은 폐지).
+- 단계 알림은 `draftBlueprint`의 `onProgress` 콜백이 만들고, 스트림 변환은 `lib/ai/draft-stream.ts`가 한다(호출 로직은 스트림을 모른다). `accepted`·`saving`은 핸들러가 직접 보낸다.
+- 하트비트·종료 시 타이머 정리: `HEARTBEAT_MS = 10000`. 완료·오류·예외·클라이언트 연결 끊김 모두에서 타이머를 정리한다. 클라이언트가 끊어도 서버는 생성과 저장을 끝까지 마친다.
+- 클라이언트는 `Content-Type`으로 JSON 오류와 스트림을 구분하고, `done`·`error` 없이 끝났거나 마지막 줄 이후 30초 동안 아무것도 오지 않으면 연결이 끊긴 것으로 본다(`SPEC-structure-ui.md`).
+- Vercel 공식 문서(2026-10-30 확인): 스트리밍 응답에도 `maxDuration`이 적용되고(초과 시 504 강제 종료), 현재 `maxDuration = 70`은 Fluid compute 한도 안이다. 스트림이 시작된 뒤에는 HTTP 상태를 바꿀 수 없으므로, 앱 내부 마감(45·60초)이 먼저 와서 `error` 알림으로 보낸다.
 
 ### 오류 매핑
 | 상태 | `code` | 발생 조건 | `retryable` |
@@ -65,6 +85,7 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 | 429 | `ai_rate_limited` | OpenAI 429(요청 한도·쿼터). 자세한 원인은 서버 로그만 | true |
 | 502 | `ai_unavailable` | OpenAI 5xx·연결 오류·401/400 등 예상 밖 응답(내용 노출 없이 일반 안내) | true |
 | 504 | `ai_timeout` | 마감(텍스트만 45초, 이미지 포함 60초)까지 응답을 받지 못함 | true |
+| 404 · 503 | `not_found` · `db_unavailable` | `projectId`가 없는·남의 프로젝트(AI 호출 전, 비용 없음) · 프로젝트 조회 또는 저장 실패(저장 실패는 스트림 `error`+`blueprint`) | 404 false · 503 true |
 | 500 | `internal_error` | 그 밖의 예외(요청한 7개 외 안전망). 원본 에러는 서버 로그만 | true |
 - 사용자 메시지는 한국어이며 Supabase·OpenAI 원본 에러 문구를 그대로 노출하지 않는다(CLAUDE.md).
 
@@ -109,7 +130,7 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 
 ### `app/api/draft/route.ts` (로직은 `lib`에, 라우트는 얇게)
 - `export const maxDuration = 70`.
-- 순서: ① `startedAt` 기록 → ② Supabase 세션 확인(없으면 401) → ③ `Content-Length` 4MB 초과면 413 → ④ `formData()` 파싱·입력 검증(400/413) → ⑤ `draftBlueprint` 호출 → ⑥ 결과를 위 매핑대로 응답.
+- 순서: ① `startedAt` 기록 → ② Supabase 세션 확인(없으면 401) → ③ `Content-Length` 4MB 초과면 413 → ④ `formData()` 파싱·입력 검증(400/413) → ⑤ (`projectId`가 있으면) 프로젝트 소유 확인(404·503) → ⑥ 여기까지는 상태 코드 + JSON. 통과하면 NDJSON 스트림을 열어 `accepted` → `draftBlueprint` 호출(`onProgress`로 단계 알림) → (`projectId`가 있으면) `saving` + 새 판 저장 → `done` 또는 `error`.
 - 요청 파싱·오류 매핑은 `lib/ai/draft-http.ts`(순수 함수 + 테스트)에 두어 `app/`에는 라우팅과 호출 연결만 둔다(CLAUDE.md "app/ 아래에 로직 금지").
 - `lib/supabase/server.ts`(요청별 `createServerClient`)를 새로 만든다. 현재 `lib/supabase/`는 비어 있다.
 
@@ -167,7 +188,7 @@ export type DraftResult =
   | refusal·incomplete·JSON 아님 | `invalid_output`, 재시도 없음 |
   | 서버 덮어쓰기 | 모델이 `stack`·`source`를 바꿔도 요청값으로 복원 |
 - `draft-http`: 파싱 성공/실패(400), 이미지 4장(400), 형식 위반(400), 4MB 초과(413), kind→status·code 매핑 표 전체.
-- 라우트 테스트(mock): 세션 없음 401, 입력 오류 400, 성공 200 형태. 가능한 범위에서 `POST`를 직접 호출.
+- 라우트 테스트(mock): 세션 없음 401, 입력 오류 400, 413, 404·503(사전 오류는 상태 코드 유지), 성공 시 스트림 줄 순서(`accepted`→…→`done`), 보정·재시도·저장 단계 유무, 오류별 `error` 알림, 저장 실패의 `error`+`blueprint`, 하트비트 간격과 종료 시 타이머 정리(가짜 타이머). 가능한 범위에서 `POST`를 직접 호출.
 - 프롬프트·repair: 위 항목.
 - **실제 호출 확인은 사용자가 `npm run test:draft`로 직접 1회**(스펙대로).
 

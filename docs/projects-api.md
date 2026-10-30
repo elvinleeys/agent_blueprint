@@ -102,9 +102,9 @@ if (!r.headers.get("content-type")?.includes("application/x-ndjson")) {
     }
   }
 }
-console.log(last?.type, last?.meta ?? last?.error, last?.blueprint?.nodes?.length);
+console.log("결과(마지막 줄 요약):", last?.type, last?.meta ?? last?.error, last?.blueprint?.nodes?.length);
 ```
-기대: 단계가 도착 시점에 한 줄씩 찍힌다(`accepted` → `generating` → `validating` → (`normalizing`) → `saving` 순서, 약 15~30초 사이에 `ping`이 10초마다 끼어든다). 마지막 줄은 `done`이고 `meta.saved: { revision: 1, updatedAt }`가 보인다. 실패하면 마지막 줄이 `error`(`status`·`error.code`·`error.fields`)이고, **저장만 실패**했다면 `error`에 `blueprint`가 함께 있다. 마지막 줄이 `done`·`error`가 아니면 연결이 끊긴 것이다.
+기대: 단계가 도착 시점에 한 줄씩 찍힌다(`done`은 서버가 한 번만 보내며, 마지막 "결과(마지막 줄 요약)" 줄이 같은 `done`을 한 번 더 요약해 보여 준다)(`accepted` → `generating` → `validating` → (`normalizing`) → `saving` 순서, 약 15~30초 사이에 `ping`이 10초마다 끼어든다). 마지막 줄은 `done`이고 `meta.saved: { revision: 1, updatedAt }`가 보인다. 실패하면 마지막 줄이 `error`(`status`·`error.code`·`error.fields`)이고, **저장만 실패**했다면 `error`에 `blueprint`가 함께 있다. 마지막 줄이 `done`·`error`가 아니면 연결이 끊긴 것이다.
 
 ### 3. 설계도 불러오기 + 판 목록 (비용 없음)
 ```js

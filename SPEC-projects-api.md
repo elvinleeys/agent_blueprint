@@ -1,5 +1,7 @@
 # Spec: 프로젝트·설계도 저장/불러오기 연결 (F-014)
 
+> **개정 (2026-10-30)**: `/api/draft`는 NDJSON 스트림 응답으로 바뀌었다. 아래의 `meta.saved`/`saveError`·"저장 실패 시 200" 표기는 폐지되고, 저장 실패는 스트림의 `error`(503 `db_unavailable`)에 `blueprint`를 함께 담아 알린다. 현재 형식은 `SPEC-draft-route.md`의 "응답 스트림"과 `docs/projects-api.md`를 따른다.
+
 단일 기능(서버 쪽 연결 1겹)이라 capability map은 만들지 않는다. 구현은 승인 후 시작한다. 작업 순서는 `tasks/plan-projects-api.md` 참조.
 근거: `SPEC-db-rls.md`, `lib/db/*`(이미 구현·테스트됨), `SPEC-draft-route.md`, `SPEC-auth-login.md`, `CLAUDE.md`(API 라우트 개요·에러 처리), Next.js 16.4.3 로컬 문서.
 

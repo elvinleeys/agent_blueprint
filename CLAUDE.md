@@ -37,7 +37,7 @@ app/                       # 라우팅만. 로직을 두지 않는다 (globals.c
   page.tsx                 # S-01 홈 (서비스 소개 + GitHub로 시작하기)
   projects/page.tsx        # S-02 목록
   projects/[id]/           # 작업공간 (설정·구조 설계·디자인 시스템·지시서)
-  api/draft/route.ts       # AI 초안 생성
+  api/draft/route.ts       # AI 초안 생성 (NDJSON 스트림 응답)
   api/explain/route.ts     # 위반 설명·정리 제안
   api/analyze/route.ts     # 업로드 코드 분석
   api/projects/            # 프로젝트 목록·생성, [id]/blueprint(불러오기·자동 저장), [id]/revisions(판 목록·새 판 추가)
@@ -61,7 +61,7 @@ lib/db/                    # DB 접근 함수 (projects, blueprints: 클라이�
 supabase/migrations/       # 표·RLS·GRANT SQL (대시보드 SQL 편집기로 직접 실행, 절차는 docs/db-migration.md)
 supabase/tests/            # RLS 격리 확인 스크립트(적용 후 실행, 끝에 rollback)
 lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, http: 오류 매핑·JSON 읽기, *-handler: 라우트별 처리)
-lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용, draft-http: 요청 검증·오류 매핑, draft-handler: /api/draft 처리)
+lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용·단계 알림 콜백, draft-http: 요청 검증·오류 매핑, draft-stream: NDJSON 스트림·하트비트, draft-handler: /api/draft 처리)
 scripts/                   # 개발용 실행 스크립트 (test-draft.ts: lib/ai를 호출하는 초안 생성 검증, 실제 API 호출은 직접 실행)
 fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음)
 tasks/                     # 계획·테스트 결과·응답 원문 (draft-test-result.md, draft-outputs/)
@@ -152,7 +152,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 
 | 경로 | 메서드 | 입력 | 출력 | 비고 |
 | --- | --- | --- | --- | --- |
-| `/api/draft` | POST | `multipart/form-data`: stack(projectId가 없을 때만 필요), projectId(선택, 있으면 프로젝트 소유를 AI 호출 전에 확인하고 스택은 프로젝트 값을 쓰며 성공한 초안을 새 판으로 저장), route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | `{ blueprint, meta(attempts, elapsedMs, normalized, saved 또는 saveError) }` | OpenAI 호출, 스키마 검증, 검증 실패 시 자동 보정 후 재검증, 그래도 실패하면 1회 재시도. 오류는 400·401·404(projectId)·413·422·429·502·503(projectId 조회)·504로 구분. 저장 실패해도 초안은 200으로 돌려주고 meta.saveError로 알림. 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초 |
+| `/api/draft` | POST | `multipart/form-data`: stack(projectId가 없을 때만 필요), projectId(선택, 있으면 프로젝트 소유를 AI 호출 전에 확인하고 스택은 프로젝트 값을 쓰며 성공한 초안을 새 판으로 저장), route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | 시작 전 오류는 상태 코드 + JSON. 통과하면 200 NDJSON 스트림(줄마다 JSON): `stage`(accepted·generating·validating·normalizing·regenerating·saving), `ping`(10초 하트비트), 마지막 줄 `done`(`{ blueprint, meta(attempts, elapsedMs, normalized, saved) }`) 또는 `error`(`status`와 `error`, 저장 실패는 `blueprint` 포함) | OpenAI 호출, 스키마 검증, 검증 실패 시 자동 보정 후 재검증, 그래도 실패하면 1회 재시도. 사전 오류는 400·401·404(projectId)·413·503(projectId 조회), 시작 후 오류는 스트림 `error`의 status로 422·429·502·504·503(저장 실패). 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초. 클라이언트는 `done`·`error` 없이 끝나거나 30초 무수신이면 끊긴 것으로 처리 |
 | `/api/explain` | POST | 위반 1건 또는 정리 대상 | 설명·수정 제안 | OpenAI 호출 |
 | `/api/analyze` | POST | 업로드 컴포넌트 코드 | props·variant·스타일 값 | 코드 원본 저장 안 함 |
 | `/api/projects` | GET/POST | POST: JSON `{ name, stack }` | `{ projects }` / 201 `{ project }` | 로그인 세션 필수, 본인 프로젝트만(RLS) |
@@ -166,6 +166,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 ## 에러 처리 공통 규칙
 
 - OpenAI 호출 실패·타임아웃(텍스트만 45초, 이미지 포함 60초 초과): 사용자에게 재시도 버튼 제공, 입력 내용은 보존한다.
+- `/api/draft` 스트림이 `done`·`error` 알림 없이 끝나거나 마지막 줄(하트비트 포함) 이후 30초 동안 아무것도 오지 않으면 연결이 끊긴 것으로 보고, 입력을 보존한 채 "연결이 끊겼습니다" 오류와 다시 시도 버튼을 보여 준다.
 - 스키마 검증 실패: 먼저 기계적으로 고칠 수 있는 오류(grid의 direction, flex의 columns, 같은 부모 아래 order 중복)를 자동 보정하고 보정 내역을 응답 meta에 담는다. 그래도 실패하면 1회 자동 재시도 → 재실패 시 오류 메시지와 함께 원인 필드를 사용자에게 보여준다. 남은 시간이 max(첫 시도 소요 시간, 15초)보다 적으면 재시도하지 않고 422와 실패 항목을 반환한다(화면의 다시 시도 버튼으로 처리).
 - Supabase 쿼리 실패: 에러를 그대로 노출하지 않고, 사용자용 메시지로 변환해 보여준다. 원본 에러는 서버 로그에만 남긴다.
 - 업로드 용량·개수: 이미지는 장당 5MB·최대 3장까지 선택하고, 전송 전 브라우저에서 축소해 합계 4MB 이하로 만든다(Vercel 함수 요청 본문 한도 4.5MB). 코드는 30개까지. 모두 업로드 전에 클라이언트에서 먼저 검사해 불필요한 호출을 막는다. 서버는 합계 4MB 초과 시 413을 반환한다.

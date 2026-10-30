@@ -186,6 +186,8 @@ export const BlueprintSchema = z
           if (n.kind !== "hook") hasLayoutChild.add(parent.id);
           if (n.placement && parent.layout?.display !== "grid")
             issue(["nodes", i, "placement"], "placement는 부모 layout.display가 grid일 때만 쓸 수 있습니다");
+          else if (n.placement && typeof n.placement.span === "number" && parent.layout?.columns !== undefined && n.placement.span > parent.layout.columns)
+            issue(["nodes", i, "placement", "span"], `span은 부모 열 수(${parent.layout.columns}) 이하여야 합니다`);
         }
       }
       const key = `${n.parentId}:${n.order}`;

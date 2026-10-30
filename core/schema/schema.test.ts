@@ -37,6 +37,7 @@ const invalid: [string, (b: Json) => void][] = [
     b.nodes[0].layout = { display: "block", gap: null };
     b.nodes[1].placement = { span: 1 };
   }],
+  ["span이 부모 열 수보다 큼", (b) => (b.nodes[1].placement = { span: 3 })], // 부모(n-page)는 2열
   ["자식이 있는데 layout null", (b) => (b.nodes[0].layout = null)],
   ["입력 없음(hasSpec=false, imageCount=0)", (b) => (b.source = { hasSpec: false, imageCount: 0 })],
   ["imageCount 4", (b) => (b.source.imageCount = 4)],
@@ -47,6 +48,12 @@ describe("BlueprintSchema", () => {
   it("sample-blueprint.json 통과", () => {
     const r = BlueprintSchema.safeParse(load());
     expect(r.success, JSON.stringify(r.error?.issues, null, 2)).toBe(true);
+  });
+
+  it("span이 부모 열 수와 같으면 통과한다", () => {
+    const b = load();
+    b.nodes[1].placement = { span: 2 };
+    expect(BlueprintSchema.safeParse(b).success).toBe(true);
   });
 
   it.each(invalid)("거부: %s", (_name, mutate) => {

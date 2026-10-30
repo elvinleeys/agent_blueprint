@@ -10,6 +10,7 @@ import type { DraftErrorInfo } from "../lib/client/run-draft";
 import type { SpecTexts, StoredSpecInput } from "../lib/db/spec-inputs";
 
 export type StructureView = "preview" | "tree";
+export type SaveFailure = { message: string; needsLogin: boolean };
 /** idle 대기 / resizing 이미지 줄이는 중(브라우저) / running 서버 처리 중 / done 완료 / error 실패 */
 export type DraftStatus = "idle" | "resizing" | "running" | "done" | "error";
 
@@ -35,6 +36,7 @@ export type StructureState = StructureInit & {
   // 편집
   editRevision: number; // 설계도에 편집이 반영될 때마다 1씩 늘어난다. 자동 저장이 이 값의 변화를 보고 저장을 예약한다
   saveStatus: SaveStatus; // 자동 저장 큐의 상태(큐가 알려 준다)
+  saveError: SaveFailure | null; // 마지막 저장 실패의 안내 문구. 저장에 성공하면 지워진다
   editNotices: string[]; // 마지막 편집이 자동으로 바꾼 값의 안내 문구. 다음 편집이나 닫기로 사라진다
   /** 설계도에 반영하지 못한 입력칸의 이유(칸 키 → 문구). 비어 있지 않으면 화면에만 있는 틀린 값이 있다는 뜻이다 */
   editErrors: Record<string, string>;
@@ -48,6 +50,7 @@ export type StructureState = StructureInit & {
   /** 편집 연산을 현재 설계도에 적용한다. 성공해 설계도가 바뀌면 반영하고, 실패하거나 초안 생성 중이면 설계도를 그대로 두고 이유를 돌려준다 */
   applyEdit: (op: (blueprint: Blueprint) => EditResult) => EditResult;
   setSaveStatus: (status: SaveStatus) => void;
+  setSaveError: (error: SaveFailure | null) => void;
   dismissNotices: () => void;
   setEditError: (key: string, message: string | null) => void;
   /** key 자신과 key.로 시작하는 칸의 오류를 지운다. key가 없으면 모두 지운다 */
@@ -91,6 +94,7 @@ export function createStructureStore(init: StructureInit) {
     normalized: [],
     editRevision: 0,
     saveStatus: "idle",
+    saveError: null,
     editNotices: [],
     editErrors: {},
     selectRequest: null,
@@ -113,6 +117,7 @@ export function createStructureStore(init: StructureInit) {
       return r;
     },
     setSaveStatus: (saveStatus) => set({ saveStatus }),
+    setSaveError: (saveError) => set({ saveError }),
     dismissNotices: () => set({ editNotices: [] }),
     setEditError: (key, message) =>
       set((s) => {

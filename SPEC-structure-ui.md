@@ -151,9 +151,13 @@
 {"type":"stage","stage":"normalizing","changes":3}   자동 보정(일어났을 때만)
 {"type":"stage","stage":"regenerating","attempt":2}  다시 생성 중(재시도할 때만, 이후 validating이 한 번 더)
 {"type":"stage","stage":"saving"}         저장(projectId가 있을 때만)
+{"type":"ping"}                           하트비트(10초마다, 단계 알림이 없는 동안 연결 유지용)
 {"type":"done","blueprint":{...},"meta":{...}}       완료
 {"type":"error","status":504,"error":{"code":"timeout","message":"...","retryable":true}}
 ```
+- **하트비트**: 서버는 10초마다 `{"type":"ping"}` 줄을 보낸다(Vercel 문서: HTTP/1.1 연결이나 중간 네트워크 장치는 유휴 연결을 닫을 수 있어, 작업 중 진행·하트비트 데이터를 스트리밍하라고 안내). `done`·`error`를 보낸 뒤 스트림이 닫히면 타이머를 반드시 정리한다(테스트 포함). 클라이언트는 `ping`을 무시한다.
+- **끊김 감지(클라이언트)**: 마지막 줄(하트비트 포함)을 받은 뒤 30초 동안 아무것도 오지 않으면 연결이 끊긴 것으로 보고 읽기를 중단한다. 입력을 보존한 채 "연결이 끊겼습니다" 오류와 다시 시도 버튼을 보여 준다(`retryable`). 스트림이 `done`·`error` 알림 없이 끝난 경우도 같은 오류로 처리한다(Vercel이 `maxDuration`에서 강제 종료한 경우 포함, 시작된 스트림의 상태 코드는 바꿀 수 없음). 기존 클라이언트 전체 타임아웃(텍스트 50초·이미지 65초)은 유지한다.
+- **압축·버퍼링**: 응답은 `Content-Type: application/x-ndjson`. S2에서 로컬 `next start`로 줄이 도착 시점에 나뉘어 오는지 확인하고, 묶여 오면 `Cache-Control: no-cache, no-transform` 등 압축 방지 헤더를 추가한다. 실제 Vercel 배포에서의 동작은 배포 체크리스트(계획 문서)로 남긴다.
 - 저장 실패 알림에는 이미 만든 초안을 버리지 않도록 `blueprint`를 함께 담는다(기존 "초안 보존" 결정 유지, Open Question 1).
 - 이유: SSE는 `EventSource`가 GET만 지원해 multipart POST를 못 쓰고, NDJSON은 `fetch` + `response.body.getReader()` + `TextDecoder`로 줄 단위 파싱하면 되어 화면 코드가 가장 단순하다. 잘린 줄은 버퍼에 이어 붙인다.
 
@@ -162,7 +166,7 @@
 - `lib/ai/draft-handler.ts`: 사전 검증은 상태 코드로 응답, 통과하면 `ReadableStream`을 만들어 콜백 이벤트를 NDJSON 줄로 쓴다. 스트림 변환은 라우트 쪽 얇은 계층에서만 한다(호출 로직은 스트림을 모른다).
 - `scripts/test-draft.ts`는 같은 콜백으로 단계를 터미널에 출력한다.
 - 기존 `/api/draft` 테스트는 새 방식(응답 본문 읽기)에 맞게 고치고, **단계 순서**(정상, 자동 보정, 재시도, 저장 단계 유무)와 **오류 알림**(검증 최종 실패, 시간 초과, 저장 실패)을 검증하는 테스트를 추가한다.
-- Vercel에서 스트리밍 응답과 함수 실행 시간 한도(`maxDuration = 70`)의 관계는 **S 구현 전에 공식 문서로 확인**해 보고한다.
+- Vercel 문서 확인(S0 완료, 2026-10-30): 스트리밍 응답에도 `maxDuration`이 적용되고(요청 처리·응답 전송·스트리밍 포함, 초과 시 504 강제 종료), 현재 `maxDuration = 70`은 Fluid compute 한도(Hobby 300초·Pro 800초) 안이라 변경하지 않는다. Node.js 런타임에는 명시된 유휴 제한이 없으나 HTTP/1.1 구간 보호를 위해 하트비트를 둔다.
 - CLAUDE.md `/api/draft` 행, `SPEC-draft-route.md`, `docs/projects-api.md`(콘솔 예시)를 갱신한다.
 
 ### 단계 S 완료 기준

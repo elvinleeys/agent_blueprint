@@ -71,9 +71,9 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 - 디자인 시스템 스펙 JSON은 D에서 만들지 않는다(디자인 값의 정본은 CSS 변수). **기능 B 시작 시** `DesignSystemSpecSchema`를 `data-model.md` 기준(color·spacing·radius·font·layout 단수형 그룹)으로 맞춘 뒤(별도 커밋), 이 값으로 예시 JSON을 생성한다.
 
 ### 단계 S (스트리밍)
-- [ ] **S0** Vercel 공식 문서로 스트리밍 응답과 함수 실행 시간 한도(`maxDuration`) 관계 확인 → 사용자에게 보고(필요하면 `maxDuration` 조정 제안).
+- [x] **S0** Vercel 공식 문서로 스트리밍 응답과 함수 실행 시간 한도(`maxDuration`) 관계 확인 → 사용자에게 보고(필요하면 `maxDuration` 조정 제안).
 - [ ] **S1** `lib/ai/draft-blueprint.ts`에 `onProgress` 콜백(accepted 제외: generating·validating·normalizing·regenerating) + 테스트. 동작은 콜백 없이 기존과 동일해야 함.
-- [ ] **S2** `lib/ai/draft-handler.ts`: 사전 오류는 상태 코드, 이후 NDJSON 스트림(stage/done/error, 저장 단계, 저장 실패 시 blueprint 포함) + `route.ts` 응답 헤더. 기존 테스트 수정 + 단계 순서·오류 알림 테스트 추가.
+- [ ] **S2** `lib/ai/draft-handler.ts`: 사전 오류는 상태 코드, 이후 NDJSON 스트림(stage/done/error, 저장 단계, 저장 실패 시 blueprint 포함, **10초 하트비트 `ping`**) + `route.ts` 응답 헤더. 기존 테스트 수정 + 단계 순서·오류 알림·**하트비트 간격과 종료 시 타이머 정리** 테스트 추가. 로컬 `next start`에서 줄이 도착 시점에 나뉘어 오는지 curl로 확인하고, 묶이면 압축 방지 헤더(`no-transform` 등) 추가.
 - [ ] **S3** `scripts/test-draft.ts`가 같은 콜백으로 단계 출력(실행은 사용자).
 - [ ] **S4** CLAUDE.md `/api/draft` 행, `SPEC-draft-route.md`, `docs/projects-api.md` 갱신. 커밋은 S1~S2 `feat:`, S3 `chore:`, S4 `docs:`로 분리.
 - **[S 확인]**
@@ -87,7 +87,7 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 - [ ] **BP3** `NodeInfoPanel.tsx`(보기만) + `selectedNodeId`(B7 스토어와 연결)
 - [ ] **B4** `core/image/fit-size.ts` + 테스트(1,200 초과 축소·이하 유지, 합계 4MB 판정, 품질 단계). Verify: `vitest`
 - [ ] **B5** `lib/client/resize-images.ts`(캔버스, 5MB 선검사, 4MB 루프). Verify: 수동(큰 이미지 3장 합계 확인)
-- [ ] **B6** `lib/client/draft-request.ts`(FormData·imageMeta) + `draft-stream.ts`(NDJSON 줄 파싱, 잘린 줄 이어 붙이기, JSON/스트림 구분, 타임아웃 해석) + 테스트. Verify: `vitest`
+- [ ] **B6** `lib/client/draft-request.ts`(FormData·imageMeta) + `draft-stream.ts`(NDJSON 줄 파싱, 잘린 줄 이어 붙이기, JSON/스트림 구분, 타임아웃 해석, **`ping` 무시, 마지막 줄 후 30초 무수신 시 "연결이 끊겼습니다", `done`·`error` 없이 끝난 스트림을 오류로 처리**) + 테스트(가짜 타이머). Verify: `vitest`
 - [ ] **B7** `store/structure-store.ts`(spec, route, images, status, error, blueprint, normalized, selectedNodeId, previewViewport). Verify: `tsc`
 - [ ] **B8** `SpecForm.tsx`("화면 주소 (선택)" + 안내 문구, 버튼 활성 조건, 재생성 시 "새 판으로 추가되며 기존 초안은 보존됩니다" 한 줄)·`ImagePicker.tsx`(이미지만 안내). Files ≤3
 - [ ] **B9** `DraftProgress.tsx`·`DraftError.tsx`·`NormalizedList.tsx`. Files ≤3
@@ -96,6 +96,12 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
   - Verify: 수동 체크리스트 + `vitest`·`tsc`·`eslint`·`build`
 - [ ] **B11** CLAUDE.md 폴더 구조·`docs/` 갱신, 개발 일지는 마무리 때 요청 시.
 - **[B 확인]**: 결과 보고, 브라우저에서 초안 생성 1회는 사용자가 실행.
+
+## 배포 체크리스트 (첫 Vercel 배포 때)
+- [ ] 스트리밍 응답이 줄 단위로 도착하는지 확인(`curl -N`으로 `/api/draft` 호출 또는 브라우저 네트워크 탭): 단계 알림과 `ping`이 모아서 한꺼번에 오지 않고 도착 시점에 나뉘어 오는지. 묶여 오면 응답 헤더·압축 설정 조정.
+- [ ] 하트비트가 AI 응답 대기 중(15~30초)에도 10초 간격으로 도착하는지.
+- [ ] 프로젝트의 Fluid compute 설정과 요금제 확인(`maxDuration = 70`이 한도 안인지, 문서 기준 Hobby 300초·Pro 800초).
+- [ ] 실제 OpenAI 호출 1회(사용자 직접)로 `done`까지 도착하고 새 판이 저장되는지.
 
 ## 제외 확인
 노드 편집·드래그, 검사 규칙과 결과 표시(자리만), 디자인 시스템 정리(기능 B), 지시서, 다크 모드, 이메일 가입, 판 목록 화면, 자동 재저장, 스택 수정·프로젝트 삭제, 노드 부분 스트리밍은 하지 않는다.

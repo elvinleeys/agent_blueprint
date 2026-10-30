@@ -6,7 +6,7 @@ export default function WorkspacePage({ params }: PageProps<"/projects/[id]">) {
   return (
     <>
       <AppHeader />
-      <main className="mx-auto w-full max-w-5xl px-4 py-8">
+      <main className="mx-auto w-full max-w-7xl px-4 py-8">
         <Suspense fallback={<p className="text-sm text-foreground-tertiary">불러오는 중…</p>}>
           <WorkspaceLoader params={params} />
         </Suspense>

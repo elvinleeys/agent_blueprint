@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Project } from "../../lib/db/projects";
+import type { StructureInit } from "../../store/structure-store";
+import StructurePanel from "../structure/StructurePanel";
 import { stackSummary } from "../projects/stack-labels";
 import ProjectSettingsTab from "./ProjectSettingsTab";
 
@@ -15,7 +17,15 @@ const TABS: { id: TabId; label: string; enabled: boolean }[] = [
   { id: "prompt", label: "지시서", enabled: false },
 ];
 
-export default function Workspace({ initialProject }: { initialProject: Project }) {
+export default function Workspace({
+  initialProject,
+  structureInit,
+  structureLoadError,
+}: {
+  initialProject: Project;
+  structureInit: StructureInit;
+  structureLoadError: string | null;
+}) {
   const [project, setProject] = useState(initialProject);
   const [tab, setTab] = useState<TabId>("structure");
 
@@ -56,7 +66,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "settings" && <ProjectSettingsTab project={project} onRenamed={setProject} />}
-        {tab === "structure" && <p className="text-sm text-foreground-tertiary">구조 설계 탭은 다음 단계에서 채웁니다.</p>}
+        {tab === "structure" && <StructurePanel init={structureInit} loadError={structureLoadError} />}
       </div>
     </div>
   );

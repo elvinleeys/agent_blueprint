@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { isUuid } from "../../lib/api/http";
+import { loadBlueprint } from "../../lib/db/blueprints";
 import { getProject } from "../../lib/db/projects";
+import { loadSpecInput } from "../../lib/db/spec-inputs";
 import { createClient } from "../../lib/supabase/server";
 import Workspace from "./Workspace";
 
@@ -27,5 +29,14 @@ export default async function WorkspaceLoader({ params }: { params: Promise<{ id
       </div>
     );
 
-  return <Workspace initialProject={project.data} />;
+  // 최신 설계도와 저장된 스펙 입력을 서버에서 읽어 초기값으로 넘긴다. 읽기에 실패해도 작업공간은 열고 안내만 보여 준다
+  const [blueprint, spec] = await Promise.all([loadBlueprint(db, id), loadSpecInput(db, id)]);
+  const loadError = [blueprint, spec].find((r) => !r.ok);
+  return (
+    <Workspace
+      initialProject={project.data}
+      structureInit={{ blueprint: blueprint.ok ? blueprint.data : null, savedInput: spec.ok ? spec.data : null }}
+      structureLoadError={loadError && !loadError.ok ? loadError.message : null}
+    />
+  );
 }

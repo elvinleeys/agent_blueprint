@@ -8,6 +8,7 @@ import { StructureStoreProvider } from "../StructureStoreProvider";
 import BasicSection from "./BasicSection";
 import LayoutSection from "./LayoutSection";
 import RoleSection from "./RoleSection";
+import StructureSection from "./StructureSection";
 import StyleSection from "./StyleSection";
 
 // 서버 렌더링 스모크 테스트: 브라우저 없이 각 구역이 예외 없이 그려지고, 스택·노드에 맞는 칸만 나오는지 본다.
@@ -118,6 +119,51 @@ describe("StyleSection", () => {
     const html = render(bp, <StyleSection bp={bp} node={{ ...node(bp, "n-price"), style: null }} />);
     expect(html).toContain("속성 추가");
     expect(html).toContain("없음");
+  });
+});
+
+describe("StructureSection", () => {
+  // 비활성 버튼은 disabled가 아니라 aria-disabled="true"라 키보드 포커스를 잃지 않는다
+  const ariaDisabled = (label: string) => new RegExp(`<button[^>]*aria-disabled="true"[^>]*>${label}</button>`);
+  const ariaEnabled = (label: string) => new RegExp(`<button[^>]*aria-disabled="false"[^>]*>${label}</button>`);
+  const view = (id: string) => {
+    const bp = sample();
+    return render(bp, <StructureSection bp={bp} node={node(bp, id)} />);
+  };
+
+  it("루트는 부모 선택이 없고 순서·삭제 버튼이 비활성이다(자식 추가는 가능)", () => {
+    const html = view("n-page");
+    expect(html).toContain("루트 노드는 부모를 바꾸거나");
+    expect(html).not.toContain("부모</label>");
+    for (const label of ["위로", "아래로", "노드 삭제"]) expect(html).toMatch(ariaDisabled(label));
+    expect(html).toMatch(ariaEnabled("자식 노드 추가"));
+    expect(html).toContain("루트는 삭제할 수 없습니다");
+  });
+
+  it("일반 노드는 부모 선택과 형제 안의 위치(몇 번째)를 보이고, 첫째는 위로가 비활성이다", () => {
+    const html = view("n-price"); // ProductInfo의 첫째 자식(형제 4개: PriceTag, OptionSelector, AddToCartButton, useCart)
+    expect(html).toContain("부모");
+    expect(html).toContain("순서 (형제 4개 중 1번째)");
+    expect(html).toMatch(ariaDisabled("위로"));
+    expect(html).toMatch(ariaEnabled("아래로"));
+    expect(html).toMatch(ariaEnabled("노드 삭제"));
+  });
+
+  it("마지막 형제는 아래로가 비활성이다", () => {
+    const html = view("n-use-cart");
+    expect(html).toContain("순서 (형제 4개 중 4번째)");
+    expect(html).toMatch(ariaEnabled("위로"));
+    expect(html).toMatch(ariaDisabled("아래로"));
+  });
+
+  it("훅은 자식 추가가 비활성이고 이유를 안내한다", () => {
+    const html = view("n-use-cart");
+    expect(html).toMatch(ariaDisabled("자식 노드 추가"));
+    expect(html).toContain("훅에는 자식을 추가할 수 없습니다");
+  });
+
+  it("삭제 대화상자는 열기 전에는 그려지지 않는다", () => {
+    expect(view("n-info")).not.toContain("자식과 함께 삭제");
   });
 });
 

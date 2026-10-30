@@ -9,20 +9,22 @@ import { ConfirmDialog } from "./edit/ConfirmDialog";
 import LayoutSection from "./edit/LayoutSection";
 import RoleSection from "./edit/RoleSection";
 import { Section } from "./edit/Section";
+import StructureSection from "./edit/StructureSection";
 import StyleSection from "./edit/StyleSection";
 import { KIND_LABEL } from "./labels";
 import { useStructureApi, useStructureStore } from "./StructureStoreProvider";
 
 type SectionId = "basic" | "role" | "layout" | "style" | "structure";
 /** 구역이 맡는 입력칸 키의 앞부분. 오류 개수와 "첫 오류로 이동"이 이 표를 쓴다 */
-const PREFIXES: Record<Exclude<SectionId, "structure">, string[]> = {
+const PREFIXES: Record<SectionId, string[]> = {
   basic: ["name", "kind", "location", "renderMode"],
   role: ["responsibilities", "state", "props", "events", "dataFetch"],
   layout: ["layout", "placement"],
   style: ["style"],
+  structure: ["structure"],
 };
-const ORDER: Exclude<SectionId, "structure">[] = ["basic", "role", "layout", "style"];
-const inSection = (key: string, id: Exclude<SectionId, "structure">) => PREFIXES[id].some((p) => key === p || key.startsWith(`${p}.`));
+const ORDER: SectionId[] = ["basic", "role", "layout", "style", "structure"]; // 화면에 나오는 순서
+const inSection = (key: string, id: SectionId) => PREFIXES[id].some((p) => key === p || key.startsWith(`${p}.`));
 
 const Guide = ({ children, status }: { children: string; status?: boolean }) => (
   <p role={status ? "status" : undefined} className="text-sm text-foreground-tertiary">
@@ -40,7 +42,7 @@ function NodeEditor({ node, open, setOpen }: { node: ComponentNode; open: Record
   const fixes = normalized.filter((c) => c.nodeId === node.id);
   const isHook = node.kind === "hook";
   const errorKeys = Object.keys(errors);
-  const count = (id: Exclude<SectionId, "structure">) => errorKeys.filter((k) => inSection(k, id)).length;
+  const count = (id: SectionId) => errorKeys.filter((k) => inSection(k, id)).length;
 
   function goToFirstError() {
     const first = ORDER.find((id) => count(id) > 0);
@@ -87,8 +89,8 @@ function NodeEditor({ node, open, setOpen }: { node: ComponentNode; open: Record
           </Section>
         </>
       )}
-      <Section title="구조 편집" open={open.structure} onOpenChange={(v) => setOpen("structure", v)}>
-        <p className="text-sm text-foreground-tertiary">부모 변경·순서 변경·자식 추가·삭제는 다음 단계에서 추가됩니다.</p>
+      <Section title="구조 편집" open={open.structure} onOpenChange={(v) => setOpen("structure", v)} errorCount={count("structure")}>
+        <StructureSection bp={blueprint} node={node} />
       </Section>
 
       {fixes.length > 0 && (

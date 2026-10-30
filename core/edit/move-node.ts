@@ -1,6 +1,27 @@
-import type { Blueprint } from "../schema/blueprint";
+import type { Blueprint, ComponentNode } from "../schema/blueprint";
 import { commitNodes, reject, type EditResult } from "./result";
 import { defaultLayout, descendantIds, kidsOf, placementFor, underClient, withOrders } from "./structure-utils";
+
+/**
+ * 부모 변경의 선택지: 자기 자신, 자기 자손, 훅을 뺀 노드를 트리 순서(위→아래, 형제는 order 순)로 돌려준다. depth는 들여쓰기용.
+ * 루트이거나 없는 노드는 옮길 수 없으므로 빈 배열이다.
+ */
+export function moveTargets(bp: Blueprint, id: string): { node: ComponentNode; depth: number }[] {
+  const node = bp.nodes.find((n) => n.id === id);
+  const root = bp.nodes.find((n) => n.parentId === null);
+  if (!node || node.parentId === null || !root) return [];
+  const banned = descendantIds(bp.nodes, id).add(id);
+  const out: { node: ComponentNode; depth: number }[] = [];
+  const seen = new Set<string>();
+  const walk = (n: ComponentNode, depth: number) => {
+    if (seen.has(n.id)) return; // 검증을 통과한 설계도에는 순환이 없지만 무한 재귀는 막는다
+    seen.add(n.id);
+    if (!banned.has(n.id) && n.kind !== "hook") out.push({ node: n, depth });
+    for (const k of kidsOf(bp.nodes, n.id)) if (!banned.has(n.id)) walk(k, depth + 1);
+  };
+  walk(root, 0);
+  return out;
+}
 
 /**
  * 노드를 다른 부모 아래 마지막 자리로 옮긴다. 하위 노드는 그대로 따라간다(parentId만 바뀜).

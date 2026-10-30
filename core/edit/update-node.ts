@@ -10,7 +10,7 @@ function clearAssumed(node: ComponentNode, keys: string[]): ComponentNode {
   if (!node.assumed || !node.assumedFields?.length) return node; // 가정한 필드를 알 수 없으면 표시를 그대로 둔다
   const left = node.assumedFields.filter((f) => !keys.some((k) => f === k || f.startsWith(`${k}.`) || f.startsWith(`${k}[`)));
   if (left.length === node.assumedFields.length) return node;
-  const next = { ...node, assumedFields: left };
+  const next: ComponentNode = { ...node, assumedFields: left };
   if (left.length === 0) {
     delete next.assumedFields;
     next.assumed = false;

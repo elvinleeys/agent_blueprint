@@ -12,7 +12,7 @@ export default async function WorkspaceLoader({ params }: { params: Promise<{ id
 
   const db = await createClient();
   const { data } = await db.auth.getClaims();
-  if (!data?.claims) redirect(`/login?next=${encodeURIComponent(`/projects/${id}`)}`);
+  if (!data?.claims) redirect(`/?next=${encodeURIComponent(`/projects/${id}`)}`);
 
   // 없는 프로젝트와 남의 프로젝트는 구분하지 않고 같은 404로 보여 준다(RLS)
   const project = await getProject(db, id);

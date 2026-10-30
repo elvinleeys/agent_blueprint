@@ -47,7 +47,7 @@ export default function NewProjectForm() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: trimmed, stack: { framework, styling, architecture } }),
       });
-      if (res.status === 401) return router.push("/login?next=%2Fprojects");
+      if (res.status === 401) return router.push("/?next=%2Fprojects");
       const body = await res.json().catch(() => null);
       if (!res.ok) return setError(body?.error?.message ?? "프로젝트를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.");
       router.push(`/projects/${body.project.id}`);

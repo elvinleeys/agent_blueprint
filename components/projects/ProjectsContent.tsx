@@ -8,7 +8,7 @@ import ProjectList from "./ProjectList";
 export default async function ProjectsContent() {
   const db = await createClient();
   const { data } = await db.auth.getClaims();
-  if (!data?.claims) redirect("/login?next=%2Fprojects");
+  if (!data?.claims) redirect("/?next=%2Fprojects");
 
   const projects = await listProjects(db);
   return (

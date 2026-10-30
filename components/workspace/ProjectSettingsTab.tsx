@@ -24,7 +24,7 @@ export default function ProjectSettingsTab({ project, onRenamed }: { project: Pr
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: trimmed }),
       });
-      if (res.status === 401) return router.push(`/login?next=${encodeURIComponent(`/projects/${project.id}`)}`);
+      if (res.status === 401) return router.push(`/?next=${encodeURIComponent(`/projects/${project.id}`)}`);
       const body = await res.json().catch(() => null);
       if (!res.ok) return setMessage({ kind: "error", text: body?.error?.message ?? "이름을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요." });
       onRenamed(body.project);

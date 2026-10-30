@@ -66,14 +66,82 @@ describe("moveNode", () => {
     expect(node(must(moveNode(spanned, "n-gallery", "n-option")), "n-gallery").placement).toBeNull();
   });
 
-  it("layout이 없는 새 부모에는 block을 채운다", () => {
-    expect(node(must(moveNode(sample(), "n-gallery", "n-price")), "n-price").layout).toEqual({ display: "block", gap: null });
+  it("layout이 없는 새 부모에는 세로 flex(간격 없음)를 채우고 결과로 알린다", () => {
+    const r = moveNode(sample(), "n-gallery", "n-price");
+    expect(node(must(r), "n-price").layout).toEqual({ display: "flex", direction: "column", gap: null });
+    expect(r.ok && r.filledLayout).toEqual(["n-price"]);
+  });
+
+  it("layout이 이미 있는 새 부모는 바꾸지 않고 filledLayout도 없다", () => {
+    const r = moveNode(sample(), "n-price", "n-page");
+    expect(r.ok && r.filledLayout).toBeUndefined();
+    expect(node(must(r), "n-page").layout).toEqual(node(sample(), "n-page").layout);
   });
 
   it("훅을 옮겨도 layout 없는 부모에 layout을 만들지 않는다", () => {
-    const out = must(moveNode(sample(), "n-use-cart", "n-price"));
+    const r = moveNode(sample(), "n-use-cart", "n-price");
+    const out = must(r);
     expect(node(out, "n-price").layout).toBeNull();
     expect(node(out, "n-use-cart").parentId).toBe("n-price");
+    expect(r.ok && r.filledLayout).toBeUndefined();
+  });
+
+  describe("Next.js: client 조상 아래로 옮기기", () => {
+    // n-gallery(server) 아래에 n-review(server)와 훅을 붙여 server 하위 트리를 만든다
+    const serverTree = () => must(moveNode(must(moveNode(sample(), "n-review", "n-gallery")), "n-use-cart", "n-gallery"));
+
+    it("옮긴 노드와 자손 중 server를 client로 바꾸고 바꾼 id를 알린다", () => {
+      const r = moveNode(serverTree(), "n-gallery", "n-info"); // n-info는 client
+      const out = must(r);
+      expect(node(out, "n-gallery").renderMode).toBe("client");
+      expect(node(out, "n-review").renderMode).toBe("client");
+      expect(r.ok && r.toClient?.sort()).toEqual(["n-gallery", "n-review"]);
+    });
+
+    it("훅(renderMode null)과 이미 client인 자손은 건드리지 않는다", () => {
+      const out = must(moveNode(serverTree(), "n-gallery", "n-info"));
+      expect(node(out, "n-use-cart").renderMode).toBeNull();
+      const bp = serverTree();
+      const clientKid = withNode(bp, "n-review", { renderMode: "client" });
+      const r = moveNode(clientKid, "n-gallery", "n-info");
+      expect(r.ok && r.toClient).toEqual(["n-gallery"]);
+    });
+
+    it("부모 자신이 아니라 더 위 조상이 client여도 바꾼다", () => {
+      // 새 부모 n-price를 server로 만들어(스키마는 통과, 검사 규칙 NX-04 위반 상태) 조상 n-info만 client인 상황을 만든다
+      const bp = withNode(sample(), "n-price", { renderMode: "server" });
+      const r = moveNode(bp, "n-gallery", "n-price");
+      expect(node(must(r), "n-gallery").renderMode).toBe("client");
+      expect(r.ok && r.toClient).toEqual(["n-gallery"]);
+    });
+
+    it("부모가 client가 아닌 server 쪽에서는 server를 그대로 둔다", () => {
+      const r = moveNode(serverTree(), "n-gallery", "n-page");
+      expect(r.ok && r.toClient).toBeUndefined();
+      expect(node(must(r), "n-review").renderMode).toBe("server");
+    });
+
+    it("client 밖으로 옮길 때는 client를 server로 되돌리지 않는다", () => {
+      const r = moveNode(sample(), "n-info", "n-gallery"); // client인 n-info를 server 아래로
+      const out = must(r);
+      expect(node(out, "n-info").renderMode).toBe("client");
+      expect(node(out, "n-price").renderMode).toBe("client");
+      expect(r.ok && r.toClient).toBeUndefined();
+    });
+
+    it("Next.js가 아니면 변환하지 않는다", () => {
+      const bp = sample();
+      const react = { ...bp, stack: { ...bp.stack, framework: "react" as const }, nodes: bp.nodes.map((n) => ({ ...n, renderMode: null })) };
+      const r = moveNode(react, "n-gallery", "n-info");
+      expect(r.ok && r.toClient).toBeUndefined();
+      expect(node(must(r), "n-gallery").renderMode).toBeNull();
+    });
+
+    it("변환은 옮긴 하위 트리 밖의 노드를 바꾸지 않는다", () => {
+      const bp = serverTree();
+      const out = must(moveNode(bp, "n-gallery", "n-info"));
+      expect(node(out, "n-page")).toEqual({ ...node(bp, "n-page") });
+    });
   });
 
   it("거부: 루트, 자기 자신, 자손, 훅 부모, 없는 노드·부모", () => {
@@ -156,8 +224,15 @@ describe("addChild", () => {
     const r = addChild(react, "n-page");
     expect(node(must(r), r.ok ? r.selectId! : "").renderMode).toBeNull();
   });
-  it("layout이 없는 부모에는 block을 채운다", () => {
-    expect(node(must(addChild(sample(), "n-price")), "n-price").layout).toEqual({ display: "block", gap: null });
+  it("layout이 없는 부모에는 세로 flex(간격 없음)를 채우고 결과로 알린다", () => {
+    const r = addChild(sample(), "n-price");
+    expect(node(must(r), "n-price").layout).toEqual({ display: "flex", direction: "column", gap: null });
+    expect(r.ok && r.filledLayout).toEqual(["n-price"]);
+  });
+  it("layout이 이미 있는 부모는 바꾸지 않고 filledLayout도 없다", () => {
+    const r = addChild(sample(), "n-info");
+    expect(r.ok && r.filledLayout).toBeUndefined();
+    expect(node(must(r), "n-info").layout).toEqual(node(sample(), "n-info").layout);
   });
   it("훅과 없는 부모에는 추가할 수 없다", () => {
     expect(addChild(sample(), "n-use-cart")).toMatchObject({ ok: false });

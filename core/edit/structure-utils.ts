@@ -28,6 +28,15 @@ export function withOrders(nodes: ComponentNode[], ids: string[]): ComponentNode
   return nodes.map((n) => (rank.has(n.id) && n.order !== rank.get(n.id) ? { ...n, order: rank.get(n.id)! } : n));
 }
 
+/** 자식을 처음 받는 노드에 채우는 기본 배치: 세로 flex, 간격 없음 */
+export const defaultLayout = (): NonNullable<ComponentNode["layout"]> => ({ display: "flex", direction: "column", gap: null });
+
+/** 노드 자신 또는 조상 중에 client가 있는지(client 파일이 불러온 컴포넌트는 server로 남을 수 없다) */
+export function underClient(nodes: readonly ComponentNode[], node: ComponentNode | undefined): boolean {
+  for (let cur = node; cur; cur = nodes.find((n) => n.id === cur!.parentId)) if (cur.renderMode === "client") return true;
+  return false;
+}
+
 /** 새 부모 아래에서도 유효한 차지 칸만 남긴다: 부모가 grid이고 span이 열 수 이하일 때 */
 export function placementFor(parent: ComponentNode | undefined, placement: ComponentNode["placement"]): ComponentNode["placement"] {
   const layout = parent?.layout;

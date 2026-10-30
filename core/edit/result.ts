@@ -1,8 +1,11 @@
 import { BlueprintSchema, type Blueprint, type ComponentNode } from "../schema/blueprint";
 
-/** 실패 시 nodeId·path는 입력칸 옆에 이유를 보여 주는 데 쓴다(path는 그 노드 기준) */
+/**
+ * 실패 시 nodeId·path는 입력칸 옆에 이유를 보여 주는 데 쓴다(path는 그 노드 기준).
+ * 성공 시 연산이 사용자 몰래 바꾼 것은 알림용으로 담는다: filledLayout은 기본 배치를 채운 노드 id, toClient는 client로 바뀐 노드 id.
+ */
 export type EditResult =
-  | { ok: true; blueprint: Blueprint; selectId?: string }
+  | { ok: true; blueprint: Blueprint; selectId?: string; filledLayout?: string[]; toClient?: string[] }
   | { ok: false; reason: string; nodeId?: string; path?: (string | number)[] };
 
 export const reject = (reason: string, nodeId?: string, path?: (string | number)[]): EditResult => ({ ok: false, reason, nodeId, path });

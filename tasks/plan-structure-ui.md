@@ -53,11 +53,11 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 - **[A 확인]** 4개 명령 결과 보고.
 
 ### 단계 P (진입점·헤더)
-- [ ] **P1** `core/auth/redirect.ts` `decideRedirect` 수정: `/login`→`/`+쿼리 유지, 로그인 상태 `/`→`safeNextPath(next)`(기본 `/projects`), 비로그인 보호 경로→`/?next=…`. 테스트 추가·기존 수정. Files ≤2. Verify: `npx vitest run core/auth`
-- [ ] **P2** 홈 `app/page.tsx`(라우팅+Suspense) + `components/home/`(소개, 로그인 버튼 영역, `error=auth` 문구). `LoginButton` 문구 "GitHub로 시작하기", `next` 유지. Verify: `tsc`, `build`, 비로그인 화면 직접 확인
-- [ ] **P3** `app/login/page.tsx`를 `/`로 보내는 안전망으로 교체, `LoginPanel` 삭제, 로그아웃 후 이동 목적지 `/login`→`/`, `docs/auth-login.md`·`CLAUDE.md`(proxy 설명, 폴더 구조) 갱신. 커밋 `feat:`+`docs:`
-- [ ] **P4** `components/layout/AppHeader.tsx`(로고·프로젝트 링크·계정 영역: 이름+사진/첫 글자, 클릭 메뉴는 D4), 목록·작업공간·계정에 적용, 기존 `components/projects/AppHeader` 삭제. Files ≤3
-- [ ] **P5** `LogoutButton`을 단일 처리로 정리(헤더·`/account` 공용, D4에서 메뉴 항목으로 재사용 가능하게 children/className 받기). Verify: 로그아웃 직접 확인
+- [x] **P1** `core/auth/redirect.ts` `decideRedirect` 수정: `/login`→`/`+쿼리 유지, 로그인 상태 `/`→`safeNextPath(next)`(기본 `/projects`), 비로그인 보호 경로→`/?next=…`. 테스트 추가·기존 수정. Files ≤2. Verify: `npx vitest run core/auth`
+- [x] **P2** 홈 `app/page.tsx`(라우팅+Suspense) + `components/home/`(소개, 로그인 버튼 영역, `error=auth` 문구). `LoginButton` 문구 "GitHub로 시작하기", `next` 유지. Verify: `tsc`, `build`, 비로그인 화면 직접 확인
+- [x] **P3** `app/login/page.tsx`를 `/`로 보내는 안전망으로 교체, `LoginPanel` 삭제, 로그아웃 후 이동 목적지 `/login`→`/`, `docs/auth-login.md`·`CLAUDE.md`(proxy 설명, 폴더 구조) 갱신. 커밋 `feat:`+`docs:`
+- [x] **P4** `components/layout/AppHeader.tsx`(로고·프로젝트 링크·계정 영역: 이름+사진/첫 글자, 클릭 메뉴는 D4), 목록·작업공간·계정에 적용, 기존 `components/projects/AppHeader` 삭제. Files ≤3
+- [x] **P5** `LogoutButton`을 단일 처리로 정리(헤더·`/account` 공용, D4에서 메뉴 항목으로 재사용 가능하게 children/className 받기). Verify: 로그아웃 직접 확인
 - 체크포인트: vitest·tsc·eslint·build 보고 → 커밋 → **[P 확인]**
 
 ### 단계 D (디자인 기준값·공통 부품)

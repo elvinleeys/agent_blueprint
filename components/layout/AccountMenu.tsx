@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import LogoutButton from "../auth/LogoutButton";
+import GuardedLink from "./GuardedLink";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import type { Profile } from "../../core/auth/profile";
 
@@ -23,7 +23,7 @@ export default function AccountMenu({ name, avatarUrl, initial }: Profile) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuItem asChild>
-          <Link href="/account">계정 설정</Link>
+          <GuardedLink href="/account">계정 설정</GuardedLink>
         </DropdownMenuItem>
         {/* 닫지 않고 두어 로그아웃이 실패하면 안내 문구가 보이게 한다 */}
         <DropdownMenuItem asChild onSelect={(e) => e.preventDefault()}>

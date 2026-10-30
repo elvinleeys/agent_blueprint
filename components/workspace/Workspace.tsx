@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import type { Project } from "../../lib/db/projects";
 import type { StructureInit } from "../../store/structure-store";
+import GuardedLink from "../layout/GuardedLink";
+import { SaveQueueProvider } from "../structure/SaveQueueProvider";
+import { StructureStoreProvider } from "../structure/StructureStoreProvider";
 import StructurePanel from "../structure/StructurePanel";
 import { stackSummary } from "../projects/stack-labels";
 import ProjectSettingsTab from "./ProjectSettingsTab";
@@ -27,15 +29,27 @@ export default function Workspace({
   structureLoadError: string | null;
 }) {
   const [project, setProject] = useState(initialProject);
+
+  // 스토어와 자동 저장은 탭을 바꿔도 사라지지 않게 탭 바깥(여기)에 둔다. 구조 설계 탭은 이것을 쓰기만 한다
+  return (
+    <StructureStoreProvider init={structureInit}>
+      <SaveQueueProvider projectId={initialProject.id}>
+        <WorkspaceBody project={project} onRenamed={setProject} structureLoadError={structureLoadError} />
+      </SaveQueueProvider>
+    </StructureStoreProvider>
+  );
+}
+
+function WorkspaceBody({ project, onRenamed, structureLoadError }: { project: Project; onRenamed: (project: Project) => void; structureLoadError: string | null }) {
   const [tab, setTab] = useState<TabId>("structure");
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <nav aria-label="경로" className="mb-2 flex items-center gap-1 text-sm text-foreground-tertiary">
-          <Link href="/projects" className="hover:text-primary">
+          <GuardedLink href="/projects" className="hover:text-primary">
             프로젝트
-          </Link>
+          </GuardedLink>
           <span aria-hidden>›</span>
           <span aria-current="page" className="truncate">{project.name}</span>
         </nav>
@@ -65,8 +79,8 @@ export default function Workspace({
       </div>
 
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "settings" && <ProjectSettingsTab project={project} onRenamed={setProject} />}
-        {tab === "structure" && <StructurePanel projectId={project.id} init={structureInit} loadError={structureLoadError} />}
+        {tab === "settings" && <ProjectSettingsTab project={project} onRenamed={onRenamed} />}
+        {tab === "structure" && <StructurePanel projectId={project.id} loadError={structureLoadError} />}
       </div>
     </div>
   );

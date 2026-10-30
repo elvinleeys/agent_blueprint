@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type ComponentProps } from "react";
+import { confirmLeave } from "../../lib/client/leave-guard";
 import { createClient } from "../../lib/supabase/client";
 
 // 로그아웃 처리는 이 컴포넌트 한 곳에만 둔다(/account 버튼과 헤더 계정 메뉴 항목이 같은 것을 쓴다).
@@ -15,6 +16,8 @@ export default function LogoutButton({
   const [failed, setFailed] = useState(false);
 
   async function signOut() {
+    // router.replace는 Link의 onNavigate가 닿지 않으므로 여기서 직접 확인한다(저장되지 않은 수정이 있을 때만 묻는다)
+    if (!confirmLeave()) return;
     setFailed(false);
     const { error } = await createClient().auth.signOut();
     if (error) return setFailed(true);

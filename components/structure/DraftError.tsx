@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import GuardedLink from "../layout/GuardedLink";
 import { usePathname } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -38,9 +38,9 @@ export default function DraftError({ onRetry }: { onRetry: () => void }) {
             </Button>
           )}
           {error.needsLogin && (
-            <Link href={`/?next=${encodeURIComponent(pathname)}`} className="text-sm text-primary underline">
+            <GuardedLink href={`/?next=${encodeURIComponent(pathname)}`} className="text-sm text-primary underline">
               로그인하기
-            </Link>
+            </GuardedLink>
           )}
           <span className="text-xs text-foreground-tertiary">입력한 내용은 그대로 남아 있습니다.</span>
         </div>

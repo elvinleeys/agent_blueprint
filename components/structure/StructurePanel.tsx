@@ -1,20 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { runDraft } from "@/lib/client/run-draft";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import type { StructureInit, StructureView } from "../../store/structure-store";
+import { selectHasUnsaved, type StructureView } from "../../store/structure-store";
 import DraftError from "./DraftError";
 import DraftProgress from "./DraftProgress";
+import { ConfirmDialog } from "./edit/ConfirmDialog";
+import { generateDraft } from "./generate";
 import NodeEditPanel from "./NodeEditPanel";
 import NormalizedList from "./NormalizedList";
 import PreviewCanvas from "./PreviewCanvas";
+import SaveStatus from "./SaveStatus";
+import { useSaveQueue } from "./SaveQueueProvider";
 import SpecForm from "./SpecForm";
-import { StructureStoreProvider, useStructureApi, useStructureStore } from "./StructureStoreProvider";
+import { useStructureApi, useStructureStore } from "./StructureStoreProvider";
 import TreeView from "./TreeViewLoader";
 
 function Layout({ projectId, loadError }: { projectId: string; loadError: string | null }) {
@@ -24,17 +27,17 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
   const setView = useStructureStore((s) => s.setView);
   const [inputOpen, setInputOpen] = useState(true);
 
-  // 초안 생성 한 번. 어떤 오류든 입력(항목·화면 주소·이미지)은 스토어에 그대로 남는다
-  async function generate() {
+  const queue = useSaveQueue();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // 저장되지 않은 수정(저장 대기·전송 중·저장 실패)이 있으면 새 초안으로 덮어쓰기 전에 확인한다.
+  // 생성 순서(편집 막기 → 저장 정리 → 생성)와 어떤 오류든 입력이 남는 규칙은 generateDraft가 맡는다
+  const generate = () => void generateDraft({ store: api, projectId, queue });
+  function requestGenerate() {
     const s = api.getState();
     if (s.status === "resizing" || s.status === "running") return;
-    s.startDraft(Date.now(), s.images.length > 0);
-    const result = await runDraft(
-      { projectId, spec: s.spec, route: s.route, images: s.images },
-      { onRunning: () => api.getState().setRunning(), onStage: (stage) => api.getState().addStage(stage) },
-    );
-    if (result.kind === "done") api.getState().finishDraft(result.blueprint, result.normalized);
-    else api.getState().failDraft(result.error, result.keptBlueprint);
+    if (selectHasUnsaved(s)) setConfirmOpen(true);
+    else generate();
   }
 
   return (
@@ -57,15 +60,16 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <SpecForm onGenerate={generate} />
+              <SpecForm onGenerate={requestGenerate} />
             </CardContent>
           </Card>
         )}
 
         <Card className={cn(inputOpen ? "lg:col-span-5" : "lg:col-span-8")}>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+            <CardTitle className="flex flex-wrap items-center justify-between gap-2">
               화면 구조
+              <SaveStatus />
               {!inputOpen && (
                 <Button size="sm" variant="outline" onClick={() => setInputOpen(true)} aria-expanded={false}>
                   스펙 입력 펼치기
@@ -75,7 +79,7 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <DraftProgress />
-            <DraftError onRetry={generate} />
+            <DraftError onRetry={requestGenerate} />
             {!blueprint ? (
               <p className="rounded-lg bg-section p-6 text-sm text-foreground-secondary">
                 아직 설계도가 없습니다. 스펙 7개 항목을 입력하거나 이미지를 첨부해 초안을 생성하면 화면 구조 미리보기가 여기에 표시됩니다.
@@ -116,14 +120,23 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
           <p className="text-sm text-foreground-tertiary">구조 검사 결과는 다음 단계에서 추가됩니다.</p>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="초안을 다시 생성할까요?"
+        description="저장되지 않은 수정은 사라집니다. 진행 중인 저장이 있으면 끝날 때까지 기다린 뒤 새 초안을 만들고, 생성에 실패하면 수정은 그대로 남아 다시 저장됩니다."
+        confirmLabel="다시 생성"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          generate();
+        }}
+      />
     </div>
   );
 }
 
-export default function StructurePanel({ projectId, init, loadError }: { projectId: string; init: StructureInit; loadError: string | null }) {
-  return (
-    <StructureStoreProvider init={init}>
-      <Layout projectId={projectId} loadError={loadError} />
-    </StructureStoreProvider>
-  );
+/** 스토어와 자동 저장은 작업공간(Workspace)이 들고 있어 탭을 바꿔도 유지된다. 이 패널은 그것을 쓰기만 한다 */
+export default function StructurePanel({ projectId, loadError }: { projectId: string; loadError: string | null }) {
+  return <Layout projectId={projectId} loadError={loadError} />;
 }

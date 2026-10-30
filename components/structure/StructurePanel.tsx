@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { StructureView } from "../../store/structure-store";
+import CheckResults, { countSummary } from "./CheckResults";
 import DraftError from "./DraftError";
 import DraftProgress from "./DraftProgress";
 import { ConfirmDialog } from "./edit/ConfirmDialog";
@@ -20,6 +21,7 @@ import { useSaveQueue } from "./SaveQueueProvider";
 import SpecForm from "./SpecForm";
 import { useStructureApi, useStructureStore } from "./StructureStoreProvider";
 import TreeView from "./TreeViewLoader";
+import { useViolations, ViolationsProvider } from "./ViolationsProvider";
 
 function Layout({ projectId, loadError }: { projectId: string; loadError: string | null }) {
   const api = useStructureApi();
@@ -27,6 +29,7 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
   const view = useStructureStore((s) => s.view);
   const setView = useStructureStore((s) => s.setView);
   const [inputOpen, setInputOpen] = useState(true);
+  const summary = countSummary(useViolations().violations);
 
   const queue = useSaveQueue();
   const [confirmReasons, setConfirmReasons] = useState<RegenerateReason[] | null>(null);
@@ -116,10 +119,13 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
 
       <Card>
         <CardHeader>
-          <CardTitle>검사 결과</CardTitle>
+          <CardTitle>
+            검사 결과
+            {summary && <span className="ml-2 text-sm font-normal text-foreground-secondary">{summary}</span>}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-foreground-tertiary">구조 검사 결과는 다음 단계에서 추가됩니다.</p>
+          <CheckResults />
         </CardContent>
       </Card>
 
@@ -140,5 +146,9 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
 
 /** 스토어와 자동 저장은 작업공간(Workspace)이 들고 있어 탭을 바꿔도 유지된다. 이 패널은 그것을 쓰기만 한다 */
 export default function StructurePanel({ projectId, loadError }: { projectId: string; loadError: string | null }) {
-  return <Layout projectId={projectId} loadError={loadError} />;
+  return (
+    <ViolationsProvider>
+      <Layout projectId={projectId} loadError={loadError} />
+    </ViolationsProvider>
+  );
 }

@@ -10,6 +10,7 @@ import LayoutSection from "./edit/LayoutSection";
 import RoleSection from "./edit/RoleSection";
 import { Section } from "./edit/Section";
 import StructureSection from "./edit/StructureSection";
+import { ASSUMED_BORDER, ASSUMED_TEXT } from "./violation-mark";
 import StyleSection from "./edit/StyleSection";
 import { KIND_LABEL } from "./labels";
 import { useStructureApi, useStructureStore } from "./StructureStoreProvider";
@@ -56,7 +57,7 @@ function NodeEditor({ node, open, setOpen }: { node: ComponentNode; open: Record
         <h3 className="break-all text-base font-semibold text-foreground">{node.name}</h3>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{KIND_LABEL[node.kind]}</Badge>
-          {node.assumed && <Badge variant="outline" className="border-dashed border-warning text-warning">AI 가정</Badge>}
+          {node.assumed && <Badge variant="outline" className={`${ASSUMED_BORDER} ${ASSUMED_TEXT}`}>AI 가정</Badge>}
         </div>
         <p className="text-xs text-foreground-tertiary">부모: {parent ? parent.name : "없음(루트)"}</p>
         {node.assumed && !node.assumedFields?.length && <p className="text-xs text-foreground-secondary">AI가 입력 없이 채운 값이 있습니다(필드 목록 없음).</p>}

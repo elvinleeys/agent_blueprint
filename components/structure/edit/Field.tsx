@@ -5,6 +5,7 @@ import type { EditResult } from "@/core/edit/result";
 import type { Blueprint } from "@/core/schema/blueprint";
 import { Badge } from "@/components/ui/badge";
 import { useStructureApi, useStructureStore } from "../StructureStoreProvider";
+import { ASSUMED_BORDER, ASSUMED_TEXT } from "../violation-mark";
 
 /** 입력칸 키("layout.gap")에서 만든 요소 id. 이름표·오류 문구·포커스 이동이 이 id로 연결된다 */
 export const fieldId = (key: string) => `edit-${key.replaceAll(".", "-")}`;
@@ -26,7 +27,7 @@ export function useClearErrorOnUnmount(key: string) {
 }
 
 export const AssumedBadge = () => (
-  <Badge variant="outline" className="border-dashed border-warning text-warning">
+  <Badge variant="outline" className={`${ASSUMED_BORDER} ${ASSUMED_TEXT}`}>
     AI 가정
   </Badge>
 );

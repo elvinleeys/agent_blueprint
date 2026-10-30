@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ALIGN_ITEMS, COL_SPAN, COL_SPAN_FULL, GAP, GRID_COLS, JUSTIFY } from "./preview-classes";
 import { useStructureStore } from "./StructureStoreProvider";
+import { useViolations } from "./ViolationsProvider";
+import { ASSUMED_BORDER, ASSUMED_TEXT, violationMark } from "./violation-mark";
 
 function childrenLayout(box: PreviewBox): string {
   const gap = GAP[box.gap];
@@ -28,13 +30,14 @@ function BoxView({ box, selectedId, onSelect }: { box: PreviewBox; selectedId: s
     choose();
   };
   const caption = [box.layoutLabel, box.placementLabel].filter(Boolean).join(" · ");
+  const mark = violationMark(useViolations().counts.get(box.id));
 
   return (
     <div
       role="button"
       tabIndex={0}
       aria-pressed={selected}
-      aria-label={`${box.name}${caption ? `, ${caption}` : ""}${box.assumed ? ", AI 가정" : ""}`}
+      aria-label={`${box.name}${caption ? `, ${caption}` : ""}${box.assumed ? ", AI 가정" : ""}${mark ? `, ${mark.label}` : ""}`}
       onClick={(e) => {
         e.stopPropagation(); // 가장 안쪽 상자만 선택된다
         choose();
@@ -43,7 +46,7 @@ function BoxView({ box, selectedId, onSelect }: { box: PreviewBox; selectedId: s
       className={cn(
         "flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg border bg-card p-2 outline-none",
         "focus-visible:ring-3 focus-visible:ring-ring/50",
-        box.assumed ? "border-dashed border-warning" : "border-border",
+        mark ? mark.border : box.assumed ? ASSUMED_BORDER : "border-border", // 위반 색 실선이 AI 가정 점선보다 우선한다
         selected && "ring-2 ring-primary",
         spanClass(box.span),
       )}
@@ -51,7 +54,8 @@ function BoxView({ box, selectedId, onSelect }: { box: PreviewBox; selectedId: s
       <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
         <span className="font-medium text-foreground">{box.name}</span>
         {caption && <span className="text-xs text-foreground-tertiary">{caption}</span>}
-        {box.assumed && <span className="text-xs text-warning">AI 가정</span>}
+        {mark && <span className={cn("text-xs font-medium", mark.text)}>{mark.label}</span>}
+        {box.assumed && <span className={cn("text-xs", ASSUMED_TEXT)}>AI 가정</span>}
         {box.layoutMissing && <span className="text-xs text-warning">배치 정보 없음</span>}
       </div>
       {box.children.length > 0 && (

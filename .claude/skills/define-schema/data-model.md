@@ -138,6 +138,8 @@ Next.js의 라우팅 폴더(`app/`, `pages/`)와 FSD의 `app`·`pages` 계층 �
 ResponsiveOverride: `breakpoint`(`"mobile" \| "tablet" \| "desktop"`, 필수), `direction`(선택), `columns`(선택).
 breakpoint의 실제 너비는 스펙 ③ 레이아웃·반응형 항목을 따른다.
 
+**반응형 기준(데스크톱 우선)**: 설계도의 기본 `layout`은 **데스크톱 기준**이고, `responsive`는 **태블릿·모바일에서 바뀌는 값**이다. 모바일은 태블릿 값을 이어받아 그 위에 모바일 값을 덮어쓴다(`desktop` 항목이 있으면 데스크톱의 기본값을 덮어쓴다). 기본값과 같은 값은 적지 않는다. 지시서 생성 시 Tailwind 스택이면 모바일 우선(`min-width`) 클래스로 변환해야 한다.
+
 검증 조건:
 - `display`가 `flex`이면 `direction` 필수, `columns` 금지.
 - `display`가 `grid`이면 `columns` 필수, `direction` 금지.
@@ -319,6 +321,7 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 - v1.2 보완 (DS): 토큰 그룹 단수형(color·spacing·radius·font·layout), color·spacing 필수·키 1개 이상, 선택 그룹도 있으면 키 1개 이상, variant kebab-case, props type 자유 문자열
 - v1.2 보완: `columns`·`span`을 정수 1~12로 제한, `span`은 부모 열 수 이하, 루트에서 도달할 수 없는 노드·순환 거부
 - v1.2 보완 (테스트 결과 반영): 검사 규칙 NX-03, NX-04, R-07 추가(스키마 필드 변경 없음, version 유지). OpenAI 호출 타임아웃 기준을 텍스트만 45초·이미지 포함 60초로 조정(CLAUDE.md)
+- v1.2 보완 (반응형 기준): 기본 `layout`은 데스크톱 기준, `responsive`는 태블릿·모바일에서 바뀌는 값(데스크톱 우선)으로 명시. 스키마 필드 변경 없음, 초안 프롬프트 v3에 같은 기준 추가
 - v1.2: `stack.architecture`(type-based / feature-based / fsd), `route`, 노드 `location` 추가, Next.js + FSD 배치 규칙, FSD 검사 규칙 AR-01~AR-03
 
 위 내용은 기획서(F-001, F-006, F-012, 3.2, 3.3, 4.2, 5.3, 6.4, 일정)와 CLAUDE.md에 반영되었다.

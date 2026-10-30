@@ -33,11 +33,12 @@ describe("buildDraftPrompt", () => {
 
   it("v2 규칙이 지시문에 들어 있다", () => {
     const { instructions } = buildDraftPrompt({ spec: { ...base, overview: "x" }, stack });
-    expect(DRAFT_PROMPT_VERSION).toBe("v2");
+    expect(DRAFT_PROMPT_VERSION).toBe("v3");
     expect(instructions).toContain("한국어로 쓴다");
     expect(instructions).toContain("상호작용");
     expect(instructions).toContain("state·events가 비어 있으면 안 된다");
     expect(instructions).toContain("grid 부모의 responsive에는 columns만, flex 부모의 responsive에는 direction만");
+    expect(instructions).toContain("기본 layout은 데스크톱 화면 기준이고, responsive에는 태블릿(tablet)·모바일(mobile)에서 바뀌는 값만");
     expect(instructions).toContain("pages/product-detail/ui");
     expect(instructions).toContain("page 같은 이름 금지");
     expect(instructions).toContain("연속 정수이며 겹치지 않는다");

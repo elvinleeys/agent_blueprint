@@ -117,7 +117,7 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 - 출력: "직전 응답이 아래 규칙을 어겼다. 모든 오류를 고쳐 전체 JSON을 다시 출력하라(오류와 무관한 부분은 바꾸지 말 것)" + 오류 목록. 이전 JSON은 이 문자열에 넣지 않고 대화 이력으로 전달한다.
 - 테스트: 오류 개수 제한, 경로 표기(이름 매핑 유/무), 빈 오류 목록, 메시지 포함.
 
-### `core/prompt/draft-prompt.ts` 프롬프트 v2 (`DRAFT_PROMPT_VERSION = "v2"`)
+### `core/prompt/draft-prompt.ts` 프롬프트 v2 (`DRAFT_PROMPT_VERSION`은 현재 "v3": v2에 반응형 기준 한 줄 추가 — 기본 layout은 데스크톱 기준, responsive는 태블릿·모바일에서 바뀌는 값, 2026-10-30)
 요청된 6개 변경:
 1. 한국어로 작성(title, responsibilities, state·description 등 모든 문장. 컴포넌트·훅 이름과 id는 영문 식별자).
 2. 상호작용 책임이 있으면 `state`·`events`를 채운다(예: 이전·다음 이동, 탭 선택은 선택 상태와 이벤트가 있어야 하고 client).

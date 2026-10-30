@@ -1,7 +1,7 @@
 import type { Blueprint } from "../schema/blueprint";
 import type { SpecInput } from "../schema/spec-input";
 
-export const DRAFT_PROMPT_VERSION = "v2";
+export const DRAFT_PROMPT_VERSION = "v3";
 
 export type DraftImageInfo = { originalWidth?: number };
 
@@ -82,6 +82,7 @@ const instructions = (stack: DraftPromptInput["stack"], hasImage: boolean) =>
     "- 배치 책임은 부모에게 있다. 훅이 아닌 자식이 있는 노드는 layout이 필수이고, 자식 간격은 부모 layout.gap(토큰 문자열, 예: spacing.4)으로만 준다.",
     "- layout.display가 flex면 direction 필수·columns는 null, grid면 columns(1~12) 필수·direction은 null, block이면 둘 다 null.",
     "- responsive도 같은 규칙이다. grid 부모의 responsive에는 columns만, flex 부모의 responsive에는 direction만 쓴다(grid에 direction, flex에 columns를 쓰지 않는다).",
+    "- 반응형 기준: 노드의 기본 layout은 데스크톱 화면 기준이고, responsive에는 태블릿(tablet)·모바일(mobile)에서 바뀌는 값만 쓴다(데스크톱 우선). 기본값과 같은 값은 responsive에 적지 않는다.",
     "- placement는 부모의 layout.display가 grid일 때만 쓰고(span은 열 수 또는 \"full\"), 그 외에는 null.",
     "- style.properties에는 그 노드 자신의 모양만 쓴다. display, flex-direction, grid-template-columns, gap, row-gap, column-gap, justify-content, align-items, grid-column은 쓰지 않는다. property는 kebab-case이며 한 노드 안에서 중복하지 않는다.",
     "- 값이 디자인 토큰이면 isToken을 true로 한다. 자식이 바깥 여백(margin 등)을 가지면 ownsOuterSpacing을 true로 한다(되도록 false).",

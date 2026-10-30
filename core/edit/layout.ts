@@ -23,6 +23,20 @@ export function changeDisplay(bp: Blueprint, id: string, display: Layout["displa
   return updateNode(bp, id, { layout });
 }
 
+/**
+ * display를 바꾸면 사라지는 값의 양. 화면이 변경 전 확인("자식 N개의 차지 칸과 반응형 설정이 초기화됩니다")을 보여 줄지 정하는 데 쓴다.
+ * 같은 display이거나 노드가 없으면 null.
+ */
+export function displayChangeImpact(bp: Blueprint, id: string, display: Layout["display"]): { placements: number; responsive: boolean } | null {
+  const node = bp.nodes.find((n) => n.id === id);
+  if (!node || node.layout?.display === display) return null;
+  const leavingGrid = node.layout?.display === "grid";
+  return {
+    placements: leavingGrid ? bp.nodes.filter((n) => n.parentId === id && n.placement !== null).length : 0,
+    responsive: (node.layout?.responsive?.length ?? 0) > 0,
+  };
+}
+
 const SCOPE: Record<Blueprint["stack"]["styling"], Style["scope"]> = { css: "global", "css-modules": "module", tailwind: "utility" };
 
 /** 스타일이 없는 노드에 처음 속성을 추가할 때 쓰는 빈 스타일. scope는 스택의 스타일 방식에서 정한다 */

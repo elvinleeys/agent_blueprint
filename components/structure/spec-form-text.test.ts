@@ -1,12 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { SPEC_TEXT_KEYS } from "../../lib/db/spec-inputs";
-import { generateButtonLabel, IMAGE_ONLY_NOTE, MIN_CONDITION, REGENERATE_NOTE, ROUTE_LABEL, SPEC_LABELS } from "./spec-form-text";
+import { generateButtonLabel, IMAGE_BUTTON_LABEL, IMAGE_ONLY_NOTE, imageStatusText, MIN_CONDITION, REGENERATE_NOTE, ROUTE_LABEL, SPEC_LABELS } from "./spec-form-text";
 
 describe("스펙 입력 폼 문구", () => {
-  it("스펙 7개 항목과 화면 주소의 이름 옆에 (선택)이 붙는다", () => {
+  it("스펙 7개 항목과 화면 주소의 이름에는 (선택)을 붙이지 않는다(선택 여부는 최소 조건 문구로 안내)", () => {
     expect(Object.keys(SPEC_LABELS).sort()).toEqual([...SPEC_TEXT_KEYS].sort());
-    for (const label of Object.values(SPEC_LABELS)) expect(label.endsWith(" (선택)")).toBe(true);
-    expect(ROUTE_LABEL).toBe("화면 주소 (선택)");
+    for (const label of Object.values(SPEC_LABELS)) expect(label).not.toContain("선택");
+    expect(SPEC_LABELS.overview).toBe("① 화면 개요");
+    expect(SPEC_LABELS.constraints).toBe("⑦ 금지·제약 사항");
+    expect(ROUTE_LABEL).toBe("화면 주소");
+    expect(MIN_CONDITION).toContain("하나 이상");
+  });
+
+  it("이미지 영역: 버튼 이름과 실제 상태 문구(0장도 그대로)", () => {
+    expect(IMAGE_BUTTON_LABEL).toBe("이미지 추가");
+    expect(imageStatusText(0)).toBe("0장 선택됨 · 최대 3장");
+    expect(imageStatusText(2)).toBe("2장 선택됨 · 최대 3장");
+    expect(imageStatusText(3)).toBe("3장 선택됨 · 최대 3장");
   });
 
   it("이미지만 넣었을 때는 필수가 아니라 권장하는 말투로 안내한다", () => {

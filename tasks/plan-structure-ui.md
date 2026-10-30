@@ -79,10 +79,10 @@ B: B1 buildTree ─ B2 dagre ─ B3 TreeView(단순) ┐
 - **[S 확인]**
 
 ### 단계 B
-- [ ] **B1** `core/schema/tree.ts` `buildTree()` + 테스트(order 순, 루트 1개, 연결 안 된 노드 처리). Verify: `vitest`
+- [x] **B1** `core/schema/tree.ts` `buildTree()` + 테스트(order 순, 루트 1개, 연결 안 된 노드 처리). Verify: `vitest`
 - [ ] **B2** dagre 좌표 계산 `components/structure/toFlow.ts` + 테스트(노드·엣지 수, 부모가 자식보다 위). Verify: `vitest`
 - [ ] **B3** `TreeView.tsx`·`TreeNodeCard.tsx`(React Flow 읽기 전용, **카드는 이름·kind 배지 정도로 단순**, 클릭하면 선택). 클라이언트 전용으로만 불러온다(`next/dynamic`, SSR 끔을 `"use client"` 래퍼에서). Verify: `build`, 로컬에서 `fixtures`/sample 설계도로 확인
-- [ ] **BP1** `core/preview/`: 평면 `nodes` → 배치 상자 트리(부모 `layout`의 grid·flex·방향·열 수·gap, 자식 `placement`, `order`), 데스크톱/모바일 반응형 적용, 그려지지 않는 노드 분리 + 테스트. 변환 규칙은 `SPEC-structure-ui.md`의 "미리보기 변환표"(`data-model.md` 기준, 사용자 확인 대기). Files ≤3. Verify: `vitest`
+- [x] **BP1** `core/preview/`: 평면 `nodes` → 배치 상자 트리(부모 `layout`의 grid·flex·방향·열 수·gap, 자식 `placement`, `order`), 데스크톱/모바일 반응형 적용, 그려지지 않는 노드 분리 + 테스트. 변환 규칙은 `SPEC-structure-ui.md`의 "미리보기 변환표"(`data-model.md` 기준, 사용자 확인 대기). Files ≤3. Verify: `vitest`
 - [ ] **BP2** `components/structure/PreviewCanvas.tsx`(상자·배치 표시, 클릭 선택, 데스크톱·모바일 전환, "그려지지 않는 노드" 목록). Verify: `build`, `sample-blueprint.json`으로 직접 확인
 - [ ] **BP3** `NodeInfoPanel.tsx`(보기만) + `selectedNodeId`(B7 스토어와 연결)
 - [ ] **B4** `core/image/fit-size.ts` + 테스트(1,200 초과 축소·이하 유지, 합계 4MB 판정, 품질 단계). Verify: `vitest`

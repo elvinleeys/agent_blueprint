@@ -1,26 +1,111 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+/* 다크 모드는 아직 지원하지 않는다. 나중에 아래 :root와 같은 이름의 변수를 .dark { } 블록에 정의하면 된다 */
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * 디자인 기준값의 정본. 색·모서리·글꼴 값은 이 파일에서만 정의하고 화면 코드는 의미 이름 클래스만 쓴다.
+ * 값의 출처: wanteddev/montage-web packages/theme (MIT, THIRD_PARTY_NOTICES.md 참고)
+ *   파란색(--primary 계열)은 행동(버튼·선택)에만, 초록·주황·빨강(--success·--warning·--destructive 계열)은 상태 표시에만 쓴다
+ */
 :root {
+  /* 바탕·글자 (foreground.neutral, background.neutral) */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #171719; /* coolNeutral 10 */
+  --foreground-secondary: rgb(46 47 51 / 0.88); /* coolNeutral 22, 88% */
+  --foreground-tertiary: rgb(55 56 60 / 0.61); /* coolNeutral 25, 61% */
+  --foreground-quaternary: rgb(55 56 60 / 0.28); /* coolNeutral 25, 28% */
+  --section: #f7f7f8; /* 구역 배경: coolNeutral 99 */
+
+  /* 카드·팝오버 */
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --popover: #ffffff;
+  --popover-foreground: var(--foreground);
+
+  /* 행동(파란색): blue 50 / 45 / 40, 옅은 면 blue 95 */
+  --primary: #0066ff;
+  --primary-hover: #005eeb;
+  --primary-active: #0054d1;
+  --primary-foreground: #ffffff;
+  --primary-subtle: #eaf2fe;
+
+  /* 중립 면·선 (coolNeutral 50 의 투명도 단계) */
+  --secondary: rgb(112 115 124 / 0.08);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--section);
+  --muted-foreground: var(--foreground-tertiary);
+  --accent: rgb(112 115 124 / 0.08);
+  --accent-foreground: var(--foreground);
+  --border: rgb(112 115 124 / 0.22);
+  --input: rgb(112 115 124 / 0.22);
+  --ring: #0066ff;
+
+  /* 상태: 정상·경고·오류 (green 50, orange 50, red 50)와 8% 배경 */
+  --success: #00bf40;
+  --success-surface: rgb(0 191 64 / 0.08);
+  --warning: #ff9200;
+  --warning-surface: rgb(255 146 0 / 0.08);
+  --destructive: #ff4242;
+  --destructive-surface: rgb(255 66 66 / 0.08);
+
+  /* 모서리: 카드·입력창·큰 버튼 12px. 값은 몽타주 radius 단계(8·10·12·16·20·24·32) */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-tertiary: var(--foreground-tertiary);
+  --color-foreground-quaternary: var(--foreground-quaternary);
+  --color-section: var(--section);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-surface: var(--success-surface);
+  --color-warning: var(--warning);
+  --color-warning-surface: var(--warning-surface);
+  --color-destructive: var(--destructive);
+  --color-destructive-surface: var(--destructive-surface);
+
+  --font-sans: var(--font-pretendard), "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }

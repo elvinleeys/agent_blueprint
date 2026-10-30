@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { selectHasUnsaved, type StructureView } from "../../store/structure-store";
+import type { StructureView } from "../../store/structure-store";
 import DraftError from "./DraftError";
 import DraftProgress from "./DraftProgress";
 import { ConfirmDialog } from "./edit/ConfirmDialog";
@@ -14,6 +14,7 @@ import { generateDraft } from "./generate";
 import NodeEditPanel from "./NodeEditPanel";
 import NormalizedList from "./NormalizedList";
 import PreviewCanvas from "./PreviewCanvas";
+import { regenerateDescription, regenerateReasons, type RegenerateReason } from "./regenerate-confirm";
 import SaveStatus from "./SaveStatus";
 import { useSaveQueue } from "./SaveQueueProvider";
 import SpecForm from "./SpecForm";
@@ -28,15 +29,16 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
   const [inputOpen, setInputOpen] = useState(true);
 
   const queue = useSaveQueue();
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmReasons, setConfirmReasons] = useState<RegenerateReason[] | null>(null);
 
-  // 저장되지 않은 수정(저장 대기·전송 중·저장 실패)이 있으면 새 초안으로 덮어쓰기 전에 확인한다.
+  // 저장되지 않은 수정이 있거나 현재 설계도가 사용자가 고친 것이면 새 초안으로 바꾸기 전에 확인한다(조건은 regenerateReasons).
   // 생성 순서(편집 막기 → 저장 정리 → 생성)와 어떤 오류든 입력이 남는 규칙은 generateDraft가 맡는다
   const generate = () => void generateDraft({ store: api, projectId, queue });
   function requestGenerate() {
     const s = api.getState();
     if (s.status === "resizing" || s.status === "running") return;
-    if (selectHasUnsaved(s)) setConfirmOpen(true);
+    const reasons = regenerateReasons(s);
+    if (reasons.length > 0) setConfirmReasons(reasons);
     else generate();
   }
 
@@ -122,13 +124,13 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
       </Card>
 
       <ConfirmDialog
-        open={confirmOpen}
+        open={confirmReasons !== null}
         title="초안을 다시 생성할까요?"
-        description="저장되지 않은 수정은 사라집니다. 진행 중인 저장이 있으면 끝날 때까지 기다린 뒤 새 초안을 만들고, 생성에 실패하면 수정은 그대로 남아 다시 저장됩니다."
+        description={regenerateDescription(confirmReasons ?? [])}
         confirmLabel="다시 생성"
-        onCancel={() => setConfirmOpen(false)}
+        onCancel={() => setConfirmReasons(null)}
         onConfirm={() => {
-          setConfirmOpen(false);
+          setConfirmReasons(null);
           generate();
         }}
       />

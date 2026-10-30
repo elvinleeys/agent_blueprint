@@ -17,6 +17,7 @@ import {
   type DraftImage,
   type DraftModel,
   type DraftOptions,
+  type DraftProgress,
   type DraftResult,
 } from "../lib/ai/draft-blueprint";
 
@@ -174,12 +175,23 @@ function describeFailure(r: Extract<DraftResult, { ok: false }>): string {
   return `${r.kind}${detail ? ` (${detail})` : ""}${fields ? ` / 첫 시도 실패: ${fields}` : ""}`;
 }
 
+// /api/draft 스트림이 보내는 단계와 같은 이름·순서(draftBlueprint의 onProgress)를 터미널에 보여 준다
+function describeStage(e: DraftProgress): string {
+  switch (e.stage) {
+    case "generating": return `AI 생성 중 (시도 ${e.attempt})`;
+    case "validating": return `검증 중 (시도 ${e.attempt})`;
+    case "normalizing": return `자동 보정 ${e.changes}건`;
+    case "regenerating": return `다시 생성 중 (시도 ${e.attempt})`;
+  }
+}
+
 async function runCase(model: DraftModel, mode: Mode, run: number): Promise<Row> {
   const row: Row = { model, mode, run, pass: false, failures: "", note: "", attempts: 0, seconds: 0, inTok: 0, outTok: 0, reasonTok: 0, cost: 0 };
+  const t0 = Date.now();
   try {
     const result = await draftBlueprint(
       { spec: specFor(mode), stack, route, images: imagesFor(mode) },
-      { model, effort, maxOutputTokens: maxOutput },
+      { model, effort, maxOutputTokens: maxOutput, onProgress: (e) => console.log(`  [${((Date.now() - t0) / 1000).toFixed(1)}초] ${describeStage(e)}`) },
     );
     row.pass = result.ok;
     row.attempts = result.attempts;

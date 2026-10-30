@@ -78,7 +78,7 @@
 - 로그인 상태의 `/`가 `next`를 따르는 점은 요청의 "바로 /projects"의 확장이다(`next`가 없으면 정확히 `/projects`).
 
 ### 공통 헤더
-- 구성: 로고(홈 `/` 대신 로그인 상태에서는 `/projects`), "프로젝트" 링크, 계정 영역. `components/layout/AppHeader`(기존 `components/projects/AppHeader` 대체)를 목록·작업공간·계정 화면이 함께 쓴다.
+- 구성: 로고(로그인 상태에서 바로 `/projects`로 연결, 홈을 거치지 않음), 계정 영역(텍스트 "프로젝트" 링크는 두지 않는다). 작업공간 상단에는 "프로젝트 › {프로젝트 이름}" 경로 안내를 두고 "프로젝트"는 목록으로 이동한다. `/account`에는 경로 안내 없이 로고로 돌아간다. `components/layout/AppHeader`(기존 `components/projects/AppHeader` 대체)를 목록·작업공간·계정 화면이 함께 쓴다.
 - 계정 영역: GitHub 이름 + 프로필 사진(`user_metadata.avatar_url`, 없으면 이름 첫 글자 원형). 이름·사진·이메일은 `getClaims()` 결과에서 읽는다(서버 컴포넌트, `<Suspense>` 안). 자체 가입 사용자가 생겨도 같은 필드(`name`·`avatar_url`)를 같은 자리에 쓴다.
 - 프로필 클릭 → 작은 메뉴: 계정 설정(`/account`), 로그아웃. 메뉴는 shadcn 드롭다운 메뉴(단계 D 부품)를 쓰므로 순서를 지키기 위해 **P에서는 이름·사진 표시까지만 만들고, 클릭 메뉴는 D 끝에 붙인다**(P 동안 로그아웃은 기존 버튼 유지).
 - 로그아웃 처리 코드는 `LogoutButton` 한 곳에만 둔다. `/account`는 이 컴포넌트를 그대로 쓰고, 헤더 메뉴 항목도 같은 컴포넌트를 `DropdownMenuItem` 안에서 쓴다(`signOut` 호출·`/` 이동·실패 문구가 한 벌).
@@ -221,7 +221,7 @@ npx tsc --noEmit
 ```
 app/projects/page.tsx                    # 목록 (라우팅 + Suspense만, 본문은 components)
 app/projects/[id]/page.tsx               # 작업공간 진입 (params, notFound)
-components/layout/AppHeader.tsx         # 공통 헤더(로고·프로젝트 링크·계정)
+components/layout/AppHeader.tsx         # 공통 헤더(로고·계정), 작업공간 경로 안내는 Workspace
 components/ui/                           # shadcn/ui 부품 (D)
 components/auth/                         # LoginButton(홈에서 재사용), LogoutButton(헤더 메뉴·/account 공용), 계정 메뉴
 app/page.tsx                             # 홈: 소개 + 로그인 (라우팅만, 본문은 components/home)

@@ -57,6 +57,23 @@ describe("updateNode", () => {
     it("컴포넌트끼리는 바꿀 수 있다", () => {
       expect(node(must(updateNode(sample(), "n-price", { kind: "container" })), "n-price").kind).toBe("container");
     });
+    it("루트가 아닌 노드를 페이지로 바꾸는 것은 거부한다(page는 화면 단위 최상위)", () => {
+      const r = updateNode(sample(), "n-price", { kind: "page" });
+      expect(r).toMatchObject({ ok: false, nodeId: "n-price", path: ["kind"] });
+      if (!r.ok) expect(r.reason).toContain("루트");
+    });
+    it("루트는 페이지를 유지하거나 다른 종류로 바꿀 수 있다", () => {
+      expect(updateNode(sample(), "n-page", { kind: "page" })).toEqual({ ok: true, blueprint: sample() });
+      expect(node(must(updateNode(sample(), "n-page", { kind: "container" })), "n-page").kind).toBe("container");
+    });
+    it("이미 페이지인 루트가 아닌 노드(AI 초안)도 다른 필드는 고칠 수 있고, 페이지로의 변경만 막는다", () => {
+      const bp = sample();
+      const legacy = { ...bp, nodes: bp.nodes.map((n) => (n.id === "n-price" ? { ...n, kind: "page" as const } : n)) };
+      expect(updateNode(legacy, "n-price", { dataFetch: true }).ok).toBe(true); // 스키마가 허용하는 기존 값은 그대로 편집된다
+      expect(updateNode(legacy, "n-price", { kind: "page" }).ok).toBe(true); // 값이 그대로인 no-op은 거부하지 않는다
+      expect(updateNode(legacy, "n-price", { kind: "container" }).ok).toBe(true); // 벗어나는 변경은 허용
+      expect(updateNode(legacy, "n-gallery", { kind: "page" }).ok).toBe(false);
+    });
     it("훅↔컴포넌트 전환은 거부하고 새 노드로 추가하라고 안내한다", () => {
       const toHook = updateNode(sample(), "n-price", { kind: "hook" });
       expect(toHook).toMatchObject({ ok: false, path: ["kind"] });

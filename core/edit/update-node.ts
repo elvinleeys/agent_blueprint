@@ -34,6 +34,9 @@ export function updateNode(bp: Blueprint, id: string, patch: NodePatch): EditRes
 
   if (patch.kind !== undefined && (patch.kind === "hook") !== (node.kind === "hook"))
     return reject("훅과 컴포넌트 사이로는 종류를 바꿀 수 없습니다. 새 노드로 추가하세요.", id, ["kind"]);
+  // 스키마는 막지 않는다(AI 초안의 같은 문제는 검사 규칙에서 다룬다). 편집으로 새로 만드는 것만 막는다
+  if (keys.includes("kind") && patch.kind === "page" && node.parentId !== null)
+    return reject("페이지는 화면 단위 최상위라 루트에만 쓸 수 있습니다.", id, ["kind"]);
   if (patch.name !== undefined && bp.nodes.some((n) => n.id !== id && n.name === patch.name))
     return reject(`이름 ${patch.name}가 이미 있습니다.`, id, ["name"]);
 

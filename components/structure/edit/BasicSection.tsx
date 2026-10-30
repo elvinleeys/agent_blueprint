@@ -5,8 +5,8 @@ import type { Blueprint, ComponentNode } from "@/core/schema/blueprint";
 import { KIND_LABEL } from "../labels";
 import { SelectField, TextField, type Option } from "./controls";
 import { useEditApi } from "./Field";
+import { kindOptions } from "./kind-options";
 
-const KIND_OPTIONS: Option[] = (["page", "container", "presentational"] as const).map((k) => ({ value: k, label: KIND_LABEL[k] }));
 const RENDER_OPTIONS: Option[] = [
   { value: "server", label: "Server Component" },
   { value: "client", label: "Client Component" },
@@ -30,7 +30,7 @@ export default function BasicSection({ bp, node }: { bp: Blueprint; node: Compon
       {isHook ? (
         <p className="text-sm text-foreground-secondary">종류: {KIND_LABEL.hook} (훅은 컴포넌트로 바꿀 수 없습니다. 필요하면 새 노드로 추가하세요.)</p>
       ) : (
-        <SelectField fieldKey="kind" label="종류" value={node.kind} options={KIND_OPTIONS} assumed={isAssumedField(node, "kind")} hint="훅은 컴포넌트로, 컴포넌트는 훅으로 바꿀 수 없습니다. 새 노드로 추가하세요." onChange={(kind) => edit({ kind: kind as ComponentNode["kind"] })} />
+        <SelectField fieldKey="kind" label="종류" value={node.kind} options={kindOptions(node)} assumed={isAssumedField(node, "kind")} hint="훅은 컴포넌트로, 컴포넌트는 훅으로 바꿀 수 없습니다. 새 노드로 추가하세요." onChange={(kind) => edit({ kind: kind as ComponentNode["kind"] })} />
       )}
 
       <TextField fieldKey="location" label="파일 위치" value={node.location.dir} mono assumed={isAssumedField(node, "location")} hint={LOCATION_HINT[bp.stack.architecture]} onChange={(dir) => edit({ location: { dir } })} />

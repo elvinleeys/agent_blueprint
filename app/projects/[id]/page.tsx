@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import AppHeader from "@/components/projects/AppHeader";
+import AppHeader from "@/components/layout/AppHeader";
 import WorkspaceLoader from "@/components/workspace/WorkspaceLoader";
 
 export default function WorkspacePage({ params }: PageProps<"/projects/[id]">) {

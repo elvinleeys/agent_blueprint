@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import AppHeader from "@/components/projects/AppHeader";
+import AppHeader from "@/components/layout/AppHeader";
 import ProjectsContent from "@/components/projects/ProjectsContent";
 
 export default function ProjectsPage() {

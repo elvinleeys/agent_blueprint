@@ -1,12 +1,16 @@
 import { Suspense } from "react";
 import AccountInfo from "@/components/auth/AccountInfo";
+import AppHeader from "@/components/layout/AppHeader";
 
 export default function AccountPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <Suspense fallback={<p>불러오는 중…</p>}>
-        <AccountInfo />
-      </Suspense>
-    </main>
+    <>
+      <AppHeader />
+      <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
+        <Suspense fallback={<p>불러오는 중…</p>}>
+          <AccountInfo />
+        </Suspense>
+      </main>
+    </>
   );
 }

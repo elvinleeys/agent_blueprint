@@ -1,6 +1,6 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
+import { useMemo, type KeyboardEvent } from "react";
 import { buildPreview, type PreviewBox } from "@/core/preview/preview";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -72,7 +72,7 @@ export default function PreviewCanvas() {
   const select = useStructureStore((s) => s.select);
   const setViewport = useStructureStore((s) => s.setViewport);
 
-  const preview = blueprint ? buildPreview(blueprint.nodes, viewport) : null;
+  const preview = useMemo(() => (blueprint ? buildPreview(blueprint.nodes, viewport) : null), [blueprint, viewport]); // 선택만 바뀔 때는 다시 계산하지 않는다
   if (!preview) return <p className="text-sm text-foreground-tertiary">화면 구조를 그릴 수 없는 설계도입니다.</p>;
 
   return (

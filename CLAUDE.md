@@ -201,3 +201,14 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 
 - OpenAI 모델명·가격, Supabase RLS 정책 세부 문법은 작업 중 공식 문서로 재확인한다.
 - 이 프로젝트 자체가 "AI 에이전트에게 설계를 지시서로 전달한다"는 개념을 다루므로, 이 CLAUDE.md의 규칙은 실제 생성 코드와 어긋나지 않도록 구조가 바뀔 때마다 갱신한다.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- When graphify-out/graph.json exists, run `graphify query "<question>"` before your first grep, search or source-file read for a codebase question, and put this rule in every subagent prompt that explores code. Read raw files only for lines the graph or an earlier read already located. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.

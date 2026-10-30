@@ -43,3 +43,7 @@ next-env.d.ts
 
 # test-img
 wireframe.png
+
+# Graphify 빌드 결과물 제외
+graphify-out/
+*.graphify-bak

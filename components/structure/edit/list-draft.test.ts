@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completeRows, locateRowError, parseIntInRange } from "./list-draft";
+import { alignRowIds, appendRowId, completeRows, locateRowError, parseIntInRange, removeRowId, rowIdsFor } from "./list-draft";
 
 describe("completeRows", () => {
   it("채워진 행만 골라 원래 번호를 함께 돌려준다", () => {
@@ -28,6 +28,32 @@ describe("locateRowError", () => {
     expect(locateRowError(["state"], ["state"], [0])).toBeNull();
     expect(locateRowError(undefined, ["state"], [0])).toBeNull();
     expect(locateRowError(["state", 5, "name"], ["state"], [0])).toBeNull(); // 범위 밖
+  });
+});
+
+describe("행 id", () => {
+  it("처음에는 행 수만큼 0부터 매기고, 추가하면 새 id를 붙인다", () => {
+    expect(rowIdsFor(3)).toEqual({ ids: [0, 1, 2], next: 3 });
+    expect(appendRowId(rowIdsFor(3))).toEqual({ ids: [0, 1, 2, 3], next: 4 });
+    expect(appendRowId(rowIdsFor(0))).toEqual({ ids: [0], next: 1 });
+  });
+  it("중간 행을 지우면 나머지 행의 id는 그대로다(한 칸씩 당겨지지 않는다)", () => {
+    const after = removeRowId(rowIdsFor(4), 1);
+    expect(after.ids).toEqual([0, 2, 3]);
+    expect(after.next).toBe(4);
+  });
+  it("지운 id는 다시 쓰지 않는다: 지운 뒤 추가해도 새 id다", () => {
+    const s = appendRowId(removeRowId(rowIdsFor(3), 2));
+    expect(s.ids).toEqual([0, 1, 3]);
+    expect(new Set(s.ids).size).toBe(3);
+  });
+  it("행 수가 맞으면 그대로, 어긋나면 한 번도 쓰지 않은 id로 다시 매긴다", () => {
+    const s = removeRowId(rowIdsFor(3), 0); // ids [1,2], next 3
+    expect(alignRowIds(s, 2)).toBe(s);
+    const re = alignRowIds(s, 4);
+    expect(re.ids).toEqual([3, 4, 5, 6]);
+    expect(re.ids.some((id) => s.ids.includes(id) || id < 3)).toBe(false);
+    expect(re.next).toBe(7);
   });
 });
 

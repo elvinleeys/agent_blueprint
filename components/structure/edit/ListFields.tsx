@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useStructureStore } from "../StructureStoreProvider";
 import { AssumedBadge, FieldError, fieldId, useClearErrorOnUnmount, useEditApi } from "./Field";
 import { completeRows, locateRowError } from "./list-draft";
+import { useRowIds } from "./useRowIds";
 
 const INCOMPLETE = "비어 있어 저장되지 않습니다.";
 
@@ -38,11 +39,11 @@ type ListProps = { fieldKey: string; label: string; itemLabel: string; assumed?:
  */
 export function StringListField({ fieldKey, label, itemLabel, assumed, hint, rows, max, placeholder, onCommit }: ListProps & { rows: readonly string[]; max?: number; placeholder?: string; onCommit: (rows: string[]) => EditResult }) {
   const [draft, setDraft] = useState<string[] | null>(null);
-  const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const errors = useStructureStore((s) => s.editErrors);
   const { setError, clearErrors } = useEditApi();
   const shown = draft ?? rows;
+  const rowIds = useRowIds(rows.length, shown.length); // 행마다 고유 id를 키로 쓴다(중간 행을 지워도 나머지 행의 상태가 유지된다)
 
   function update(next: string[]) {
     const { rows: complete } = completeRows(next, (t) => t.trim() !== "");
@@ -60,7 +61,7 @@ export function StringListField({ fieldKey, label, itemLabel, assumed, hint, row
           const id = fieldId(`${fieldKey}.${i}`);
           const rowError = errors[`${fieldKey}.${i}`];
           return (
-            <li key={i} className="flex flex-col gap-1">
+            <li key={rowIds.idOf(i)} className="flex flex-col gap-1">
               <div className="flex gap-1">
                 <Input
                   id={id}
@@ -69,7 +70,7 @@ export function StringListField({ fieldKey, label, itemLabel, assumed, hint, row
                   aria-describedby={rowError ? `${id}-error` : undefined}
                   value={text}
                   placeholder={placeholder}
-                  autoFocus={focusIndex === i}
+                  autoFocus={rowIds.focusId === rowIds.idOf(i)}
                   onChange={(e) => update(shown.map((t, k) => (k === i ? e.target.value : t)))}
                 />
                 <Button
@@ -78,7 +79,7 @@ export function StringListField({ fieldKey, label, itemLabel, assumed, hint, row
                   variant="ghost"
                   aria-label={`${itemLabel} ${i + 1} 삭제`}
                   onClick={() => {
-                    setFocusIndex(null);
+                    rowIds.removed(i);
                     update(shown.filter((_, k) => k !== i));
                     focusLater(addRef.current);
                   }}
@@ -98,7 +99,7 @@ export function StringListField({ fieldKey, label, itemLabel, assumed, hint, row
         variant="outline"
         disabled={max !== undefined && shown.length >= max}
         onClick={() => {
-          setFocusIndex(shown.length);
+          rowIds.added();
           update([...shown, ""]);
         }}
       >
@@ -117,11 +118,11 @@ type Row = Record<string, string | boolean>;
  */
 export function RecordListField<R extends Row>({ fieldKey, label, itemLabel, assumed, hint, rows, columns, emptyRow, rowPath, onCommit }: ListProps & { rows: readonly R[]; columns: readonly Column<R>[]; emptyRow: R; rowPath: readonly string[]; onCommit: (rows: R[]) => EditResult }) {
   const [draft, setDraft] = useState<R[] | null>(null);
-  const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const errors = useStructureStore((s) => s.editErrors);
   const { setError, clearErrors } = useEditApi();
   const shown = draft ?? rows;
+  const rowIds = useRowIds(rows.length, shown.length); // 행마다 고유 id를 키로 쓴다(중간 행을 지워도 나머지 행의 상태가 유지된다)
 
   const text = (r: R, c: Column<R>) => String(r[c.key]);
   const blank = (r: R) => columns.every((c) => c.kind === "check" || text(r, c).trim() === "");
@@ -150,7 +151,7 @@ export function RecordListField<R extends Row>({ fieldKey, label, itemLabel, ass
           const rowError = errors[`${fieldKey}.${i}`];
           const firstText = columns.find((c) => c.kind !== "check");
           return (
-            <li key={i} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
+            <li key={rowIds.idOf(i)} className="flex flex-col gap-1.5 rounded-lg border border-border p-2">
               {columns.map((c) => {
                 const key = `${fieldKey}.${i}.${c.key}`;
                 const id = fieldId(key);
@@ -174,7 +175,7 @@ export function RecordListField<R extends Row>({ fieldKey, label, itemLabel, ass
                         placeholder={c.placeholder ?? c.label}
                         autoComplete="off"
                         spellCheck={false}
-                        autoFocus={focusIndex === i && c === firstText}
+                        autoFocus={rowIds.focusId === rowIds.idOf(i) && c === firstText}
                         onChange={(e) => set(e.target.value)}
                       />
                     )}
@@ -190,7 +191,7 @@ export function RecordListField<R extends Row>({ fieldKey, label, itemLabel, ass
                 className="self-end"
                 aria-label={`${itemLabel} ${i + 1} 삭제`}
                 onClick={() => {
-                  setFocusIndex(null);
+                  rowIds.removed(i);
                   update(shown.filter((_, k) => k !== i));
                   focusLater(addRef.current);
                 }}
@@ -207,7 +208,7 @@ export function RecordListField<R extends Row>({ fieldKey, label, itemLabel, ass
         size="sm"
         variant="outline"
         onClick={() => {
-          setFocusIndex(shown.length);
+          rowIds.added();
           update([...shown, { ...emptyRow }]);
         }}
       >

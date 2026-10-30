@@ -17,6 +17,20 @@ export function locateRowError(path: readonly (string | number)[] | undefined, r
   return { row: indexes[committed], cell: cell === undefined ? null : String(cell) };
 }
 
+/** 목록 행마다 붙이는 고유 id(React 키). 중간 행을 지워도 나머지 행의 id가 그대로라 입력 상태·포커스가 한 칸씩 당겨지지 않는다 */
+export type RowIds = { ids: number[]; next: number };
+
+export const rowIdsFor = (length: number): RowIds => ({ ids: Array.from({ length }, (_, i) => i), next: length });
+
+/** 행 개수가 id 개수와 다르면(설계도 쪽 값이 밖에서 바뀐 경우) 새 id를 매긴다. 한 번 쓴 id는 다시 쓰지 않는다 */
+export function alignRowIds(s: RowIds, length: number): RowIds {
+  return s.ids.length === length ? s : { ids: Array.from({ length }, (_, i) => s.next + i), next: s.next + length };
+}
+
+export const appendRowId = (s: RowIds): RowIds => ({ ids: [...s.ids, s.next], next: s.next + 1 });
+
+export const removeRowId = (s: RowIds, index: number): RowIds => ({ ids: s.ids.filter((_, i) => i !== index), next: s.next });
+
 export type IntParse = { ok: true; value: number } | { ok: false; reason: string };
 
 /** 입력 글자를 min~max의 정수로 읽는다 */

@@ -36,6 +36,10 @@ export type StructureState = StructureInit & {
   editRevision: number; // 설계도에 편집이 반영될 때마다 1씩 늘어난다. 자동 저장이 이 값의 변화를 보고 저장을 예약한다
   saveStatus: SaveStatus; // 자동 저장 큐의 상태(큐가 알려 준다)
   editNotices: string[]; // 마지막 편집이 자동으로 바꾼 값의 안내 문구. 다음 편집이나 닫기로 사라진다
+  /** 설계도에 반영하지 못한 입력칸의 이유(칸 키 → 문구). 비어 있지 않으면 화면에만 있는 틀린 값이 있다는 뜻이다 */
+  editErrors: Record<string, string>;
+  /** 틀린 값이 있는 채로 다른 노드를 고르려 할 때 확인을 기다리는 노드 id */
+  selectRequest: string | null;
   // 보기
   selectedNodeId: string | null;
   viewport: Viewport;
@@ -45,6 +49,13 @@ export type StructureState = StructureInit & {
   applyEdit: (op: (blueprint: Blueprint) => EditResult) => EditResult;
   setSaveStatus: (status: SaveStatus) => void;
   dismissNotices: () => void;
+  setEditError: (key: string, message: string | null) => void;
+  /** key 자신과 key.로 시작하는 칸의 오류를 지운다. key가 없으면 모두 지운다 */
+  clearEditErrors: (key?: string) => void;
+  /** 사용자의 노드 선택. 틀린 값이 남아 있으면 바로 바꾸지 않고 확인을 기다린다(selectRequest) */
+  requestSelect: (id: string) => void;
+  confirmSelect: () => void;
+  cancelSelect: () => void;
   select: (id: string | null) => void;
   setViewport: (viewport: Viewport) => void;
   setView: (view: StructureView) => void;
@@ -81,6 +92,8 @@ export function createStructureStore(init: StructureInit) {
     editRevision: 0,
     saveStatus: "idle",
     editNotices: [],
+    editErrors: {},
+    selectRequest: null,
     selectedNodeId: null,
     viewport: "desktop",
     view: "preview",
@@ -101,7 +114,30 @@ export function createStructureStore(init: StructureInit) {
     },
     setSaveStatus: (saveStatus) => set({ saveStatus }),
     dismissNotices: () => set({ editNotices: [] }),
-    select: (id) => set({ selectedNodeId: id }),
+    setEditError: (key, message) =>
+      set((s) => {
+        if ((s.editErrors[key] ?? null) === message) return s; // 같은 값이면 다시 그리지 않는다
+        const rest = { ...s.editErrors };
+        delete rest[key];
+        return { editErrors: message === null ? rest : { ...rest, [key]: message } };
+      }),
+    clearEditErrors: (key) =>
+      set((s) => {
+        const keep = key === undefined ? [] : Object.entries(s.editErrors).filter(([k]) => k !== key && !k.startsWith(`${key}.`));
+        return keep.length === Object.keys(s.editErrors).length ? s : { editErrors: Object.fromEntries(keep) };
+      }),
+    requestSelect: (id) => {
+      const s = get();
+      if (id === s.selectedNodeId) return;
+      if (Object.keys(s.editErrors).length > 0) set({ selectRequest: id });
+      else s.select(id);
+    },
+    confirmSelect: () => {
+      const id = get().selectRequest;
+      if (id !== null) get().select(id);
+    },
+    cancelSelect: () => set({ selectRequest: null }),
+    select: (id) => set({ selectedNodeId: id, editErrors: {}, selectRequest: null }), // 패널은 노드가 바뀌면 입력을 새로 시작한다
     setViewport: (viewport) => set({ viewport }),
     setView: (view) => set({ view }),
     setBlueprint: (blueprint, normalized = []) =>
@@ -117,7 +153,7 @@ export function createStructureStore(init: StructureInit) {
       set((s) =>
         s.status === "resizing" || s.status === "running"
           ? s
-          : { status: resizing ? "resizing" : "running", stages: [], startedAt: now, error: null, unsaved: false },
+          : { status: resizing ? "resizing" : "running", stages: [], startedAt: now, error: null, unsaved: false, editErrors: {}, selectRequest: null },
       ),
     setRunning: () => set((s) => (s.status === "resizing" ? { status: "running" } : s)),
     addStage: (stage) => set((s) => ({ stages: [...s.stages, stage] })),

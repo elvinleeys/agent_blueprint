@@ -63,7 +63,16 @@ export type DraftClient = {
   };
 };
 
+/** 진행 단계 알림. accepted(요청 확인)는 호출 전에 알 수 있어 핸들러가 직접 보낸다 */
+export type DraftProgress =
+  | { stage: "generating"; attempt: number }
+  | { stage: "validating"; attempt: number }
+  | { stage: "normalizing"; changes: number }
+  | { stage: "regenerating"; attempt: number };
+
 export type DraftOptions = {
+  /** 단계 알림. 없어도 동작은 같고, 콜백이 던져도 초안 생성에는 영향이 없다 */
+  onProgress?: (event: DraftProgress) => void;
   model?: DraftModel;
   effort?: OpenAI.ReasoningEffort;
   maxOutputTokens?: number;
@@ -177,6 +186,16 @@ export async function draftBlueprint(input: DraftInput, options: DraftOptions = 
   const deadline = startedAt + budgetMs;
   const remainingMs = () => deadline - Date.now() - RESPONSE_MARGIN_MS;
   const client = options.client ?? createDefaultClient();
+  const emit = (event: DraftProgress) => {
+    try {
+      options.onProgress?.(event);
+    } catch {
+      // 알림 실패가 초안 생성을 막지 않게 한다
+    }
+  };
+  const reportEval = (e: Evaluation) => {
+    if (e.normalized.length > 0) emit({ stage: "normalizing", changes: e.normalized.length });
+  };
 
   const spec = { ...input.spec, imageCount: input.images.length };
   const { instructions, userText } = buildDraftPrompt({ spec, stack: input.stack, route: input.route, images: input.images });
@@ -243,9 +262,12 @@ export async function draftBlueprint(input: DraftInput, options: DraftOptions = 
     ...summary(),
   });
 
+  emit({ stage: "generating", attempt: 1 });
   const first = await attempt(firstInput, remainingMs());
   if (first.type === "error") return errorResult(first);
+  emit({ stage: "validating", attempt: 1 });
   const firstEval = evaluate(first.res, input);
+  reportEval(firstEval);
   first.entry.normalized = firstEval.normalized;
   if (firstEval.ok) return { ok: true, blueprint: firstEval.blueprint, normalized: firstEval.normalized, ...summary() };
   first.entry.fields = firstEval.fields;
@@ -264,9 +286,12 @@ export async function draftBlueprint(input: DraftInput, options: DraftOptions = 
     { role: "assistant", content: first.res.output_text },
     { role: "user", content: buildRepairPrompt({ issues: firstEval.issues, nodeNames: firstEval.nodeNames }) },
   ];
+  emit({ stage: "regenerating", attempt: 2 });
   const second = await attempt(retryInput, remaining);
   if (second.type === "error") return errorResult(second, firstEval.fields);
+  emit({ stage: "validating", attempt: 2 });
   const secondEval = evaluate(second.res, input);
+  reportEval(secondEval);
   second.entry.normalized = secondEval.normalized;
   if (secondEval.ok) return { ok: true, blueprint: secondEval.blueprint, normalized: secondEval.normalized, ...summary() };
   second.entry.fields = secondEval.fields;

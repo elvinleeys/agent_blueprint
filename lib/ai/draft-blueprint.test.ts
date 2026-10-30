@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SpecInput } from "../../core/schema/spec-input";
-import { draftBlueprint, estimateCostUsd, type DraftClient, type DraftInput } from "./draft-blueprint";
+import { draftBlueprint, estimateCostUsd, type DraftClient, type DraftInput, type DraftProgress } from "./draft-blueprint";
 
 vi.mock("server-only", () => ({}));
 
@@ -326,5 +326,62 @@ describe("draftBlueprint — 시간 초과와 OpenAI 오류", () => {
     const { client } = makeClient(e);
     const r = await draftBlueprint(input(), { client });
     expect(r.ok === false && r.kind).toBe("timeout");
+  });
+});
+
+describe("draftBlueprint — 진행 단계 알림", () => {
+  const run = async (steps: Step[], over: Parameters<typeof draftBlueprint>[1] = {}) => {
+    const events: DraftProgress[] = [];
+    const { client } = makeClient(...steps);
+    const r = await draftBlueprint(input(), { client, onProgress: (e) => events.push(e), ...over });
+    return { r, events };
+  };
+
+  it("정상: generating → validating", async () => {
+    const { r, events } = await run([response(JSON.stringify(sample()))]);
+    expect(r.ok).toBe(true);
+    expect(events).toEqual([{ stage: "generating", attempt: 1 }, { stage: "validating", attempt: 1 }]);
+  });
+
+  it("자동 보정: validating 다음에 normalizing(개수)", async () => {
+    const { events } = await run([response(JSON.stringify(fixable()))]);
+    expect(events).toEqual([
+      { stage: "generating", attempt: 1 },
+      { stage: "validating", attempt: 1 },
+      { stage: "normalizing", changes: 2 },
+    ]);
+  });
+
+  it("재시도: regenerating 뒤 validating이 한 번 더", async () => {
+    const { r, events } = await run([response(JSON.stringify(invalid())), response(JSON.stringify(sample()))]);
+    expect(r.ok).toBe(true);
+    expect(events).toEqual([
+      { stage: "generating", attempt: 1 },
+      { stage: "validating", attempt: 1 },
+      { stage: "regenerating", attempt: 2 },
+      { stage: "validating", attempt: 2 },
+    ]);
+  });
+
+  it("재시도 없이 끝나는 실패(시간 부족)는 regenerating이 없다", async () => {
+    const { r, events } = await run([slow(40_000, JSON.stringify(invalid()))], {});
+    expect(r.ok).toBe(false);
+    expect(events.map((e) => e.stage)).toEqual(["generating", "validating"]);
+  });
+
+  it("OpenAI 오류면 validating 없이 generating만", async () => {
+    const { r, events } = await run([httpError(429)]);
+    expect(r.ok).toBe(false);
+    expect(events).toEqual([{ stage: "generating", attempt: 1 }]);
+  });
+
+  it("콜백이 던져도 결과는 같다, 콜백이 없어도 같다", async () => {
+    const bad = response(JSON.stringify(invalid()));
+    const good = response(JSON.stringify(sample()));
+    const withThrow = await draftBlueprint(input(), { client: makeClient(bad, good).client, onProgress: () => { throw new Error("x"); } });
+    const without = await draftBlueprint(input(), { client: makeClient(bad, good).client });
+    expect(withThrow.ok).toBe(true);
+    expect(withThrow.attempts).toBe(without.attempts);
+    expect(withThrow.ok && without.ok && withThrow.blueprint).toEqual(without.ok && without.blueprint);
   });
 });

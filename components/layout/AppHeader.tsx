@@ -4,9 +4,9 @@ import HeaderAccount from "./HeaderAccount";
 
 export default function AppHeader() {
   return (
-    <header className="border-b border-slate-200 bg-white">
+    <header className="border-b border-border bg-background">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3">
-        <Link href="/projects" className="text-base font-semibold text-slate-900">
+        <Link href="/projects" className="text-base font-semibold text-foreground">
           AgentBlueprint
         </Link>
         <Suspense fallback={null}>

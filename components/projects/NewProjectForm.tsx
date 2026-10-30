@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ARCHITECTURES, FRAMEWORKS, STYLINGS } from "./stack-labels";
 
-const FIELD = "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
+const FIELD = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
 
 type Option = { value: string; label: string };
 
 function Select({ id, label, value, options, onChange }: { id: string; label: string; value: string; options: readonly Option[]; onChange: (v: string) => void }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-slate-700">
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-foreground">
         {label}
       </label>
       <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={FIELD}>
@@ -59,9 +59,9 @@ export default function NewProjectForm() {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4">
+    <form onSubmit={submit} className="flex flex-col gap-4 rounded-lg border border-border bg-background p-4">
       <div>
-        <label htmlFor="project-name" className="mb-1 block text-sm font-medium text-slate-700">
+        <label htmlFor="project-name" className="mb-1 block text-sm font-medium text-foreground">
           이름
         </label>
         <input id="project-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} className={FIELD} />
@@ -72,12 +72,12 @@ export default function NewProjectForm() {
         <Select id="architecture" label="디렉토리 구조" value={architecture} options={ARCHITECTURES} onChange={setArchitecture} />
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}
       <div>
-        <button type="submit" disabled={pending} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+        <button type="submit" disabled={pending} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover active:bg-primary-active disabled:opacity-50">
           {pending ? "만드는 중…" : "프로젝트 만들기"}
         </button>
       </div>

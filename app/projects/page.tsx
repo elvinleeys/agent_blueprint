@@ -7,7 +7,7 @@ export default function ProjectsPage() {
     <>
       <AppHeader />
       <main className="mx-auto w-full max-w-5xl px-4 py-8">
-        <Suspense fallback={<p className="text-sm text-slate-500">불러오는 중…</p>}>
+        <Suspense fallback={<p className="text-sm text-foreground-tertiary">불러오는 중…</p>}>
           <ProjectsContent />
         </Suspense>
       </main>

@@ -22,18 +22,18 @@ export default function Workspace({ initialProject }: { initialProject: Project 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <nav aria-label="경로" className="mb-2 flex items-center gap-1 text-sm text-slate-500">
-          <Link href="/projects" className="hover:text-indigo-600">
+        <nav aria-label="경로" className="mb-2 flex items-center gap-1 text-sm text-foreground-tertiary">
+          <Link href="/projects" className="hover:text-primary">
             프로젝트
           </Link>
           <span aria-hidden>›</span>
           <span aria-current="page" className="truncate">{project.name}</span>
         </nav>
-        <h1 className="text-2xl font-bold text-slate-900">{project.name}</h1>
-        <p className="mt-1 text-sm text-slate-600">{stackSummary(project.stack)}</p>
+        <h1 className="text-2xl font-bold text-foreground">{project.name}</h1>
+        <p className="mt-1 text-sm text-foreground-secondary">{stackSummary(project.stack)}</p>
       </div>
 
-      <div role="tablist" aria-label="작업공간" className="flex gap-1 overflow-x-auto border-b border-slate-200">
+      <div role="tablist" aria-label="작업공간" className="flex gap-1 overflow-x-auto border-b border-border">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -45,8 +45,8 @@ export default function Workspace({ initialProject }: { initialProject: Project 
             disabled={!t.enabled}
             onClick={() => setTab(t.id)}
             className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
-              tab === t.id ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-600 hover:text-slate-900"
-            } disabled:cursor-not-allowed disabled:text-slate-300`}
+              tab === t.id ? "border-primary text-primary" : "border-transparent text-foreground-secondary hover:text-foreground"
+            } disabled:cursor-not-allowed disabled:text-foreground-quaternary`}
           >
             {t.label}
             {!t.enabled && <span className="ml-1 text-xs">(준비 중)</span>}
@@ -56,7 +56,7 @@ export default function Workspace({ initialProject }: { initialProject: Project 
 
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "settings" && <ProjectSettingsTab project={project} onRenamed={setProject} />}
-        {tab === "structure" && <p className="text-sm text-slate-500">구조 설계 탭은 다음 단계에서 채웁니다.</p>}
+        {tab === "structure" && <p className="text-sm text-foreground-tertiary">구조 설계 탭은 다음 단계에서 채웁니다.</p>}
       </div>
     </div>
   );

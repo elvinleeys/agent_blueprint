@@ -14,19 +14,19 @@ export default async function ProjectsContent() {
   return (
     <div className="flex flex-col gap-8">
       <section aria-labelledby="new-project">
-        <h2 id="new-project" className="mb-3 text-lg font-semibold text-slate-900">
+        <h2 id="new-project" className="mb-3 text-lg font-semibold text-foreground">
           새 프로젝트
         </h2>
         <NewProjectForm />
       </section>
       <section aria-labelledby="my-projects">
-        <h2 id="my-projects" className="mb-3 text-lg font-semibold text-slate-900">
+        <h2 id="my-projects" className="mb-3 text-lg font-semibold text-foreground">
           내 프로젝트
         </h2>
         {projects.ok ? (
           <ProjectList projects={projects.data} />
         ) : (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-destructive">
             {projects.message}
           </p>
         )}

@@ -16,10 +16,10 @@ export default function LoginButton({ next }: { next?: string }) {
 
   return (
     <div>
-      <button type="button" onClick={signIn} className="rounded bg-black px-4 py-2 text-white">
+      <button type="button" onClick={signIn} className="rounded bg-primary hover:bg-primary-hover active:bg-primary-active px-4 py-2 text-primary-foreground">
         GitHub로 시작하기
       </button>
-      {failed && <p role="alert" className="mt-2 text-red-600">로그인을 시작하지 못했습니다. 다시 시도해 주세요.</p>}
+      {failed && <p role="alert" className="mt-2 text-destructive">로그인을 시작하지 못했습니다. 다시 시도해 주세요.</p>}
     </div>
   );
 }

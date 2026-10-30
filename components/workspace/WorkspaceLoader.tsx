@@ -20,8 +20,8 @@ export default async function WorkspaceLoader({ params }: { params: Promise<{ id
   if (!project.ok)
     return (
       <div role="alert" className="flex flex-col gap-2 text-sm">
-        <p className="text-red-600">{project.message}</p>
-        <Link href="/projects" className="text-indigo-600 hover:underline">
+        <p className="text-destructive">{project.message}</p>
+        <Link href="/projects" className="text-primary hover:underline">
           프로젝트 목록으로
         </Link>
       </div>

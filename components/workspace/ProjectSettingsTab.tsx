@@ -42,7 +42,7 @@ export default function ProjectSettingsTab({ project, onRenamed }: { project: Pr
   return (
     <div className="flex max-w-xl flex-col gap-8">
       <form onSubmit={submit} className="flex flex-col gap-3">
-        <label htmlFor="rename" className="text-sm font-medium text-slate-700">
+        <label htmlFor="rename" className="text-sm font-medium text-foreground">
           프로젝트 이름
         </label>
         <input
@@ -50,33 +50,33 @@ export default function ProjectSettingsTab({ project, onRenamed }: { project: Pr
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={100}
-          className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         />
         {message && (
-          <p role={message.kind === "error" ? "alert" : "status"} className={`text-sm ${message.kind === "error" ? "text-red-600" : "text-emerald-700"}`}>
+          <p role={message.kind === "error" ? "alert" : "status"} className={`text-sm ${message.kind === "error" ? "text-destructive" : "text-success"}`}>
             {message.text}
           </p>
         )}
         <div>
-          <button type="submit" disabled={pending} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">
+          <button type="submit" disabled={pending} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover active:bg-primary-active disabled:opacity-50">
             {pending ? "저장 중…" : "이름 저장"}
           </button>
         </div>
       </form>
 
       <section aria-labelledby="stack-title">
-        <h2 id="stack-title" className="text-sm font-medium text-slate-700">
+        <h2 id="stack-title" className="text-sm font-medium text-foreground">
           스택
         </h2>
         <dl className="mt-2 grid grid-cols-[8rem_1fr] gap-y-1 text-sm">
-          <dt className="text-slate-500">프레임워크</dt>
-          <dd className="text-slate-900">{labelOf(FRAMEWORKS, stack.framework)}</dd>
-          <dt className="text-slate-500">스타일 방식</dt>
-          <dd className="text-slate-900">{labelOf(STYLINGS, stack.styling)}</dd>
-          <dt className="text-slate-500">디렉토리 구조</dt>
-          <dd className="text-slate-900">{labelOf(ARCHITECTURES, stack.architecture)}</dd>
+          <dt className="text-foreground-tertiary">프레임워크</dt>
+          <dd className="text-foreground">{labelOf(FRAMEWORKS, stack.framework)}</dd>
+          <dt className="text-foreground-tertiary">스타일 방식</dt>
+          <dd className="text-foreground">{labelOf(STYLINGS, stack.styling)}</dd>
+          <dt className="text-foreground-tertiary">디렉토리 구조</dt>
+          <dd className="text-foreground">{labelOf(ARCHITECTURES, stack.architecture)}</dd>
         </dl>
-        <p className="mt-2 text-xs text-slate-500">스택을 바꾸려면 새 프로젝트를 만드세요.</p>
+        <p className="mt-2 text-xs text-foreground-tertiary">스택을 바꾸려면 새 프로젝트를 만드세요.</p>
       </section>
     </div>
   );

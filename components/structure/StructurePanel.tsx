@@ -1,23 +1,41 @@
 "use client";
 
 import { useState } from "react";
+import { runDraft } from "@/lib/client/run-draft";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { StructureInit, StructureView } from "../../store/structure-store";
+import DraftError from "./DraftError";
+import DraftProgress from "./DraftProgress";
 import NodeInfoPanel from "./NodeInfoPanel";
+import NormalizedList from "./NormalizedList";
 import PreviewCanvas from "./PreviewCanvas";
-import SpecSummary from "./SpecSummary";
-import { StructureStoreProvider, useStructureStore } from "./StructureStoreProvider";
+import SpecForm from "./SpecForm";
+import { StructureStoreProvider, useStructureApi, useStructureStore } from "./StructureStoreProvider";
 import TreeView from "./TreeViewLoader";
 
-function Layout({ loadError }: { loadError: string | null }) {
+function Layout({ projectId, loadError }: { projectId: string; loadError: string | null }) {
+  const api = useStructureApi();
   const blueprint = useStructureStore((s) => s.blueprint);
   const view = useStructureStore((s) => s.view);
   const setView = useStructureStore((s) => s.setView);
   const [inputOpen, setInputOpen] = useState(true);
+
+  // 초안 생성 한 번. 어떤 오류든 입력(항목·화면 주소·이미지)은 스토어에 그대로 남는다
+  async function generate() {
+    const s = api.getState();
+    if (s.status === "resizing" || s.status === "running") return;
+    s.startDraft(Date.now(), s.images.length > 0);
+    const result = await runDraft(
+      { projectId, spec: s.spec, route: s.route, images: s.images },
+      { onRunning: () => api.getState().setRunning(), onStage: (stage) => api.getState().addStage(stage) },
+    );
+    if (result.kind === "done") api.getState().finishDraft(result.blueprint, result.normalized);
+    else api.getState().failDraft(result.error, result.keptBlueprint);
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -39,7 +57,7 @@ function Layout({ loadError }: { loadError: string | null }) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <SpecSummary />
+              <SpecForm onGenerate={generate} />
             </CardContent>
           </Card>
         )}
@@ -55,7 +73,9 @@ function Layout({ loadError }: { loadError: string | null }) {
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-4">
+            <DraftProgress />
+            <DraftError onRetry={generate} />
             {!blueprint ? (
               <p className="rounded-lg bg-section p-6 text-sm text-foreground-secondary">
                 아직 설계도가 없습니다. 스펙 7개 항목을 입력하거나 이미지를 첨부해 초안을 생성하면 화면 구조 미리보기가 여기에 표시됩니다.
@@ -74,6 +94,7 @@ function Layout({ loadError }: { loadError: string | null }) {
                 </TabsContent>
               </Tabs>
             )}
+            <NormalizedList />
           </CardContent>
         </Card>
 
@@ -99,10 +120,10 @@ function Layout({ loadError }: { loadError: string | null }) {
   );
 }
 
-export default function StructurePanel({ init, loadError }: { init: StructureInit; loadError: string | null }) {
+export default function StructurePanel({ projectId, init, loadError }: { projectId: string; init: StructureInit; loadError: string | null }) {
   return (
     <StructureStoreProvider init={init}>
-      <Layout loadError={loadError} />
+      <Layout projectId={projectId} loadError={loadError} />
     </StructureStoreProvider>
   );
 }

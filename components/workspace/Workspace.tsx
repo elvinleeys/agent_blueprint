@@ -66,7 +66,7 @@ export default function Workspace({
 
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "settings" && <ProjectSettingsTab project={project} onRenamed={setProject} />}
-        {tab === "structure" && <StructurePanel init={structureInit} loadError={structureLoadError} />}
+        {tab === "structure" && <StructurePanel projectId={project.id} init={structureInit} loadError={structureLoadError} />}
       </div>
     </div>
   );

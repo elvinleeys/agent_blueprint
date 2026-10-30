@@ -234,6 +234,7 @@ StyleProperty:
 | R-05 재사용 후보 | `name`, `responsibilities` 유사도 |
 | R-06 레이아웃 책임 | 자식 노드의 `style.ownsOuterSpacing` (간격은 부모 `layout.gap`으로 줘야 함) |
 | R-07 데이터 요청 노드 부재 | 설계도 전체 `nodes` 중 `dataFetch === true`인 노드의 수 (0개면 위반) |
+| R-08 페이지 위치 | `kind === "page"` && `parentId !== null` |
 | CM-01 스타일 범위 | `style.scope === "global"` (CSS Modules 스택에서) |
 | TW-01 임의값 | `style.properties[].isToken === false` (Tailwind 스택에서) |
 | TW-02 클래스 반복 | 형제 노드들의 `style.properties` 조합 반복 |
@@ -267,6 +268,22 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 
 - 설계도의 부모-자식은 import 관계이므로, client 파일이 불러온 컴포넌트는 server로 남을 수 없다(NX-04). 같은 이유로 훅은 client 노드가 불러야 한다(NX-03).
 - 결과 목록의 표시 우선순위: NX-04 > NX-03 > R-07.
+
+### 구현 기준 (구조 검사, `core/rules`·`core/adapters`)
+
+결과는 `{ ruleId, severity, nodeIds, message }`이며 저장하지 않고 설계도가 바뀔 때마다 계산한다. 정렬은 오류 → 경고 → 정보, 같은 심각도 안에서 NX-04·NX-03·R-07 우선 후 규칙 id 순, 같은 규칙 안에서는 트리 순서. 스택 전용 규칙은 어댑터가 묶는다(next: NX, css·css-modules·tailwind: HC·CM·TW, fsd: AR).
+
+| 규칙 | 구현한 판정 |
+| --- | --- |
+| R-08 (경고) | 루트가 아닌 노드의 `kind`가 `page`. 편집 화면은 막지만 AI 초안에서 생길 수 있다 |
+| NX-02 | 가장 위의 client 노드(client 조상 없음)가 자기 필요(`state`·`events`·훅 자식)가 없으면 경고. client 조상 아래의 client는 대상이 아니다 |
+| R-02 | `state[].name`을 공백 제거·소문자로 비교해 같은 이름이 서로 다른 2개 이상 노드에 있으면 위반. `isOpen`·`open`·`loading`·`isLoading`·`error`·`value`·`hovered`·`focused`·`visible`은 조상-자손 관계일 때만 위반 |
+| R-03 | 같은 이름의 prop(`children`·`className`·`key` 제외, 훅 제외)을 부모-자식 사슬로 3개 이상 노드가 연속 선언하면 위반. 이어진 노드 묶음 1건 |
+| R-05 | 훅이 아니고 조상-자손이 아닌 두 노드의 이름 단어(PascalCase 분리) Jaccard ≥ 0.5 **그리고** 책임 문장 글자 2-gram Dice ≥ 0.4. 이어진 후보는 묶음 1건. 임계값은 `relations.ts` 상수 |
+| R-06 | 루트가 아닌 노드의 `ownsOuterSpacing === true`, 또는 `margin` 계열 속성. 가로 방향(`margin`·`margin-inline*`·`margin-left`·`margin-right`)의 `auto`(와 0)뿐인 값은 가운데 정렬 용도라 제외 |
+| TW-02 | (속성, 값) 쌍이 2개 이상이고 완전히 같은 집합이 3개 이상 노드에 있으면 1건 |
+| HC-01 | 설계도 안에서 `classPattern`이 일관되지 않을 때: 가장 많이 쓰인 값(같으면 트리에서 먼저 나온 값)과 다른 노드, 값이 있는 노드가 있는데 스타일이 있고 값이 없는 노드. 아무 노드도 값이 없으면 걸지 않는다 |
+| AR-03 | `page`는 계층만(pages) 본다. 훅은 세그먼트 model·api·lib, 그 밖의 노드는 ui |
 - 근거: `tasks/draft-test-result.md`의 채점 사례 C1(client 아래 server 자식), C2(server 아래 훅), C6(조회 노드 부재). 이 사례들은 모두 스키마 검증을 통과했다.
 
 ## 6. 트리 변환과 노드 편집 규칙
@@ -341,6 +358,7 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 - v1.2 보완 (반응형 기준): 기본 `layout`은 데스크톱 기준, `responsive`는 태블릿·모바일에서 바뀌는 값(데스크톱 우선)으로 명시. 스키마 필드 변경 없음, 초안 프롬프트 v3에 같은 기준 추가
 - v1.2 보완 (span 규칙): `placement.span`이 부모 `layout.columns`보다 크면 스키마가 거부한다(이전에는 문서에만 있던 규칙). 자동 보정은 span을 부모 열 수로 줄인다. 스키마 필드 변경 없음, version 유지
 - v1.2 보완 (노드 편집): 스키마 필드 변경 없음, version 유지. 6절에 편집 연산 규칙 추가(페이지 종류는 루트만, 훅↔컴포넌트 종류 전환 금지, 자식을 받는 노드의 빈 배치를 세로 flex로 채움, client 조상 아래로 옮기거나 추가한 노드는 client, grid에서 배치 방식을 바꾸면 자식 차지 칸 비움, 열 수를 줄일 때 자식 차지 칸이 더 크면 거부, 사용자가 고친 필드는 AI 가정 목록에서 제외). 노드 이동의 자리 초기화에 "span이 새 부모 열 수 초과" 추가
+- v1.2 보완 (구조 검사 구현): 스키마 필드 변경 없음, version 유지. 검사 규칙 R-08(루트가 아닌 page, 경고) 추가, 5절에 판정 기준 확정(NX-02·R-02·R-03·R-05·R-06·TW-02·HC-01)
 - v1.2: `stack.architecture`(type-based / feature-based / fsd), `route`, 노드 `location` 추가, Next.js + FSD 배치 규칙, FSD 검사 규칙 AR-01~AR-03
 
 위 내용은 기획서(F-001, F-006, F-012, 3.2, 3.3, 4.2, 5.3, 6.4, 일정)와 CLAUDE.md에 반영되었다.

@@ -51,13 +51,14 @@ core/                      # 순수 TypeScript. React·Next.js import 금지
   schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환), normalize-blueprint.ts(AI 응답 자동 보정)
   image/                   # 이미지 전송 전 축소 규칙(fit-size: 가로 1,200px·합계 4MB·품질 단계, 고를 때 검사)
   preview/                 # 구조 미리보기 계산(설계도 layout·placement·order·반응형 → 상자 트리, 훅 분리)
-  rules/common/            # 공통 검사 규칙 R-01~R-07 (아직 구현 전, 빈 폴더)
-  adapters/framework/      # html, react, next 어댑터 (아직 구현 전, 빈 폴더)
-  adapters/styling/        # css, css-modules, tailwind 어댑터 (아직 구현 전, 빈 폴더)
-  adapters/architecture/   # type-based, feature-based, fsd 어댑터 (위치 추천, AR 규칙, 파일 위치 지시서) (아직 구현 전, 폴더 없음)
+  rules/                   # 구조 검사. types(Violation: 규칙 id·심각도·노드 id 목록·메시지), run(checkBlueprint: 공통 규칙+스택 어댑터 규칙을 돌려 오류→경고→정보 순으로 정렬, countByNode), helpers, fixture(테스트용 설계도 만들기)
+  rules/common/            # 공통 검사 규칙 R-01~R-08 (simple: R-01·04·06·07·08, relations: R-02·03·05). 기준이 모호한 규칙의 상수(범용 상태 이름, R-05 임계값)는 relations.ts 위쪽
+  adapters/framework/      # next(NX-01~04). html·react는 전용 규칙이 없음. 위치 추천·지시서는 아직 구현 전
+  adapters/styling/        # css(HC-01), css-modules(CM-01), tailwind(TW-01·02). 지시서 변환은 아직 구현 전
+  adapters/architecture/   # fsd(AR-01~03). type-based·feature-based는 전용 규칙이 없음. 위치 추천·파일 위치 지시서는 아직 구현 전
   prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
   edit/                    # 노드 편집 연산(순수 함수: 성공 시 새 설계도, 실패 시 거부 이유·노드·경로). update-node(내용·배치·차지 칸·스타일, 값 검증은 스키마로), layout(display 전환·반응형 한 줄·영향 계산·빈 스타일), move-node(+부모 후보), reorder-node, add-child, delete-node, notice(자동 변경 안내 문구). 드래그 편집도 같은 연산을 쓴다
-components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, home/ 홈 소개·로그인, layout/ 공통 헤더·GuardedLink(저장 안 된 수정이 있으면 이동 전에 묻는 링크), auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정(스토어와 저장 큐를 탭 바깥에서 들고 있음), structure/ 구조 설계 탭: 스펙 입력·진행·오류·미리보기·트리, NodeEditPanel(노드 편집 패널), edit/(구역·입력칸·목록·확인 창: 연산을 부르고 결과만 반영), auto-save·SaveQueueProvider·SaveStatus(자동 저장), generate(초안 생성 흐름: 시작→저장 정리→생성), regenerate-confirm(다시 생성 확인 조건))
+components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, home/ 홈 소개·로그인, layout/ 공통 헤더·GuardedLink(저장 안 된 수정이 있으면 이동 전에 묻는 링크), auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정(스토어와 저장 큐를 탭 바깥에서 들고 있음), structure/ 구조 설계 탭: 스펙 입력·진행·오류·미리보기·트리, NodeEditPanel(노드 편집 패널), edit/(구역·입력칸·목록·확인 창: 연산을 부르고 결과만 반영), auto-save·SaveQueueProvider·SaveStatus(자동 저장), generate(초안 생성 흐름: 시작→저장 정리→생성), regenerate-confirm(다시 생성 확인 조건), ViolationsProvider(설계도가 바뀔 때만 검사를 계산해 context로 제공, 결과는 저장하지 않음)·CheckResults(검사 결과 카드)·violation-mark(오류 빨강·경고 주황 실선, AI 가정은 회색 점선))
 store/                     # Zustand 스토어 (structure-store: 작업공간별 설계도·스펙 입력·초안 진행·선택·보기 상태, applyEdit(편집 적용)·editRevision·저장 상태·입력 오류·노드 선택 확인)
 lib/utils.ts              # cn 클래스 병합(shadcn)
 lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리), proxy.ts(세션 갱신)
@@ -100,6 +101,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 | R-05 재사용 후보 | 이름·책임이 유사한 노드가 따로 존재 | 정보 |
 | R-06 레이아웃 책임 | 자식이 배치 스타일(margin 등)을 소유 | 경고 |
 | R-07 데이터 요청 노드 부재 | 설계도 전체에 dataFetch가 true인 노드가 하나도 없음 | 경고 |
+| R-08 페이지 위치 | 루트가 아닌 노드의 kind가 page (편집 화면은 막지만 AI 초안에서 생길 수 있음) | 경고 |
 | CM-01 | CSS Modules: 컴포넌트 전용 스타일이 전역 CSS에 있음 | 경고 |
 | TW-01 | Tailwind: 토큰 대신 임의값 사용 | 경고 |
 | TW-02 | Tailwind: 유틸리티 조합이 3회 이상 반복 | 정보 |

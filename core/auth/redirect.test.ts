@@ -5,7 +5,7 @@ describe("safeNextPath", () => {
   it.each([
     ["//evil.com"], ["/\\evil.com"], ["/\t/evil.com"], ["/\n/evil.com"], ["https://evil.com"], ["javascript:alert(1)"],
     ["evil.com"], [""], [null], [undefined], [["/projects"]], [123], ["/" + "a".repeat(512)],
-    ["/login"], ["/login?next=/x"], ["/auth/callback"],
+    ["/login"], ["/login?next=/x"], ["/auth/callback"], ["/"], ["/?next=/x"], ["/#a"],
   ])("차단하고 fallback으로 바꾼다: %j", (input) => {
     expect(safeNextPath(input)).toBe("/projects");
   });
@@ -23,9 +23,9 @@ describe("isProtectedPath", () => {
 });
 
 describe("decideRedirect", () => {
-  it("비로그인 + 보호 경로 → /login?next= (인코딩, 되돌아오면 같은 경로)", () => {
+  it("비로그인 + 보호 경로 → /?next= (인코딩, 되돌아오면 같은 경로)", () => {
     const to = decideRedirect({ pathname: "/projects", search: "?tab=1", isAuthed: false })!;
-    expect(to).toBe("/login?next=%2Fprojects%3Ftab%3D1");
+    expect(to).toBe("/?next=%2Fprojects%3Ftab%3D1");
     expect(safeNextPath(new URLSearchParams(to.split("?")[1]).get("next"))).toBe("/projects?tab=1");
   });
 
@@ -39,10 +39,33 @@ describe("decideRedirect", () => {
     expect(decideRedirect({ pathname: "/login", search: "?next=%2F%2Fevil.com", isAuthed: true })).toBe("/projects");
   });
 
+  it("비로그인 + /login → 홈으로, next·error 쿼리 유지", () => {
+    expect(decideRedirect({ pathname: "/login", search: "", isAuthed: false })).toBe("/");
+    expect(decideRedirect({ pathname: "/login", search: "?next=%2Faccount&error=auth", isAuthed: false })).toBe("/?next=%2Faccount&error=auth");
+  });
+
+  it("로그인 + 홈 → next 또는 /projects (외부 주소·홈 자신은 /projects)", () => {
+    expect(decideRedirect({ pathname: "/", search: "", isAuthed: true })).toBe("/projects");
+    expect(decideRedirect({ pathname: "/", search: "?next=%2Fprojects%2F1", isAuthed: true })).toBe("/projects/1");
+    expect(decideRedirect({ pathname: "/", search: "?next=%2F%2Fevil.com", isAuthed: true })).toBe("/projects");
+    expect(decideRedirect({ pathname: "/", search: "?next=%2F", isAuthed: true })).toBe("/projects");
+  });
+
+  it("이동 끝점은 다시 이동하지 않는다 (루프 없음)", () => {
+    for (const isAuthed of [true, false]) {
+      for (const pathname of ["/", "/login", "/projects", "/account"]) {
+        const to = decideRedirect({ pathname, search: "?next=%2Fprojects", isAuthed });
+        if (!to) continue;
+        const u = new URL(to, "http://localhost");
+        const again = decideRedirect({ pathname: u.pathname, search: u.search, isAuthed });
+        if (again) expect(decideRedirect({ pathname: new URL(again, "http://localhost").pathname, search: new URL(again, "http://localhost").search, isAuthed })).toBeNull();
+      }
+    }
+  });
+
   it("그 외는 이동 없음", () => {
     expect(decideRedirect({ pathname: "/projects", search: "", isAuthed: true })).toBeNull();
     expect(decideRedirect({ pathname: "/", search: "", isAuthed: false })).toBeNull();
-    expect(decideRedirect({ pathname: "/login", search: "", isAuthed: false })).toBeNull();
     expect(decideRedirect({ pathname: "/api/draft", search: "", isAuthed: false })).toBeNull();
   });
 });

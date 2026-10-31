@@ -258,3 +258,80 @@ describe("자동 저장 큐: 초안 다시 생성 전 settle (이전 편집이 �
     expect(last()).toBe("idle");
   });
 });
+
+describe("자동 저장 큐: 지시서 내보내기 전 drain (settle과 달리 값을 버리지 않고 보낸 뒤 기다린다)", () => {
+  it("디바운스를 기다리지 않고 대기 중인 값을 보내고, 전송이 끝나야 true로 끝난다", async () => {
+    const { queue, calls, log } = setup();
+    queue.schedule("a");
+    let done: boolean | null = null;
+    void queue.drain().then((ok) => (done = ok));
+    await tick(0);
+    expect(log).toEqual(["start:a"]);
+    expect(done).toBeNull(); // 전송이 끝나기 전에는 끝나지 않는다
+    calls[0].resolve();
+    await tick(0);
+    expect(done).toBe(true);
+    expect(queue.hasUnsaved()).toBe(false);
+  });
+
+  it("전송 중 들어온 편집까지 보낸 뒤에 끝난다. 순서: a 전송 → a 끝 → b 전송 → b 끝", async () => {
+    const { queue, calls, log } = setup();
+    queue.schedule("a");
+    await tick(800);
+    queue.schedule("b");
+    let done: boolean | null = null;
+    void queue.drain().then((ok) => (done = ok));
+    await tick(0);
+    calls[0].resolve();
+    await tick(0);
+    expect(done).toBeNull();
+    calls[1].resolve();
+    await tick(0);
+    expect(log).toEqual(["start:a", "end:a", "start:b", "end:b"]);
+    expect(done).toBe(true);
+  });
+
+  it("전송이 실패하면 false로 끝나고 실패한 값은 남는다(retry 가능)", async () => {
+    const { queue, calls } = setup();
+    queue.schedule("a");
+    let done: boolean | null = null;
+    void queue.drain().then((ok) => (done = ok));
+    await tick(0);
+    calls[0].reject();
+    await tick(0);
+    expect(done).toBe(false);
+    expect(queue.hasUnsaved()).toBe(true);
+  });
+
+  it("이미 실패한 값은 drain이 한 번 다시 보내고, 또 실패하면 false다(무한 반복 없음)", async () => {
+    const { queue, calls } = setup();
+    queue.schedule("a");
+    await tick(800);
+    calls[0].reject();
+    await tick(0);
+    let done: boolean | null = null;
+    void queue.drain().then((ok) => (done = ok));
+    await tick(0);
+    expect(calls.map((c) => c.value)).toEqual(["a", "a"]);
+    calls[1].reject();
+    await tick(0);
+    expect(done).toBe(false);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("보낼 것이 없으면 바로 true다", async () => {
+    const { queue } = setup();
+    expect(await queue.drain()).toBe(true);
+  });
+
+  it("drain 뒤 타이머가 지나도 같은 값을 다시 보내지 않는다", async () => {
+    const { queue, calls } = setup();
+    queue.schedule("a");
+    const p = queue.drain();
+    await tick(0);
+    calls[0].resolve();
+    await p;
+    await tick(10_000);
+    expect(calls).toHaveLength(1);
+  });
+});

@@ -11,6 +11,11 @@ export type SaveQueue<T> = {
    * 끝나면 대기 상태(idle)가 된다. 기다리는 동안 들어온 schedule은 무시한다. 전송이 실패해도 resolve한다.
    */
   settle: () => Promise<void>;
+  /**
+   * 지시서 내보내기 직전에 부른다: settle과 달리 보내지 않은 값(대기·실패)도 **보내고** 전송이 모두 끝날 때까지 기다린다.
+   * 모두 저장됐으면 true, 전송이 실패했으면 false(실패한 값은 남아 retry할 수 있다). 실패한 값은 처음 한 번만 다시 보낸다.
+   */
+  drain: () => Promise<boolean>;
   /** 저장되지 않은 수정이 있는가: 전송 전 값, 전송 중, 실패한 값 */
   hasUnsaved: () => boolean;
 };
@@ -94,6 +99,20 @@ export function createSaveQueue<T>({ send, onStatus, delayMs = 800 }: Deps<T>): 
         settling = false;
       }
       emit("idle");
+    },
+    async drain() {
+      if (settling) return false;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      let retriedFailed = failed === null; // drain 중에 새로 실패한 값은 다시 보내지 않는다
+      for (;;) {
+        if (inflight) await inflight;
+        else if (pending) run(pending);
+        else if (failed && !retriedFailed) {
+          retriedFailed = true;
+          run(failed);
+        } else return failed === null;
+      }
     },
     hasUnsaved: () => pending !== null || inflight !== null || failed !== null,
   };

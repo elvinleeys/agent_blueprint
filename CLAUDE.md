@@ -53,7 +53,7 @@ core/                      # 순수 TypeScript. React·Next.js import 금지
   preview/                 # 구조 미리보기 계산(설계도 layout·placement·order·반응형 → 상자 트리, 훅 분리)
   rules/                   # 구조 검사. types(Violation: 규칙 id·심각도·노드 id 목록·메시지), run(checkBlueprint: 공통 규칙+스택 어댑터 규칙을 돌려 오류→경고→정보 순으로 정렬, countByNode), helpers, fixture(테스트용 설계도 만들기)
   rules/common/            # 공통 검사 규칙 R-01~R-08 (simple: R-01·04·06·07·08, relations: R-02·03·05). 기준이 모호한 규칙의 상수(범용 상태 이름, R-05 임계값)는 relations.ts 위쪽
-  adapters/framework/      # next(NX-01~04). html·react는 전용 규칙이 없음. 위치 추천·지시서는 아직 구현 전
+  adapters/framework/      # next(NX-01~05). html·react는 전용 규칙이 없음. 위치 추천·지시서는 아직 구현 전
   adapters/styling/        # css(HC-01), css-modules(CM-01), tailwind(TW-01·02). 지시서 변환은 아직 구현 전
   adapters/architecture/   # fsd(AR-01~03). type-based·feature-based는 전용 규칙이 없음. 위치 추천·파일 위치 지시서는 아직 구현 전
   prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
@@ -110,6 +110,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 | NX-02 | Next.js: Client Component 지정 범위가 필요 이상으로 넓음 | 경고 |
 | NX-03 | Next.js: 훅 노드의 부모가 Server Component로 지정 | 오류 |
 | NX-04 | Next.js: 조상 중 Client Component가 있는데 자신이 Server Component로 지정 (부모-자식은 import 관계라 client 파일이 불러온 컴포넌트는 server일 수 없음) | 오류 |
+| NX-05 | Next.js: FSD가 아닌 구조에서 파일 위치가 pages/ 또는 app/으로 시작 (Next.js 라우팅 폴더와 겹칠 수 있음) | 경고 |
 | AR-01 | FSD: 자식이 부모보다 위 계층 (import 방향 위반) | 오류 |
 | AR-02 | FSD: 같은 계층의 다른 슬라이스를 자식으로 가짐 | 오류 |
 | AR-03 | FSD: kind와 계층·세그먼트 불일치 (page≠pages, hook≠model·api·lib) | 경고 |

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { blueprint, NEXT_TAILWIND } from "../../rules/fixture";
-import { nx01, nx02, nx03, nx04 } from "./next";
+import { checkBlueprint } from "../../rules/run";
+import { nx01, nx02, nx03, nx04, nx05 } from "./next";
 
 const st = [{ name: "count" }];
 
@@ -75,5 +76,26 @@ describe("NX-02 client 범위가 필요 이상으로 넓음", () => {
     const bp = blueprint([{ id: "a", renderMode: "client" }], NEXT_TAILWIND, { renderMode: "client", state: st });
     expect(nx02(bp)).toEqual([]);
     expect(nx02(blueprint([{ id: "a" }]))).toEqual([]);
+  });
+});
+
+describe("NX-05 FSD가 아닌 구조에서 pages/·app/ 위치", () => {
+  const at = (dir: string) => blueprint([{ id: "a", location: { dir } }]);
+  it("pages/·app/으로 시작하는 위치를 경고한다(하위 폴더 포함)", () => {
+    for (const dir of ["pages", "pages/product", "app", "app/products"]) {
+      const v = nx05(at(dir));
+      expect(v).toHaveLength(1);
+      expect(v[0]).toMatchObject({ ruleId: "NX-05", severity: "warning", nodeIds: ["a"] });
+    }
+  });
+  it("pages·app으로 시작하는 다른 이름과 components 같은 위치는 잡지 않는다", () => {
+    for (const dir of ["pagesets", "application", "components/pages", "features/app"]) expect(nx05(at(dir))).toEqual([]);
+  });
+  it("FSD는 계층이 src/ 아래라 대상이 아니다", () => {
+    const fsd = { ...NEXT_TAILWIND, architecture: "fsd" } as const;
+    expect(nx05(blueprint([{ id: "a", location: { dir: "pages/product/ui" } }], fsd, { location: { dir: "app/ui" } }))).toEqual([]);
+  });
+  it("checkBlueprint 결과에 포함된다", () => {
+    expect(checkBlueprint(at("app/x")).some((v) => v.ruleId === "NX-05")).toBe(true);
   });
 });

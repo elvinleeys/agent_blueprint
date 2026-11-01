@@ -183,6 +183,25 @@ describe("normalizeBlueprint — 보정하지 않는 것", () => {
     expect(normalizeBlueprint(input)).toEqual({ blueprint: input, changes: [] });
   });
 
+  it("스택이 Tailwind면 module 범위를 utility로 바꾸고 기록한다. 다른 범위·다른 스택은 그대로 둔다", () => {
+    const b = sample();
+    find(b, "PriceTag").style = { scope: "module", properties: [], ownsOuterSpacing: false };
+    find(b, "OptionSelector").style = { scope: "global", properties: [], ownsOuterSpacing: false };
+    expect(normalizeBlueprint(b).changes).toEqual([]); // css-modules 스택
+
+    const moduleIds = b.nodes.filter((n: Json) => n.style?.scope === "module").map((n: Json) => n.id);
+    b.stack.styling = "tailwind";
+    const r = normalizeBlueprint(b);
+    expect(r.changes).toEqual(moduleIds.map((nodeId: string) => ({ nodeId, path: "style.scope", detail: "스택이 Tailwind라 module 범위를 utility로 바꿈" })));
+    expect(moduleIds).toContain("n-price");
+    const out = (r.blueprint as Json).nodes;
+    expect(out.some((n: Json) => n.style?.scope === "module")).toBe(false);
+    expect(out.find((n: Json) => n.id === "n-price").style.scope).toBe("utility");
+    expect(out.find((n: Json) => n.id === "n-option").style.scope).toBe("global");
+    expect(find(b, "PriceTag").style.scope).toBe("module"); // 입력은 그대로
+    expect(BlueprintSchema.safeParse(r.blueprint).success).toBe(true);
+  });
+
   it("노드 항목이 객체가 아니어도 던지지 않는다", () => {
     expect(() => normalizeBlueprint({ nodes: [null, 1, { id: "a", parentId: "x", order: 0 }] })).not.toThrow();
   });

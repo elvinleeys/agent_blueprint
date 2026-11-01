@@ -51,4 +51,20 @@ export const nx02: Rule = (bp) => {
     }));
 };
 
-export const nextRules: Rule[] = [nx04, nx03, nx01, nx02];
+/**
+ * NX-05 경고: FSD가 아닌 구조에서 파일 위치가 pages/ 또는 app/으로 시작.
+ * Next.js 라우팅 폴더(app/·pages/)와 겹칠 수 있다. FSD는 계층이 src/ 아래에 놓이므로 대상이 아니다
+ */
+export const nx05: Rule = (bp) =>
+  bp.stack.architecture === "fsd"
+    ? []
+    : bp.nodes
+        .filter((n) => /^(pages|app)(\/|$)/.test(n.location.dir))
+        .map((n) => ({
+          ruleId: "NX-05",
+          severity: "warning",
+          nodeIds: [n.id],
+          message: `${n.name}의 위치 ${n.location.dir}이(가) Next.js 라우팅 폴더(app/·pages/)와 겹칠 수 있습니다. 라우팅 파일이 아니면 다른 폴더로 옮기세요.`,
+        }));
+
+export const nextRules: Rule[] = [nx04, nx03, nx01, nx02, nx05];

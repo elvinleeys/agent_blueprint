@@ -27,13 +27,17 @@ export type Preview = { root: PreviewBox; hooks: HookItem[] };
 
 const MAX_GAP_STEP = 12;
 const DEFAULT_GAP_STEP = 4;
-// 데스크톱 우선: 데스크톱은 desktop 오버라이드만, 모바일은 tablet → mobile 순서로 덮어쓴다
-const CASCADE: Record<Viewport, ("desktop" | "tablet" | "mobile")[]> = {
+/** 미리보기 토글은 desktop·mobile만 쓰고, tablet은 지시서가 같은 계산을 재사용하려고 열어 둔 값이다 */
+export type Breakpoint = Viewport | "tablet";
+
+// 데스크톱 우선: 데스크톱은 desktop 오버라이드만, 태블릿은 tablet만, 모바일은 tablet → mobile 순서로 덮어쓴다
+const CASCADE: Record<Breakpoint, ("desktop" | "tablet" | "mobile")[]> = {
   desktop: ["desktop"],
+  tablet: ["tablet"],
   mobile: ["tablet", "mobile"],
 };
 
-function resolveLayout(layout: NonNullable<ComponentNode["layout"]>, viewport: Viewport) {
+export function resolveLayout(layout: NonNullable<ComponentNode["layout"]>, viewport: Breakpoint) {
   let direction = layout.direction ?? null;
   let columns = layout.columns ?? null;
   for (const bp of CASCADE[viewport]) {
@@ -52,7 +56,7 @@ export function gapStep(token: string | null): { step: number; estimated: boolea
   return { step: Math.min(Number(m[1]), MAX_GAP_STEP), estimated: false };
 }
 
-function layoutLabel(display: PreviewBox["display"], direction: PreviewBox["direction"], columns: number | null) {
+export function layoutLabel(display: PreviewBox["display"], direction: PreviewBox["direction"], columns: number | null) {
   if (display === "grid") return `grid ${columns}열`;
   if (display === "flex") return direction === "column" ? "flex 세로" : "flex 가로";
   return display === "block" ? "block" : "";

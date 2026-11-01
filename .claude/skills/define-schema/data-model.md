@@ -243,6 +243,7 @@ StyleProperty:
 | NX-02 경계 범위 | 상위 노드의 `renderMode === "client"` 여부 |
 | NX-03 훅 부모 경계 | `kind === "hook"`인 노드의 부모 `renderMode === "server"` |
 | NX-04 client 자손 server 금지 | 조상 중 `renderMode === "client"`인 노드가 있는데 자신의 `renderMode === "server"` |
+| NX-05 라우팅 폴더 겹침 | framework = next, architecture ≠ fsd인데 `location.dir`이 `pages` 또는 `app`으로 시작(`pages/…`, `app/…`) |
 | AR-01 계층 방향 (FSD) | 부모·자식의 `location.dir` 계층 순서. 자식은 부모와 같거나 더 아래 계층이어야 함 |
 | AR-02 같은 계층 교차 (FSD) | 부모·자식이 같은 계층(pages·widgets·features·entities)인데 슬라이스가 다르면 위반 |
 | AR-03 세그먼트·역할 불일치 (FSD) | `kind`와 세그먼트 대응: page는 `pages` 계층, hook은 `model`·`api`·`lib`, 화면 컴포넌트는 `ui` |
@@ -265,6 +266,8 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 | R-07 데이터 요청 노드 부재 | 모든 스택 | `nodes` 전체에 `dataFetch: true`인 노드가 하나도 없으면 위반 (표시 노드가 받는 데이터의 출처가 설계도에 없음) | 경고 |
 | NX-03 훅 부모 경계 | framework = next | `kind: hook`인 노드의 부모가 `renderMode: "server"`이면 위반 (훅은 클라이언트에서만 동작하므로 부모가 client여야 함) | 오류 |
 | NX-04 client 자손 server 금지 | framework = next | 조상 중 `renderMode: "client"`인 노드가 있는데 자신이 `"server"`이면 위반. `renderMode`가 null인 훅은 대상이 아님 | 오류 |
+
+| NX-05 라우팅 폴더 겹침 | framework = next, architecture ≠ fsd | `location.dir`이 `pages` 또는 `app`이거나 그 하위(`pages/…`, `app/…`)이면 위반. Next.js 라우팅 폴더와 겹칠 수 있음. FSD는 계층이 `src/` 아래라 대상이 아님 | 경고 |
 
 - 설계도의 부모-자식은 import 관계이므로, client 파일이 불러온 컴포넌트는 server로 남을 수 없다(NX-04). 같은 이유로 훅은 client 노드가 불러야 한다(NX-03).
 - 결과 목록의 표시 우선순위: NX-04 > NX-03 > R-07.
@@ -358,6 +361,7 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 - v1.2 보완 (반응형 기준): 기본 `layout`은 데스크톱 기준, `responsive`는 태블릿·모바일에서 바뀌는 값(데스크톱 우선)으로 명시. 스키마 필드 변경 없음, 초안 프롬프트 v3에 같은 기준 추가
 - v1.2 보완 (span 규칙): `placement.span`이 부모 `layout.columns`보다 크면 스키마가 거부한다(이전에는 문서에만 있던 규칙). 자동 보정은 span을 부모 열 수로 줄인다. 스키마 필드 변경 없음, version 유지
 - v1.2 보완 (노드 편집): 스키마 필드 변경 없음, version 유지. 6절에 편집 연산 규칙 추가(페이지 종류는 루트만, 훅↔컴포넌트 종류 전환 금지, 자식을 받는 노드의 빈 배치를 세로 flex로 채움, client 조상 아래로 옮기거나 추가한 노드는 client, grid에서 배치 방식을 바꾸면 자식 차지 칸 비움, 열 수를 줄일 때 자식 차지 칸이 더 크면 거부, 사용자가 고친 필드는 AI 가정 목록에서 제외). 노드 이동의 자리 초기화에 "span이 새 부모 열 수 초과" 추가
+- v1.2 보완 (지시서): 스키마 필드 변경 없음, version 유지. 검사 규칙 NX-05(FSD가 아닌 Next.js에서 `pages/`·`app/` 위치, 경고) 추가. AI 응답 자동 보정에 "스택이 Tailwind인데 `style.scope`가 module이면 utility로 변경" 추가
 - v1.2 보완 (구조 검사 구현): 스키마 필드 변경 없음, version 유지. 검사 규칙 R-08(루트가 아닌 page, 경고) 추가, 5절에 판정 기준 확정(NX-02·R-02·R-03·R-05·R-06·TW-02·HC-01)
 - v1.2: `stack.architecture`(type-based / feature-based / fsd), `route`, 노드 `location` 추가, Next.js + FSD 배치 규칙, FSD 검사 규칙 AR-01~AR-03
 

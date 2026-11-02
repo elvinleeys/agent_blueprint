@@ -58,7 +58,7 @@ function BoxView({ box, selectedId, onSelect, readOnly = false, depth = 0 }: Box
         spanClass(box.span),
       )}
     >
-      <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
+      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm wrap-anywhere">
         <span className="font-medium text-foreground">{box.name}</span>
         {caption && <span className="text-xs text-foreground-tertiary">{caption}</span>}
         {mark && <span className={cn("text-xs font-medium", mark.text)}>{mark.label}</span>}

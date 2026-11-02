@@ -46,9 +46,9 @@ export default function CheckResults({ readOnly = false }: { readOnly?: boolean 
             <ul className="flex flex-col gap-2">
               {items.map((v, i) => (
                 <li key={`${v.ruleId}-${v.nodeIds.join("+")}-${i}`} className="flex flex-col gap-1 rounded-lg border border-border bg-card p-3 text-sm">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">{v.ruleId}</Badge>
-                    <span className="text-foreground">{v.message}</span>
+                    <span className="min-w-0 text-foreground wrap-anywhere">{v.message}</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {v.nodeIds.map((id) =>

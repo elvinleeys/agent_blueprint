@@ -9,7 +9,7 @@ export const SIGNUP_NOTE = "계정이 없으면 처음 로그인할 때 자동�
 export default function HomeIntro({ login }: { login: ReactNode }) {
   return (
     <section className="grid items-center gap-10 py-10 lg:grid-cols-2 lg:gap-14 lg:py-16">
-      <div className="flex flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6">
         <h1 className="text-3xl leading-tight font-bold tracking-tight text-foreground break-keep sm:text-4xl lg:text-5xl">{HERO_TITLE}</h1>
         <p className="max-w-xl text-base leading-relaxed text-foreground-secondary break-keep sm:text-lg">{HERO_DESCRIPTION}</p>
         <div className="flex flex-col items-start gap-2">
@@ -18,7 +18,7 @@ export default function HomeIntro({ login }: { login: ReactNode }) {
         </div>
       </div>
 
-      <figure className="flex flex-col gap-2">
+      <figure className="flex min-w-0 flex-col gap-2">
         <LandingPreview />
         <figcaption className="text-xs text-foreground-tertiary">예시 화면 · 저장된 프로젝트가 아니며, 상품 상세 화면을 가정한 예시입니다.</figcaption>
       </figure>

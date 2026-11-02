@@ -57,15 +57,15 @@ export function HomeExamples() {
     <Section id="example-title" title="검사 결과와 지시서는 이렇게 나옵니다">
       <p className="text-sm text-foreground-tertiary">예시 화면(상품 상세)으로 만든 결과입니다. 실제 프로젝트 데이터가 아닙니다.</p>
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           <h3 className="text-base font-semibold text-foreground">구조 검사 결과</h3>
           <div className="rounded-lg border border-border bg-card p-4">
             <LandingCheck />
           </div>
         </div>
-        <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 flex-col gap-3">
           <h3 className="text-base font-semibold text-foreground">지시서 (앞부분)</h3>
-          <pre className="max-h-96 overflow-auto rounded-lg bg-section p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground-secondary">{excerpt}</pre>
+          <pre className="max-h-96 overflow-auto rounded-lg bg-section p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground-secondary wrap-anywhere">{excerpt}</pre>
         </div>
       </div>
     </Section>

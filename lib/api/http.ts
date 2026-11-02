@@ -38,12 +38,12 @@ export async function projectError(db: SupabaseClient, id: string): Promise<Http
 
 export type JsonRead = { ok: true; value: unknown } | { ok: false; error: HttpError };
 
-/** JSON 본문만 받는다(다른 사이트의 폼 전송 방어를 겸함). 본문은 1MB 이하 */
-export async function readJson(request: Request): Promise<JsonRead> {
-  const tooLarge = () => ({ ok: false as const, error: httpError(413, "payload_too_large", "요청이 너무 큽니다. 1MB 이하로 줄여서 보내 주세요.", false) });
+/** JSON 본문만 받는다(다른 사이트의 폼 전송 방어를 겸함). 본문은 기본 1MB 이하(maxBytes로 라우트별 조정) */
+export async function readJson(request: Request, maxBytes = MAX_JSON_BYTES): Promise<JsonRead> {
+  const tooLarge = () => ({ ok: false as const, error: httpError(413, "payload_too_large", `요청이 너무 큽니다. ${maxBytes / (1024 * 1024)}MB 이하로 줄여서 보내 주세요.`, false) });
   if (!request.headers.get("content-type")?.includes("application/json")) return { ok: false, error: invalidInput("application/json 형식으로 보내야 합니다.") };
   const length = Number(request.headers.get("content-length"));
-  if (Number.isFinite(length) && length > MAX_JSON_BYTES) return tooLarge();
+  if (Number.isFinite(length) && length > maxBytes) return tooLarge();
 
   let text: string;
   try {
@@ -51,7 +51,7 @@ export async function readJson(request: Request): Promise<JsonRead> {
   } catch {
     return { ok: false, error: invalidInput("요청 본문을 읽을 수 없습니다.") };
   }
-  if (new TextEncoder().encode(text).length > MAX_JSON_BYTES) return tooLarge();
+  if (new TextEncoder().encode(text).length > maxBytes) return tooLarge();
   try {
     return { ok: true, value: JSON.parse(text) };
   } catch {

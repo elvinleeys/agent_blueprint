@@ -121,6 +121,33 @@ describe("C-02 합치기 후보", () => {
   });
 });
 
+describe("C-05 공식과 같은 이름의 별도 구현(경고)", () => {
+  const official = [{ ...off("Button", "label"), path: "src/ui/Button.tsx" }];
+  const analyzed = [comp("Button", { path: "src/ui/Button.tsx" }), comp("Button", { path: "src/features/Button.tsx" }), comp("Page", { path: "src/pages/Page.tsx" })];
+
+  it("폴더로 만든 스펙: 폴더 밖의 같은 이름은 경고, 폴더 안의 공식 구현은 아니다", () => {
+    const r = compareDesignSystem({ official, analyzed, designSystemFolder: "src/ui" });
+    const c05 = rules(r.findings, "C-05");
+    expect(c05).toHaveLength(1);
+    expect(c05[0]).toMatchObject({ severity: "warning", officialPath: "src/ui/Button.tsx", component: { name: "Button", path: "src/features/Button.tsx" } });
+    expect(c05[0].message).toContain("같은 이름의 별도 구현입니다(공식: src/ui/Button.tsx)");
+    // 공식 이름이라 C-01(공식 목록에 없음)에는 오르지 않는다
+    expect(rules(r.findings, "C-01").map((f) => f.component.name)).toEqual(["Page"]);
+  });
+
+  it("JSON 스펙(폴더 없음): 같은 이름은 공식 구현으로 보고 경고하지 않는다", () => {
+    const r = compareDesignSystem({ official: [off("Button", "label")], analyzed });
+    expect(rules(r.findings, "C-05")).toEqual([]);
+    expect(rules(r.findings, "C-01").map((f) => f.component.name)).toEqual(["Page"]);
+  });
+
+  it("내부용(내보내지 않음)이거나 폴더 안인 같은 이름은 경고하지 않고, 경고는 정보보다 앞에 놓인다", () => {
+    const r = compareDesignSystem({ official, analyzed: [comp("Button", { path: "src/features/B.tsx", exported: false }), ...analyzed], designSystemFolder: "src/ui" });
+    expect(rules(r.findings, "C-05")).toHaveLength(1);
+    expect(r.findings.map((f) => f.rule)).toEqual(["C-05", "C-01"]);
+  });
+});
+
 describe("비교 대상 정하기와 요약", () => {
   it("내부용은 비교하지 않고 개수만 센다", () => {
     const r = compareDesignSystem({ official: [], analyzed: [comp("Used"), comp("Hidden", { exported: false })] });

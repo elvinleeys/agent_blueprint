@@ -20,7 +20,9 @@ export type CompRef = { name: string; path: string | null; official: boolean };
 export type Finding =
   | { rule: "C-01"; severity: "info"; component: CompRef; message: string }
   | { rule: "C-02"; severity: Severity; members: CompRef[]; evidence: string[]; message: string }
-  | { rule: "C-03"; severity: "warning"; component: CompRef; propCount: number; message: string };
+  | { rule: "C-03"; severity: "warning"; component: CompRef; propCount: number; message: string }
+  /** 폴더로 만든 스펙에서, 폴더 밖에 공식 컴포넌트와 같은 이름의 컴포넌트가 따로 있음 */
+  | { rule: "C-05"; severity: "warning"; component: CompRef; officialPath: string | null; message: string };
 
 export type CompareSummary = {
   officialCount: number;
@@ -93,6 +95,16 @@ export function compareDesignSystem(input: CompareInput): CompareResult {
     if (!officialNames.has(c.name)) findings.push({ rule: "C-01", severity: "info", component: refOf(c), message: `${c.name}은(는) 공식 컴포넌트 목록에 없습니다.` });
   }
 
+  // C-05 공식과 같은 이름의 별도 구현(경고): 디자인 시스템 폴더로 스펙을 만든 경우에만. 폴더 밖에 같은 이름이 따로 있다는 뜻이다.
+  // JSON 스펙은 구현 위치를 알 수 없어 같은 이름을 공식 구현으로 본다(지금처럼 C-01·합치기 쌍에서만 뺀다)
+  if (designSystemFolder) {
+    for (const c of exported) {
+      const o = official.find((x) => x.name === c.name);
+      if (!o) continue;
+      findings.push({ rule: "C-05", severity: "warning", component: refOf(c), officialPath: o.path ?? null, message: `${c.name}은(는) 공식 컴포넌트와 같은 이름의 별도 구현입니다${o.path ? `(공식: ${o.path})` : ""}. 공식 컴포넌트를 쓰도록 바꿀 수 있는지 검토하세요.` });
+    }
+  }
+
   // C-03 나누기 후보
   for (const c of exported) {
     if (c.props.length > COMPARE_CONFIG.MAX_PROPS) {
@@ -103,7 +115,7 @@ export function compareDesignSystem(input: CompareInput): CompareResult {
   // C-02 합치기 후보: 공식 이름과 같은 컴포넌트는 그 공식 항목 자체라 쌍에서 뺀다. 공식끼리의 쌍도 제외
   const nodes: Node[] = [
     ...official.map((o) => ({
-      ref: { name: o.name, path: null, official: true } as CompRef,
+      ref: { name: o.name, path: o.path ?? null, official: true } as CompRef,
       words: words(o.name),
       props: new Set(o.props.map((p) => p.name)),
       inherits: new Set(o.inherits ?? []),

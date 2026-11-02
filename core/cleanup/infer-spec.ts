@@ -64,7 +64,7 @@ export function inferComponents(analyzed: AnalyzedComponent[], folder: string): 
     const r = DSComponentSchema.safeParse(candidate);
     if (r.success) {
       components.push(r.data);
-      official.push({ ...r.data, inherits: c.inherits, inheritsComponents: c.inheritsComponents });
+      official.push({ ...r.data, inherits: c.inherits, inheritsComponents: c.inheritsComponents, path: c.path });
     } else warnings.push({ kind: "invalid-component", name, message: r.error.issues[0]?.message ?? "스키마 검증 실패" });
   }
   return { components, official, warnings, used: components.length, internalSkipped: inFolder.filter((c) => !c.exported).length };

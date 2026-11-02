@@ -1,3 +1,3 @@
-export function POST(): Response {
-  return Response.json({ error: "not_implemented" }, { status: 501 });
-}
+import { handleAnalyzePost } from "@/lib/api/analyze-handler";
+
+export const POST = handleAnalyzePost;

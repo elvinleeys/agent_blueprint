@@ -20,26 +20,62 @@ const pathOf = (name: string, ordinal: number) => (ordinal === 1 ? name : `(파�
  *   이름만 같고 다른 파일이면 별개로 두되 경로를 구분한다(`(파일 선택 2)/Button.tsx`).
  */
 export function addPicked<T extends PickedMeta>(list: T[], incoming: T[]): T[] {
+  return addPickedWithStats(list, incoming).list;
+}
+
+/** 이번 선택이 목록에 어떻게 합쳐졌는가 */
+export type AddStats = {
+  /** 목록에 새로 늘어난 파일 */
+  added: number;
+  /** 이미 목록에 있는 같은 파일이라 추가하지 않은 것(같은 선택 안의 중복 포함) */
+  unchanged: number;
+  /** 같은 경로인데 크기나 수정 시각이 달라 새로 고른 파일로 바꾼 것 */
+  replaced: number;
+};
+
+const isSame = (a: PickedMeta, b: PickedMeta) => a.size === b.size && a.lastModified === b.lastModified;
+
+/** addPicked와 같은 규칙으로 합치되, 몇 개가 늘었고 몇 개가 이미 있었는지도 알려 준다 */
+export function addPickedWithStats<T extends PickedMeta>(list: T[], incoming: T[]): { list: T[]; stats: AddStats } {
   const result = [...list];
+  const stats: AddStats = { added: 0, unchanged: 0, replaced: 0 };
   for (const item of incoming) {
     if (item.hasPath) {
       const i = result.findIndex((r) => r.hasPath && r.path === item.path);
-      if (i >= 0) result[i] = item;
-      else result.push(item);
+      if (i < 0) {
+        result.push(item);
+        stats.added++;
+      } else {
+        if (isSame(result[i], item)) stats.unchanged++;
+        else stats.replaced++;
+        result[i] = item;
+      }
       continue;
     }
     const sameName = result.filter((r) => !r.hasPath && r.name === item.name);
-    const dup = sameName.findIndex((r) => r.size === item.size && r.lastModified === item.lastModified);
+    const dup = sameName.findIndex((r) => isSame(r, item));
     if (dup >= 0) {
       result[result.indexOf(sameName[dup])] = { ...item, ordinal: sameName[dup].ordinal, path: sameName[dup].path };
+      stats.unchanged++;
       continue;
     }
     const used = new Set(sameName.map((r) => r.ordinal));
     let ordinal = 1;
     while (used.has(ordinal)) ordinal++;
     result.push({ ...item, ordinal, path: pathOf(item.name, ordinal) });
+    stats.added++;
   }
-  return result;
+  return { list: result, stats };
+}
+
+/** 합치기 결과 안내 문구. 중복이 없었으면 null(안내가 필요 없다) */
+export function addNotice(stats: AddStats): string | null {
+  if (stats.unchanged === 0 && stats.replaced === 0) return null;
+  const parts: string[] = [];
+  if (stats.added > 0) parts.push(`${stats.added}개를 추가했습니다.`);
+  if (stats.unchanged > 0) parts.push(`이미 목록에 있는 ${stats.unchanged}개는 추가하지 않았습니다.`);
+  if (stats.replaced > 0) parts.push(`같은 경로의 ${stats.replaced}개는 새로 고른 파일로 바꿨습니다.`);
+  return parts.join(" ");
 }
 
 export const removePicked = <T extends PickedMeta>(list: T[], path: string): T[] => list.filter((r) => r.path !== path);

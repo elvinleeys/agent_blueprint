@@ -17,8 +17,10 @@ export type AnalyzeResult = {
   officialCount: number;
   codeFileCount: number;
   designSystemFileCount: number;
-  /** 디자인 시스템 파일과 같은 파일(내용이 같고 경로 끝이 이어짐)이라 코드 쪽에서 뺀 파일 수(같은 폴더를 두 칸에 올린 경우) */
-  sameAsDesignSystemCount: number;
+  /** 디자인 시스템 파일과 같은 파일(내용이 같고 경로 끝이 이어짐)이라 코드 쪽에서 뺀 파일(같은 폴더를 두 칸에 올린 경우). 어느 디자인 시스템 파일과 같은지 함께 담는다 */
+  sameFiles: { path: string; designSystemPath: string }[];
+  /** 코드 칸에 올린 파일 수(같은 파일을 빼기 전). codeFileCount는 뺀 뒤의 비교 대상 파일 수 */
+  uploadedCodeFileCount: number;
   findings: Finding[];
   summary: CompareSummary;
   /** 디자인 시스템 파일로 스펙을 만들 때 버린 값(형식이 맞지 않는 variant, 중복 이름) */
@@ -53,7 +55,7 @@ export function analyzeCode(input: AnalyzeInput): AnalyzeOutcome {
   let partialFiles: PartialFile[] = [];
   let failedPaths: string[] = [];
   let code = input.code;
-  let sameAsDesignSystemCount = 0;
+  const sameFiles: AnalyzeResult["sameFiles"] = [];
   let designSystemFileCount = 0;
 
   if (designSystem.kind === "json") {
@@ -73,8 +75,12 @@ export function analyzeCode(input: AnalyzeInput): AnalyzeOutcome {
     designSystemFileCount = designSystem.files.length;
     // 같은 폴더를 두 칸에 모두 올리면 디자인 시스템 컴포넌트가 "같은 이름의 별도 구현"으로 잡히므로 같은 파일은 코드 쪽에서 뺀다.
     // 내용이 같고 경로 끝이 이어지는 경우만 같은 파일로 본다(다른 위치에 복사해 둔 같은 내용의 파일은 별도 구현으로 남긴다)
-    code = input.code.filter((f) => !designSystem.files.some((d) => d.content === f.content && pathsOverlap(d.path, f.path)));
-    sameAsDesignSystemCount = input.code.length - code.length;
+    code = [];
+    for (const f of input.code) {
+      const match = designSystem.files.find((d) => d.content === f.content && pathsOverlap(d.path, f.path));
+      if (match) sameFiles.push({ path: f.path, designSystemPath: match.path });
+      else code.push(f);
+    }
   }
 
   const target = extractComponents(code);
@@ -86,7 +92,8 @@ export function analyzeCode(input: AnalyzeInput): AnalyzeOutcome {
       officialCount: official.length,
       codeFileCount: code.length,
       designSystemFileCount,
-      sameAsDesignSystemCount,
+      sameFiles,
+      uploadedCodeFileCount: input.code.length,
       findings,
       summary,
       inferWarnings,

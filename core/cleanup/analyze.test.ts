@@ -14,7 +14,7 @@ describe("analyzeCode", () => {
     const o = analyzeCode({ code, designSystem: { kind: "files", files: ds } });
     expect(o.ok).toBe(true);
     if (!o.ok) return;
-    expect(o.result).toMatchObject({ specSource: "files", officialCount: 1, codeFileCount: 3, designSystemFileCount: 1, sameAsDesignSystemCount: 0 });
+    expect(o.result).toMatchObject({ specSource: "files", officialCount: 1, codeFileCount: 3, designSystemFileCount: 1, sameFiles: [], uploadedCodeFileCount: 3 });
     expect(o.result.findings.map((f) => f.rule)).toEqual(["C-05", "C-01", "C-01"]);
     expect(o.result.partialFiles.map((p) => p.path)).toEqual(["app/broken.tsx"]);
   });
@@ -41,7 +41,7 @@ describe("analyzeCode", () => {
     const o = analyzeCode({ code: [...ds, ...code], designSystem: { kind: "files", files: ds } });
     expect(o.ok).toBe(true);
     if (o.ok) {
-      expect(o.result.sameAsDesignSystemCount).toBe(1);
+      expect(o.result.sameFiles).toEqual([{ path: "ds/Button.tsx", designSystemPath: "ds/Button.tsx" }]);
       expect(o.result.codeFileCount).toBe(3);
       expect(o.result.findings.filter((f) => f.rule === "C-05")).toHaveLength(1); // app/Button.tsx만
     }
@@ -51,11 +51,11 @@ describe("analyzeCode", () => {
     const one = (path: string) => analyzeCode({ code: [{ path, content: ds[0].content }], designSystem: { kind: "files", files: ds } });
     for (const same of ["my-app/ds/Button.tsx", "ds/Button.tsx", "Button.tsx", "C:\\x\\ds\\Button.tsx"]) {
       const o = one(same);
-      expect(o.ok && o.result.sameAsDesignSystemCount, same).toBe(1);
+      expect(o.ok && o.result.sameFiles.length, same).toBe(1);
     }
     for (const copy of ["app/Button.tsx", "dss/Button.tsx", "ds/old/Button.tsx"]) {
       const o = one(copy);
-      expect(o.ok && o.result.sameAsDesignSystemCount, copy).toBe(0);
+      expect(o.ok && o.result.sameFiles.length, copy).toBe(0);
       expect(o.ok && o.result.findings.map((f) => f.rule), copy).toEqual(["C-05"]);
     }
   });

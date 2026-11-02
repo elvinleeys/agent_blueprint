@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AnalyzeResult } from "@/core/cleanup/analyze";
 import type { CompRef, Finding } from "@/core/cleanup/compare";
-import { groupFindings, RULE_TITLE } from "./result-view";
+import { countFindings, groupFindings, RULE_TITLE } from "./result-view";
 
 const where = (r: CompRef) => (r.path ? `${r.name} (${r.path})` : `${r.name} (공식 스펙 항목)`);
 
@@ -48,6 +48,7 @@ function FindingCard({ f }: { f: Finding }) {
 export default function ResultSection({ result }: { result: AnalyzeResult }) {
   const { summary } = result;
   const g = groupFindings(result.findings);
+  const counts = countFindings(result.findings);
   const partial = result.partialFiles;
 
   return (
@@ -59,8 +60,27 @@ export default function ResultSection({ result }: { result: AnalyzeResult }) {
         공식 컴포넌트 {result.officialCount}개 기준 · 비교한 컴포넌트 {summary.comparedCount}개
         {summary.internalCount > 0 && ` · 파일 안에서만 쓰는 ${summary.internalCount}개 제외`}
       </p>
-      {result.sameAsDesignSystemCount > 0 && (
-        <p className="text-sm text-foreground-secondary">검사할 코드에 올린 파일 중 디자인 시스템 파일과 내용이 같은 {result.sameAsDesignSystemCount}개는 비교에서 뺐습니다.</p>
+      {/* 아래 구역의 개수와 맞춘 요약: 정보는 "서로 비슷한 컴포넌트"와 접힌 "공식 목록에 없음"의 합이다 */}
+      <p className="text-sm font-medium text-foreground">
+        경고 {counts.warning} · 정보 {counts.info} (서로 비슷한 컴포넌트 {counts.infoMerge} + 공식 목록에 없음 {counts.notOfficial}) · 합계 {counts.total}
+      </p>
+
+      {result.sameFiles.length > 0 && (
+        <details className="text-sm text-foreground-secondary">
+          <summary className="cursor-pointer">검사할 코드에서 뺀 같은 파일 {result.sameFiles.length}개 (디자인 시스템 칸에도 있는 파일)</summary>
+          <ul className="mt-1 list-disc pl-5">
+            {result.sameFiles.map((f) => (
+              <li key={f.path}>
+                {f.path} (디자인 시스템 칸의 {f.designSystemPath}와 같음)
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {result.codeFileCount === 0 && (
+        <Alert variant="destructive">
+          <AlertDescription>검사할 코드의 파일이 모두 디자인 시스템 파일과 같아 비교할 코드가 없습니다. 디자인 시스템 칸에는 공식 컴포넌트가 있는 폴더만, 검사할 코드 칸에는 정리할 코드를 올려 주세요.</AlertDescription>
+        </Alert>
       )}
 
       {partial.length > 0 && (
@@ -87,12 +107,12 @@ export default function ResultSection({ result }: { result: AnalyzeResult }) {
       )}
       {result.inferWarnings.length > 0 && (
         <details className="text-sm text-foreground-secondary">
-          <summary className="cursor-pointer">공식 스펙을 만들 때 건너뛴 값 {result.inferWarnings.length}건</summary>
+          <summary className="cursor-pointer">디자인 시스템 칸에서 공식 목록을 만들 때 건너뛴 값 {result.inferWarnings.length}건</summary>
           <ul className="mt-1 list-disc pl-5">
             {result.inferWarnings.map((w, i) => (
               <li key={i}>
                 {w.kind === "variant-dropped" && `${w.component}: kebab-case가 아닌 variant를 뺐습니다 (${w.values.join(", ")})`}
-                {w.kind === "duplicate-name" && `${w.name}: 같은 이름이 여러 파일에 있어 첫 파일만 썼습니다 (${w.paths.join(", ")})`}
+                {w.kind === "duplicate-name" && `${w.name}: 같은 이름의 컴포넌트가 디자인 시스템 칸의 여러 파일에 있어 첫 파일만 공식으로 썼습니다 (${w.paths.join(", ")})`}
                 {w.kind === "invalid-component" && `${w.name}: ${w.message}`}
               </li>
             ))}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addPicked, pickedLabel, removePicked, type PickedMeta } from "./picked-files";
+import { addNotice, addPicked, addPickedWithStats, pickedLabel, removePicked, type PickedMeta } from "./picked-files";
 
 const folderFile = (path: string, size = 10): PickedMeta => ({ path, name: path.split("/").pop()!, size, lastModified: 1, hasPath: true, ordinal: 1 });
 const loose = (name: string, size = 10, lastModified = 1): PickedMeta => ({ path: name, name, size, lastModified, hasPath: false, ordinal: 1 });
@@ -52,6 +52,49 @@ describe("addPicked: 경로가 없는 파일(파일 여러 개 선택)", () => {
   it("경로가 있는 파일과 경로가 없는 파일은 서로 합치지 않는다", () => {
     const a = addPicked([], [folderFile("A.tsx")]);
     expect(addPicked(a, [loose("A.tsx")])).toHaveLength(2);
+  });
+});
+
+describe("addPickedWithStats / addNotice", () => {
+  const stats = (list: PickedMeta[], incoming: PickedMeta[]) => addPickedWithStats(list, incoming).stats;
+
+  it("처음 고르면 모두 추가, 안내 없음", () => {
+    const s = stats([], [folderFile("a/A.tsx"), folderFile("a/B.tsx")]);
+    expect(s).toEqual({ added: 2, unchanged: 0, replaced: 0 });
+    expect(addNotice(s)).toBeNull();
+  });
+
+  it("같은 폴더를 다시 올리면 모두 '이미 있음'(크기·수정 시각이 같음)", () => {
+    const first = addPicked([], [folderFile("a/A.tsx"), folderFile("a/B.tsx"), folderFile("a/C.tsx")]);
+    const s = stats(first, [folderFile("a/A.tsx"), folderFile("a/B.tsx"), folderFile("a/C.tsx")]);
+    expect(s).toEqual({ added: 0, unchanged: 3, replaced: 0 });
+    expect(addNotice(s)).toBe("이미 목록에 있는 3개는 추가하지 않았습니다.");
+  });
+
+  it("일부만 겹치면 새로 늘어난 수와 이미 있던 수를 함께 알린다", () => {
+    const first = addPicked([], [folderFile("a/A.tsx")]);
+    const s = stats(first, [folderFile("a/A.tsx"), folderFile("a/B.tsx")]);
+    expect(s).toEqual({ added: 1, unchanged: 1, replaced: 0 });
+    expect(addNotice(s)).toBe("1개를 추가했습니다. 이미 목록에 있는 1개는 추가하지 않았습니다.");
+  });
+
+  it("같은 경로인데 내용이 달라졌으면 '바꿨다'로 따로 센다", () => {
+    const first = addPicked([], [folderFile("a/A.tsx", 10)]);
+    const s = stats(first, [folderFile("a/A.tsx", 99)]);
+    expect(s).toEqual({ added: 0, unchanged: 0, replaced: 1 });
+    expect(addNotice(s)).toBe("같은 경로의 1개는 새로 고른 파일로 바꿨습니다.");
+  });
+
+  it("같은 선택 안의 중복, 경로 없는 파일의 중복도 '이미 있음'으로 센다", () => {
+    expect(stats([], [folderFile("a/A.tsx"), folderFile("a/A.tsx")])).toEqual({ added: 1, unchanged: 1, replaced: 0 });
+    const first = addPicked([], [loose("Button.tsx")]);
+    expect(stats(first, [loose("Button.tsx"), loose("Button.tsx", 20)])).toEqual({ added: 1, unchanged: 1, replaced: 0 });
+  });
+
+  it("합친 목록은 addPicked와 같다", () => {
+    const first = addPicked([], [folderFile("a/A.tsx")]);
+    const incoming = [folderFile("a/A.tsx"), folderFile("b/B.tsx")];
+    expect(addPickedWithStats(first, incoming).list).toEqual(addPicked(first, incoming));
   });
 });
 

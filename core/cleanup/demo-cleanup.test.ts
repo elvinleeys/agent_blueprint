@@ -37,7 +37,7 @@ describe("fixtures/demo-cleanup: 두 칸에 각각 올렸을 때", () => {
 
   it("디자인 시스템 폴더를 올린 경우: 경고 3(C-05 1, C-02 1, C-03 1), 정보 8(C-02 1, C-01 7)", () => {
     const r = run({ kind: "files", files: upload("design-system") });
-    expect(r).toMatchObject({ specSource: "files", officialCount: 3, codeFileCount: 8, designSystemFileCount: 3, sameAsDesignSystemCount: 0, partialFiles: [], failedPaths: [] });
+    expect(r).toMatchObject({ specSource: "files", officialCount: 3, codeFileCount: 8, designSystemFileCount: 3, sameFiles: [], uploadedCodeFileCount: 8, partialFiles: [], failedPaths: [] });
     expect(r.summary).toMatchObject({ comparedCount: 8, internalCount: 0, unresolvedCount: 0 });
 
     expect(r.findings.filter((f) => f.severity === "warning")).toHaveLength(3);
@@ -83,11 +83,30 @@ describe("fixtures/demo-cleanup: 두 칸에 각각 올렸을 때", () => {
     expect(core(files.findings)).toEqual(core(json.findings));
   });
 
-  it("같은 폴더를 두 칸에 모두 올려도(검사할 코드에 demo-cleanup 전체) 디자인 시스템 파일은 중복 구현으로 잡히지 않는다", () => {
-    const r = run({ kind: "files", files: upload("design-system") }, [...upload("design-system"), ...upload("app")]);
-    expect(r.sameAsDesignSystemCount).toBe(3);
-    expect(names(r.findings, "C-05")).toEqual(["Button"]); // app/Button.tsx만
+  // 브라우저는 폴더를 고르면 선택한 폴더 이름부터 경로를 준다: demo-cleanup 전체를 고르면 "demo-cleanup/design-system/Button.tsx"
+  const uploadWhole = () => [...upload("app"), ...upload("design-system")].map((f) => ({ ...f, path: `demo-cleanup/${f.path}` }));
+
+  it("디자인 시스템 칸에는 design-system, 코드 칸에는 demo-cleanup 전체: 같은 파일 3개(Button·Dialog·Input)를 모두 알리고, app/Button.tsx는 C-05로 남는다", () => {
+    const r = run({ kind: "files", files: upload("design-system") }, uploadWhole());
+    expect(r.sameFiles).toEqual([
+      { path: "demo-cleanup/design-system/Button.tsx", designSystemPath: "design-system/Button.tsx" },
+      { path: "demo-cleanup/design-system/Dialog.tsx", designSystemPath: "design-system/Dialog.tsx" },
+      { path: "demo-cleanup/design-system/Input.tsx", designSystemPath: "design-system/Input.tsx" },
+    ]);
+    expect(r).toMatchObject({ uploadedCodeFileCount: 11, codeFileCount: 8 });
+    expect(r.inferWarnings).toEqual([]);
+    // 같은 파일은 중복 구현으로 잡히지 않고, 내용이 다른 app/Button.tsx만 C-05
+    const c05 = r.findings.filter((f) => f.rule === "C-05");
+    expect(c05).toHaveLength(1);
+    expect(c05[0]).toMatchObject({ officialPath: "design-system/Button.tsx", component: { name: "Button", path: "demo-cleanup/app/Button.tsx" } });
     expect(r.findings).toHaveLength(11);
+  });
+
+  it("두 칸 모두 demo-cleanup 전체: 코드 파일이 모두 디자인 시스템 칸의 파일과 같아 비교할 코드가 없다(같은 이름 Button은 디자인 시스템 칸의 중복으로만 알린다)", () => {
+    const r = run({ kind: "files", files: uploadWhole() }, uploadWhole());
+    expect(r.sameFiles).toHaveLength(11);
+    expect(r).toMatchObject({ uploadedCodeFileCount: 11, codeFileCount: 0, findings: [], officialCount: 10 });
+    expect(r.inferWarnings).toEqual([{ kind: "duplicate-name", name: "Button", paths: ["demo-cleanup/app/Button.tsx", "demo-cleanup/design-system/Button.tsx"] }]);
   });
 
   it("거르기: 폴더 전체(README·JSON 포함)를 올려도 분석 대상은 .tsx뿐", () => {

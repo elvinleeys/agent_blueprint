@@ -18,6 +18,20 @@ export type GroupedFindings = {
   notOfficial: Of<"C-01">[];
 };
 
+export type FindingCounts = {
+  warning: number;
+  /** 정보 전체 = infoMerge + notOfficial. 화면의 구역 개수와 맞춰 합계를 설명하는 데 쓴다 */
+  info: number;
+  infoMerge: number;
+  notOfficial: number;
+  total: number;
+};
+
+export function countFindings(findings: Finding[]): FindingCounts {
+  const g = groupFindings(findings);
+  return { warning: g.warnings.length, info: g.infoMerge.length + g.notOfficial.length, infoMerge: g.infoMerge.length, notOfficial: g.notOfficial.length, total: findings.length };
+}
+
 /** 결과를 화면 구역으로 나눈다. 각 구역 안의 순서는 compare가 정한 순서를 따른다 */
 export function groupFindings(findings: Finding[]): GroupedFindings {
   return {

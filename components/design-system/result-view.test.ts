@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compareDesignSystem } from "@/core/cleanup/compare";
 import type { AnalyzedComponent } from "@/core/cleanup/types";
-import { groupFindings } from "./result-view";
+import { countFindings, groupFindings } from "./result-view";
 
 const comp = (name: string, o: Partial<AnalyzedComponent> = {}): AnalyzedComponent => ({
   name, path: `src/features/${name}.tsx`, props: [], variants: [], inherits: [], inheritsComponents: [], unresolved: [], exported: true, ...o,
@@ -35,5 +35,12 @@ describe("groupFindings", () => {
 
   it("모든 결과가 정확히 한 구역에 들어간다", () => {
     expect(g.warnings.length + g.infoMerge.length + g.notOfficial.length).toBe(r.findings.length);
+  });
+
+  it("개수: 정보는 '서로 비슷한 컴포넌트'와 '공식 목록에 없음'의 합이고, 합계가 맞는다", () => {
+    const c = countFindings(r.findings);
+    expect(c).toEqual({ warning: 2, info: 5, infoMerge: 1, notOfficial: 4, total: 7 });
+    expect(c.warning + c.info).toBe(c.total);
+    expect(c.info).toBe(r.findings.filter((f) => f.severity === "info").length);
   });
 });

@@ -79,7 +79,7 @@ export default function DesignSystemPanel() {
         {mode === "files" ? (
           <>
             <p className="text-sm text-foreground-secondary">디자인 시스템 폴더(예: src/components/ui)를 선택하세요. 올린 파일에서 내보낸 컴포넌트가 공식 컴포넌트가 됩니다. 다른 저장소의 폴더여도 됩니다.</p>
-            <FileListSection idPrefix="ds" pickers={[{ label: "디자인 시스템 폴더 선택", directory: true }]} upload={ds} disabled={running} />
+            <FileListSection idPrefix="ds" title="디자인 시스템" pickers={[{ label: "폴더 선택", directory: true }]} upload={ds} disabled={running} />
           </>
         ) : (
           <label className="flex flex-col gap-1 text-sm text-foreground">
@@ -101,12 +101,13 @@ export default function DesignSystemPanel() {
         <h2 id="ds-code-title" className="text-lg font-semibold text-foreground">
           2. 검사할 코드
         </h2>
-        <p className="text-sm text-foreground-secondary">정리할 코드가 있는 폴더(예: src)를 선택하거나 파일을 여러 개 선택하세요. 파일이 많으면 더 좁은 폴더(예: src/components/ui)를 선택하세요.</p>
+        <p className="text-sm text-foreground-secondary">정리할 코드가 있는 폴더(예: src)를 선택하거나, 폴더 선택이 안 되는 브라우저에서는 파일을 여러 개 선택하세요. 파일이 많으면 더 좁은 폴더(예: src/components/ui)를 선택하세요.</p>
         <FileListSection
           idPrefix="code"
+          title="검사할 코드"
           pickers={[
             { label: "폴더 선택", directory: true },
-            { label: "파일 여러 개 선택 (폴더 선택이 안 되는 브라우저용)", directory: false },
+            { label: "파일 선택", directory: false },
           ]}
           upload={code}
           disabled={running}

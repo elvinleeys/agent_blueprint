@@ -70,5 +70,7 @@ export async function handleExportsPost(request: Request, ctx: IdContext): Promi
     }
     documents.push({ format, fileName: exportFileName(blueprint.data, format), content, recorded: !skipped });
   }
-  return Response.json({ revision: ref.data.revision, documents });
+  // 스펙 항목이 하나도 없으면 규칙 파일에 담길 규칙이 적다. 막지 않고 화면이 경고하도록 알린다
+  const specEmpty = Object.values(input.spec).every((v) => !v?.trim());
+  return Response.json({ revision: ref.data.revision, specEmpty, documents });
 }

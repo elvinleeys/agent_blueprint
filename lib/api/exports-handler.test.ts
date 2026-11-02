@@ -93,6 +93,14 @@ describe("POST /api/projects/[id]/exports", () => {
     expect(vi.mocked(savePromptExport).mock.calls.map((c) => c[2].format)).toEqual(["claude_md"]);
   });
 
+  it("스펙 항목이 하나도 없으면(저장된 입력 없음·공백만) specEmpty true, 하나라도 있으면 false", async () => {
+    expect((await (await handleExportsPost(post(), ctx())).json()).specEmpty).toBe(true);
+    vi.mocked(loadSpecInput).mockResolvedValue({ ok: true, data: { spec: { overview: "  " }, route: null, imageCount: 0 } });
+    expect((await (await handleExportsPost(post(), ctx())).json()).specEmpty).toBe(true);
+    vi.mocked(loadSpecInput).mockResolvedValue({ ok: true, data: { spec: { overview: "상품 상세" }, route: null, imageCount: 0 } });
+    expect((await (await handleExportsPost(post(), ctx())).json()).specEmpty).toBe(false);
+  });
+
   it("주소를 null로 보내면 주소를 지우고 안내가 들어간 문서를 만든다", async () => {
     vi.mocked(loadSpecInput).mockResolvedValue({ ok: true, data: { spec: {}, route: null, imageCount: 0 } });
     expect((await handleExportsPost(post({ route: null }), ctx())).status).toBe(200);

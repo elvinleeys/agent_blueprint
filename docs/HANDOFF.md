@@ -18,7 +18,7 @@ AgentBlueprint: AI 에이전트가 코드를 쓰기 전에 프론트엔드 구�
 
 ## 현재 완료 상태
 
-최신 커밋: `70106d2` (main). 작업 트리는 깨끗했다. 이 문서 커밋 이후의 커밋은 `git log`로 본다.
+최신 커밋은 `git log -1`로 본다(6단계 문서 갱신 커밋이 마지막이다). 아래 표의 5·6단계와 프로젝트 삭제까지 구현·문서화가 끝났고, 남은 일은 사용자의 화면 확인이다.
 
 | 단계 | 내용 | 상태 |
 | --- | --- | --- |
@@ -27,37 +27,29 @@ AgentBlueprint: AI 에이전트가 코드를 쓰기 전에 프론트엔드 구�
 | 3 | 보완 A(지시서와 연결된 최신 판은 갱신하지 않고 새 판), 보완 B의 DB 함수 `saveSpecRoute`, `lib/db/prompt-exports.ts` (`58c4b53`) | 완료 |
 | 7 | 셸 명령에 `<<`가 있으면 막는 PreToolUse 훅 (`4c2185c`, `.claude/hooks/block-heredoc.mjs`) | 완료 |
 | 4 | `POST /api/projects/[id]/exports` + 순서 테스트 + 변이 실험 (`70106d2`) | 완료 |
-| 5 | 지시서 탭 화면 | **남음** |
-| 6 | 문서 갱신 | **남음** |
+| 5 | 지시서 탭 화면: `runExport`·복사·내려받기 (`d6c65fc`), 화면 (`c5e1d0b`), 스택별 화면 주소 안내와 HTML "실험적" 표시 (`4a9cf21`) | 완료 |
+| 부가 | 프로젝트 삭제 `DELETE /api/projects/[id]` + 설정 탭 삭제 버튼(이름 재입력) (`6c49024`) | 완료 |
+| 6 | 문서 갱신(`CLAUDE.md`, `data-model.md` 7-2절, `docs/dev-log/2026-11-02.md`, 이 문서, 계획 문서의 고도화 목록) | 완료 |
 
-검증 상태: 전체 `vitest` 833개 통과, `tsc`·`lint` 통과(4단계 시점). 실제 Supabase·OpenAI를 부른 검증은 이번 작업에서 하지 않았다.
+검증 상태: 전체 `vitest` 859개 통과, `tsc`·`lint` 통과. 실제 Supabase·OpenAI를 부른 검증은 하지 않았다(`next build` 통과: `/api/projects/[id]/exports`를 포함한 라우트가 모두 컴파일됨).
 
 ### 내보내기 API (4단계, 구현됨)
 
 `POST /api/projects/[id]/exports`, JSON `{ route?: string | null }`.
 순서: 화면 주소 저장(보냈을 때만) → 최신 판 확인 → 판·스펙 읽기 → 형식마다 직전 기록과 비교해 같으면 기록 건너뛰기, 다르면 그 판에 연결해 `prompt_exports`에 저장.
-응답: `{ revision, documents: [{ format: "claude_md" | "prompt", fileName, content, recorded }] }`. 건너뛴 문서도 `content`는 돌려준다.
+응답: `{ revision, specEmpty, documents: [{ format: "claude_md" | "prompt", fileName, content, recorded }] }`. 건너뛴 문서도 `content`는 돌려준다.
 오류: 400(형식)·401·404(프로젝트 또는 판 없음)·413·422(주소 형식, 루트가 둘)·500(저장된 설계도 손상)·503(DB). 이 라우트는 **DB에 저장된 최신 판만** 쓰므로 화면이 먼저 저장 큐를 비워야 한다.
 기록으로 최신 판이 지시서와 연결되면, 그다음 편집은 `saveBlueprint`가 새 판으로 저장한다(보완 A).
 
-## 남은 작업과 완료 기준
+## 남은 작업
 
-### 5단계: 지시서 탭 화면
+구현할 단계는 끝났다. 남은 것은 사용자의 화면 확인과 그 결과에 따른 수정이다.
 
-- **탭 표시**: `components/workspace/Workspace.tsx`의 지시서 탭 `enabled: true`로 바꾸고 "(준비 중)" 제거. 디자인 시스템 정리 탭은 그대로 비활성.
-- **구성**: 원본 선택(설계도 / 디자인 시스템 정리 계획은 비활성), 화면 주소 입력, 내보내기 버튼. 결과는 화면 규칙 파일·지시서 두 문서를 각각 미리보기·복사·`.md` 내려받기(파일 이름은 응답의 `fileName`).
-- **안내 문구**: 화면 규칙 파일은 `.claude/rules/` 폴더에 넣기 / "새 프로젝트면 공통 규칙은 별도로 정하고, 기존 프로젝트면 기존 CLAUDE.md가 우선입니다." / 복사와 내려받기는 같은 내용이어도 몇 번이든 가능하고 건너뛰는 것은 지시서 기록 저장과 새 판 만들기뿐.
-- **순서**: 저장 큐 `drain()`이 성공(true)한 뒤에만 내보내기 요청. 실패하면 요청하지 않고 저장 실패 안내. 이 순서는 테스트로 고정.
-- **확인 창·안내**: 미해결 오류(심각도 error 위반)가 있으면 내보내기 전 확인 창. 설계도가 없으면 구조 설계 탭으로 안내. 저장된 스펙 입력이 없어도 내보내기는 허용하되 "스펙 항목이 비어 있어 규칙이 적습니다" 경고.
-- **복사**: 클립보드 API 실패 시 대체 방식(`execCommand`), 그래도 실패하면 직접 선택 안내.
-- **완료 기준**: `tsc`·`lint`·`vitest` 통과, 위 순서·분기 테스트, 사용자가 화면에서 확인할 항목 목록 전달. 사용자가 직접 확인할 때 `prompt_exports`의 RLS 동작도 본다.
-
-### 6단계: 문서 갱신
-
-- `CLAUDE.md`: 폴더 구조(`core/prompt`, `core/adapters/*/prompt.ts`, 새 `lib/db`·`lib/api`·`components` 파일), API 표에 `/api/projects/[id]/exports` 추가, 필요하면 규칙 문장.
-- `.claude/skills/define-schema/data-model.md`: 지시서·`prompt_exports`·화면 주소 관련 변경 이력.
-- 개발 일지(`docs/dev-log/`에 날짜 파일 추가): 3~5단계 기록, 발생한 문제, 알려진 한계.
-- **완료 기준**: 문서의 파일 이름·경로·API가 실제 코드와 일치(구현된 것만 적는다).
+- **사용자 화면 확인**: 지시서 탭 내보내기(drain 순서, 오류 확인 창, 스펙 비어 있음 경고, 복사·내려받기), `prompt_exports` RLS(행 생성, 같은 내용 재내보내기 시 증가 없음, 편집 시 새 판, 다른 계정에서 안 보임), 프로젝트 삭제(이름 재입력, 연쇄 삭제, 목록 이동, 남의 프로젝트 404).
+- **확인 결과에 따른 수정**: 문제가 나오면 해당 `lib/client/run-export.ts`, `lib/api/exports-handler.ts`, `components/prompt/`, `components/workspace/ProjectSettingsTab.tsx`부터 본다.
+- **작은 정리 후보**: 구조 설계 탭 입력칸의 화면 주소 도움말을 스택별 문구(`components/prompt/export-notes.ts`의 `ROUTE_HELP`)로 통일.
+- **일정상 뒤로 미룬 것**: 기능 B(디자인 시스템 정리). 고도화 목록은 `tasks/plan-prompt-export.md`(지시서 추가 메모 칸, HTML·CSS에 맞는 블록·클래스 중심 설계 포함).
+- **완료 기준**: 사용자가 확인 항목을 통과하고 `tsc`·`lint`·`vitest`·`next build`가 통과한다.
 
 ## 반드시 지킬 규칙
 
@@ -79,8 +71,8 @@ AgentBlueprint: AI 에이전트가 코드를 쓰기 전에 프론트엔드 구�
 1. `CLAUDE.md` (규칙·폴더 구조·API 표)
 2. `.claude/skills/define-schema/data-model.md` (스키마 기준 문서)
 3. `tasks/plan-prompt-export.md` (단계·보완 A·B·고도화 목록·알려진 한계)
-4. `docs/dev-log/2026-11-01.md` (최신 개발 로그, 지시서 1~2단계와 기준 파일 검토 결정)
-5. 5단계용: `components/workspace/Workspace.tsx`, `components/structure/SaveQueueProvider.tsx`·`ViolationsProvider.tsx`, `store/structure-store.ts`, `lib/client/save-queue.ts`(`drain`), `lib/api/exports-handler.ts`, `core/prompt/export-prompt.ts`
+4. `docs/dev-log/2026-11-02.md` (최신 개발 로그, 지시서 3~6단계·프로젝트 삭제), `docs/dev-log/2026-11-01.md` (지시서 1~2단계와 기준 파일 검토 결정)
+5. 지시서 화면·내보내기 관련: `components/workspace/Workspace.tsx`, `components/structure/SaveQueueProvider.tsx`·`ViolationsProvider.tsx`, `store/structure-store.ts`, `lib/client/save-queue.ts`(`drain`), `lib/api/exports-handler.ts`, `core/prompt/export-prompt.ts`
 
 ## 실행·검증 명령
 
@@ -95,7 +87,7 @@ npm run build                # 빌드
 ## 알려진 한계와 아직 확인하지 못한 것
 
 - **경쟁 상태는 처리하지 않았다**: `saveSpecRoute`(행이 없을 때 동시 호출), `saveBlueprint`(지시서 연결 확인과 쓰기 사이), 내보내기(비교와 기록 사이, 최신 판 id 읽기와 설계도 읽기 사이).
-- **`prompt_exports`의 RLS 동작은 실제로 확인하지 못했다.** 지금까지는 가짜 DB 테스트뿐이다. 5단계 화면에서 사용자가 실제로 내보낼 때 확인한다.
+- **`prompt_exports`의 RLS 동작은 실제로 확인하지 못했다.** 지금까지는 가짜 DB 테스트뿐이다. 사용자가 화면에서 실제로 내보낼 때 확인한다(프로젝트 삭제의 연쇄 삭제도 같다).
 - `.claude/rules`의 `paths` glob이 실제 Claude Code에서 도는지 열어 보지 못했다(문서에 맞춰 작성).
 - 토큰 인식은 `color`·`spacing`·`radius`·`layout`·`font`·`shadow`·`size`·`border`·`opacity` 접두사만 하고, 클래스로 바꾸는 것은 색·간격·모서리뿐이다.
 - 기준 파일(`fixtures/prompts/`)은 AI 응답 1건 기준이라 가정 필드(`assumedFields`)가 있는 입력의 기준 파일은 없다.

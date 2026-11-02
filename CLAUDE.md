@@ -42,7 +42,7 @@ app/                       # 라우팅만. 로직을 두지 않는다 (globals.c
   api/draft/route.ts       # AI 초안 생성 (NDJSON 스트림 응답)
   api/explain/route.ts     # 위반 설명·정리 제안
   api/analyze/route.ts     # 업로드 코드 분석
-  api/projects/            # 프로젝트 목록·생성, [id]/blueprint(불러오기·자동 저장), [id]/revisions(판 목록·새 판 추가)
+  api/projects/            # 프로젝트 목록·생성, [id](이름 변경·삭제), [id]/blueprint(불러오기·자동 저장), [id]/revisions(판 목록·새 판 추가), [id]/exports(지시서 내보내기)
   auth/callback/route.ts   # GitHub 로그인 콜백
   login/page.tsx           # 쿼리를 유지해 홈(/)으로 보내는 주소 (로그인은 홈이 맡음)
   account/page.tsx         # S-09 계정
@@ -53,18 +53,18 @@ core/                      # 순수 TypeScript. React·Next.js import 금지
   preview/                 # 구조 미리보기 계산(설계도 layout·placement·order·반응형 → 상자 트리, 훅 분리)
   rules/                   # 구조 검사. types(Violation: 규칙 id·심각도·노드 id 목록·메시지), run(checkBlueprint: 공통 규칙+스택 어댑터 규칙을 돌려 오류→경고→정보 순으로 정렬, countByNode), helpers, fixture(테스트용 설계도 만들기)
   rules/common/            # 공통 검사 규칙 R-01~R-08 (simple: R-01·04·06·07·08, relations: R-02·03·05). 기준이 모호한 규칙의 상수(범용 상태 이름, R-05 임계값)는 relations.ts 위쪽
-  adapters/framework/      # next(NX-01~05). html·react는 전용 규칙이 없음. 위치 추천·지시서는 아직 구현 전
-  adapters/styling/        # css(HC-01), css-modules(CM-01), tailwind(TW-01·02). 지시서 변환은 아직 구현 전
-  adapters/architecture/   # fsd(AR-01~03). type-based·feature-based는 전용 규칙이 없음. 위치 추천·파일 위치 지시서는 아직 구현 전
-  prompt/                  # 지시서 템플릿·생성기, AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
+  adapters/framework/      # next(NX-01~05). html·react는 전용 검사 규칙이 없음. prompt.ts: 지시서용 스택 문장(렌더링 방식, 라우팅, 화면 주소 변환)
+  adapters/styling/        # css(HC-01), css-modules(CM-01), tailwind(TW-01·02). prompt.ts: 스타일 문장·Tailwind 토큰 대응표·반응형 변환
+  adapters/architecture/   # fsd(AR-01~03). type-based·feature-based는 전용 검사 규칙이 없음. prompt.ts: 파일 위치·구현 순서·paths 머리말
+  prompt/                  # 지시서 생성기(export-prompt: 분기, export-common: 공통·파일 이름, rule-file: 화면 규칙 파일, task-prompt: 지시서. 템플릿만 쓰고 AI를 부르지 않아 같은 입력이면 같은 출력), AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
   edit/                    # 노드 편집 연산(순수 함수: 성공 시 새 설계도, 실패 시 거부 이유·노드·경로). update-node(내용·배치·차지 칸·스타일, 값 검증은 스키마로), layout(display 전환·반응형 한 줄·영향 계산·빈 스타일), move-node(+부모 후보), reorder-node, add-child, delete-node, notice(자동 변경 안내 문구). 드래그 편집도 같은 연산을 쓴다
-components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, home/ 홈 소개·로그인, layout/ 공통 헤더·GuardedLink(저장 안 된 수정이 있으면 이동 전에 묻는 링크), auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼, workspace/ 작업공간 탭·설정(스토어와 저장 큐를 탭 바깥에서 들고 있음), structure/ 구조 설계 탭: 스펙 입력·진행·오류·미리보기·트리, NodeEditPanel(노드 편집 패널), edit/(구역·입력칸·목록·확인 창: 연산을 부르고 결과만 반영), auto-save·SaveQueueProvider·SaveStatus(자동 저장), generate(초안 생성 흐름: 시작→저장 정리→생성), regenerate-confirm(다시 생성 확인 조건), ViolationsProvider(설계도가 바뀔 때만 검사를 계산해 context로 제공, 결과는 저장하지 않음)·CheckResults(검사 결과 카드)·violation-mark(오류 빨강·경고 주황 실선, AI 가정은 회색 점선))
+components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, home/ 홈 소개·로그인, layout/ 공통 헤더·GuardedLink(저장 안 된 수정이 있으면 이동 전에 묻는 링크), auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼(HTML은 "실험적" 표시), workspace/ 작업공간 탭·설정·프로젝트 삭제 확인 창(스토어와 저장 큐를 탭 바깥에서 들고 있음), prompt/ 지시서 탭(PromptPanel: 화면 주소·내보내기·오류 확인 창, ExportDocumentCard: 미리보기·복사·내려받기, export-notes: 고정 안내 문구), structure/ 구조 설계 탭: 스펙 입력·진행·오류·미리보기·트리, NodeEditPanel(노드 편집 패널), edit/(구역·입력칸·목록·확인 창: 연산을 부르고 결과만 반영), auto-save·SaveQueueProvider·SaveStatus(자동 저장), generate(초안 생성 흐름: 시작→저장 정리→생성), regenerate-confirm(다시 생성 확인 조건), ViolationsProvider(설계도가 바뀔 때만 검사를 계산해 context로 제공, 결과는 저장하지 않음)·CheckResults(검사 결과 카드)·violation-mark(오류 빨강·경고 주황 실선, AI 가정은 회색 점선))
 store/                     # Zustand 스토어 (structure-store: 작업공간별 설계도·스펙 입력·초안 진행·선택·보기 상태, applyEdit(편집 적용)·editRevision·저장 상태·입력 오류·노드 선택 확인)
 lib/utils.ts              # cn 클래스 병합(shadcn)
 lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리), proxy.ts(세션 갱신)
 lib/auth/                  # 서버 전용 인증 처리 (callback-handler: /auth/callback 처리)
-lib/client/                # 브라우저 전용 (resize-images: 캔버스 축소, draft-request: 요청 구성, draft-stream: NDJSON 읽기·끊김 감지, run-draft: 초안 생성 한 번의 흐름, save-queue: 자동 저장 큐(800ms 디바운스·한 번에 하나·settle), save-blueprint: 설계도 저장 PUT과 사용자용 오류 문구, leave-guard: 저장 안 된 수정이 있을 때 떠나기 전 경고)
-lib/db/                    # DB 접근 함수 (projects, blueprints, spec-inputs: 클라이언트를 인자로 받고 결과를 DbResult로 반환, 저장 전·읽은 뒤 Zod 검증)
+lib/client/                # 브라우저 전용 (resize-images: 캔버스 축소, draft-request: 요청 구성, draft-stream: NDJSON 읽기·끊김 감지, run-draft: 초안 생성 한 번의 흐름, save-queue: 자동 저장 큐(800ms 디바운스·한 번에 하나·settle), save-blueprint: 설계도 저장 PUT과 사용자용 오류 문구, leave-guard: 저장 안 된 수정이 있을 때 떠나기 전 경고, run-export: 지시서 내보내기 흐름(저장 큐 drain 성공 뒤에만 요청), copy-text: 클립보드 복사 대체 방식·.md 내려받기, delete-project: 프로젝트 삭제 요청·이름 재입력 확인)
+lib/db/                    # DB 접근 함수 (projects(삭제 포함), blueprints, spec-inputs(화면 주소만 저장하는 saveSpecRoute 포함), prompt-exports: 클라이언트를 인자로 받고 결과를 DbResult로 반환, 저장 전·읽은 뒤 Zod 검증)
 supabase/migrations/       # 표·RLS·GRANT SQL (대시보드 SQL 편집기로 직접 실행, 절차는 docs/db-migration.md)
 supabase/tests/            # RLS 격리 확인 스크립트(적용 후 실행, 끝에 rollback)
 lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, http: 오류 매핑·JSON 읽기, *-handler: 라우트별 처리)
@@ -165,9 +165,10 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 | `/api/explain` | POST | 위반 1건 또는 정리 대상 | 설명·수정 제안 | OpenAI 호출 |
 | `/api/analyze` | POST | 업로드 컴포넌트 코드 | props·variant·스타일 값 | 코드 원본 저장 안 함 |
 | `/api/projects` | GET/POST | POST: JSON `{ name, stack }` | `{ projects }` / 201 `{ project }` | 로그인 세션 필수, 본인 프로젝트만(RLS) |
-| `/api/projects/[id]` | PATCH | JSON `{ name }`(이름만, 1~100자) | 200 `{ project }` | 스택은 바꿀 수 없음. 오류는 400·401·404·413·422·503 |
-| `/api/projects/[id]/blueprint` | GET/PUT | GET: `?revision=N`(생략 시 최신 판) / PUT: 설계도 JSON | `{ blueprint }`(내 프로젝트인데 판이 없으면 null, 없거나 남의 프로젝트는 404) / `{ revision, updatedAt }` | PUT은 자동 저장: 최신 판 갱신. 최신 판이 AI 초안이고 저장본이 사용자 수정본이면 새 판 추가(AI 원본 보존) |
-| `/api/projects/[id]/revisions` | GET/POST | POST: 설계도 JSON | `{ revisions }`(없거나 남의 프로젝트는 404) / 201 `{ revision, updatedAt }` | POST는 새 판 추가(지시서 내보내기 시점). 요청 본문 1MB 이하·JSON만. 오류는 400·401·404·409·413·422·503 |
+| `/api/projects/[id]` | PATCH/DELETE | PATCH: JSON `{ name }`(이름만, 1~100자) / DELETE: 본문 없음 | 200 `{ project }` / 200 `{ id }` | 스택은 바꿀 수 없음. DELETE는 설계도·스펙 입력·지시서를 DB 연쇄 삭제로 함께 지움(이름 재입력 확인은 화면이 맡음). 없거나 남의 프로젝트는 404. 오류는 400·401·404·413(PATCH)·422(PATCH)·503 |
+| `/api/projects/[id]/blueprint` | GET/PUT | GET: `?revision=N`(생략 시 최신 판) / PUT: 설계도 JSON | `{ blueprint }`(내 프로젝트인데 판이 없으면 null, 없거나 남의 프로젝트는 404) / `{ revision, updatedAt }` | PUT은 자동 저장: 최신 판 갱신. 최신 판이 AI 초안이고 저장본이 사용자 수정본이면 새 판 추가(AI 원본 보존). 최신 판에 지시서(`prompt_exports`)가 연결돼 있어도 새 판 추가 |
+| `/api/projects/[id]/revisions` | GET/POST | POST: 설계도 JSON | `{ revisions }`(없거나 남의 프로젝트는 404) / 201 `{ revision, updatedAt }` | POST는 새 판 추가(지금 화면은 쓰지 않는다. 지시서 내보내기는 `/exports`가 최신 판에 연결해 기록한다). 요청 본문 1MB 이하·JSON만. 오류는 400·401·404·409·413·422·503 |
+| `/api/projects/[id]/exports` | POST | JSON `{ route? }`(문자열 또는 null, 보내면 화면 주소로 저장) | 200 `{ revision, specEmpty, documents: [{ format, fileName, content, recorded }] }` | DB에 저장된 최신 판으로 화면 규칙 파일(`claude_md`)·지시서(`prompt`)를 템플릿으로 만들고(OpenAI 호출 없음) `prompt_exports`에 그 판과 연결해 기록. 같은 판·같은 형식의 직전 기록과 내용이 같으면 기록만 건너뜀(`recorded` false). 기록으로 최신 판이 지시서와 연결되면 이후 편집은 새 판으로 저장됨. 화면은 먼저 저장 큐를 drain해야 함. 오류는 400·401·404(프로젝트·판 없음)·413·422(주소 형식, 루트가 둘)·500(저장된 설계도 손상)·503 |
 | `/auth/callback` | GET | GitHub OAuth code | 세션 쿠키 설정 후 리다이렉트 | Supabase 세션 교환 |
 
 모든 API 라우트는 처리 전 Supabase 세션 유무를 먼저 확인하고, 없으면 401을 반환한다(로그인 화면은 제외).
@@ -193,6 +194,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 - 노드 이동·수정 로직은 `parentId`·`order` 외의 하위 노드 데이터를 건드리지 않는다. 트리 형태가 필요하면 `buildTree()`로 변환해 쓴다.
 - 설계도 편집은 `core/edit`의 순수 함수(연산)로만 한다. 화면(컴포넌트)은 연산을 부르고 결과(`EditResult`)만 반영하며, 스토어의 `applyEdit`을 거치지 않고 설계도 객체를 직접 고치지 않는다. 연산은 결과 전체를 `BlueprintSchema`로 검증해 통과한 것만 돌려주므로 저장되는 설계도는 항상 유효하다. 새 편집 규칙은 연산과 단위 테스트에 넣고, 같은 규칙을 화면에도 중복해서 쓰지 않는다(화면은 선택지를 숨길 때만 같은 판단 함수를 쓴다).
 - 설계도 저장(`PUT /api/projects/[id]/blueprint`)은 화면에서 직접 `fetch`하지 않고 저장 큐(`lib/client/save-queue`)를 거친다: 마지막 편집 후 800ms 디바운스, 한 번에 하나씩 순서대로, 전송 중 편집은 합쳐 최신본만. 초안을 다시 생성할 때는 먼저 편집을 막고(`startDraft`) 큐를 정리(`settle`)한 뒤 생성한다(`components/structure/generate.ts`). 이 순서를 바꾸면 이전 편집이 새 AI 초안 위에 저장될 수 있다.
+- 지시서 내보내기(`POST /api/projects/[id]/exports`)는 화면에서 `lib/client/run-export`의 `runExport`를 거친다: 저장 큐 `drain()`이 true일 때만 요청한다(서버는 DB에 저장된 최신 판만 쓰므로, 보내지 않은 수정이 남은 채 요청하면 이전 내용으로 지시서가 만들어진다). 지시서와 연결된 판은 `saveBlueprint`가 갱신하지 않고 새 판으로 저장한다(`lib/db/blueprints.ts`).
 - 스택 어댑터(`core/adapters`)를 수정할 때는 해당 어댑터에만 영향이 가도록 하고, 다른 어댑터·공통 규칙을 함께 건드리지 않는다.
 - 파일을 만들거나 고칠 때는 Write·Edit 도구를 쓴다. 셸 heredoc(`cat <<EOF`, `python - <<EOF`)로 긴 내용을 쓰지 않는다(인용 부호·한글·`'''`가 섞이면 구문 오류로 명령 전체가 실행되지 않는다). 셸은 실행·검사 명령에만 쓴다.
 - 서버(`next start`·`next dev` 등)를 띄워 확인할 때는 직접 띄운 포트의 프로세스만 종료한다. `taskkill /IM node.exe`처럼 node 프로세스 전체를 종료하지 않는다(사용자가 켜 둔 개발 서버가 꺼진다). 포트는 사용자가 쓰는 3000이 아닌 다른 번호를 쓰고, 포트로 PID를 찾아 그 PID만 종료한다.

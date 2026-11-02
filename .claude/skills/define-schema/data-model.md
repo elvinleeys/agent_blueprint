@@ -351,6 +351,17 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 > FSD 계층은 src/ 아래에 둔다. app/products/[id]/page.tsx는 src/pages/product-detail의 화면을 re-export만 한다. 루트에 빈 pages/ 폴더를 둔다.
 > ProductDetailPage → src/pages/product-detail/ui, AddToCartButton → src/features/add-to-cart/ui, useCart → src/features/add-to-cart/model
 
+## 7-2. 지시서 저장·판 연결 규칙
+
+지시서는 `prompt_exports` 표에 쌓이는 이력이며 수정 없이 추가·삭제만 한다. 스키마 필드는 바뀌지 않았다.
+
+- **형식**: `format`은 `prompt`(지시서)와 `claude_md`(화면 규칙 파일, 이전 이름 그대로). 설계도 기준이면 `source_type`은 `blueprint`이고 `blueprint_id`가 반드시 있다(`cleanup`은 디자인 시스템 정리용으로 비워 둔 값).
+- **내보내기 한 번의 저장**: `POST /api/projects/[id]/exports`가 **DB에 저장된 최신 판**으로 두 문서를 만들고, 형식마다 그 판과 연결해 한 행씩 추가한다. 생성은 템플릿만 쓰므로 같은 설계도·스펙·화면 주소면 같은 내용이다.
+- **같은 내용 건너뛰기**: 같은 판·같은 형식의 가장 최근 기록과 내용이 같으면 행을 추가하지 않는다(응답의 `recorded` false). 복사·내려받기는 이 규칙과 무관하게 몇 번이든 할 수 있다.
+- **판 연결 규칙**: 지시서가 연결된 판은 그 지시서가 가리키는 내용이므로 바꾸지 않는다. 자동 저장(`saveBlueprint`)은 최신 판에 지시서가 연결돼 있으면 갱신하지 않고 새 판을 추가하고, 그 뒤의 저장은 그 새 판을 갱신한다. 최신 판이 AI 초안일 때 사용자 수정본을 새 판으로 저장하는 기존 규칙과 같은 방식이다.
+- **삭제 보호**: 지시서가 연결된 판과 최신 판은 직접 삭제할 수 없다(트리거 BP003·BP002). 프로젝트를 삭제하면 `on delete cascade`로 설계도·스펙 입력·지시서가 함께 지워진다(`DELETE /api/projects/[id]`).
+- **화면 주소**: `spec_inputs.route`에 저장하며 `/`로 시작하고 공백 없이 200자 이내(DB check). 지시서 탭이 내보내기 때 함께 저장한다(`saveSpecRoute`는 7개 항목·이미지 수를 건드리지 않고 route만 바꾼다). 주소는 설계도(`blueprints.route`)에도 있으나 지시서는 저장된 스펙 입력의 값을 쓴다.
+
 ## 8. 기획서 대비 변경 이력
 
 - v1.0: `kind`, `events`, `order`, `style.ownsOuterSpacing` 추가, `state`·`props` 객체 배열화, 평면 배열 + parentId 확정, 노드 이동 규칙
@@ -362,6 +373,7 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 - v1.2 보완 (span 규칙): `placement.span`이 부모 `layout.columns`보다 크면 스키마가 거부한다(이전에는 문서에만 있던 규칙). 자동 보정은 span을 부모 열 수로 줄인다. 스키마 필드 변경 없음, version 유지
 - v1.2 보완 (노드 편집): 스키마 필드 변경 없음, version 유지. 6절에 편집 연산 규칙 추가(페이지 종류는 루트만, 훅↔컴포넌트 종류 전환 금지, 자식을 받는 노드의 빈 배치를 세로 flex로 채움, client 조상 아래로 옮기거나 추가한 노드는 client, grid에서 배치 방식을 바꾸면 자식 차지 칸 비움, 열 수를 줄일 때 자식 차지 칸이 더 크면 거부, 사용자가 고친 필드는 AI 가정 목록에서 제외). 노드 이동의 자리 초기화에 "span이 새 부모 열 수 초과" 추가
 - v1.2 보완 (지시서): 스키마 필드 변경 없음, version 유지. 검사 규칙 NX-05(FSD가 아닌 Next.js에서 `pages/`·`app/` 위치, 경고) 추가. AI 응답 자동 보정에 "스택이 Tailwind인데 `style.scope`가 module이면 utility로 변경" 추가
+- v1.2 보완 (지시서 저장): 스키마 필드 변경 없음, version 유지. 7-2절 추가(지시서와 연결된 최신 판은 갱신하지 않고 새 판 추가, 같은 내용이면 기록 건너뛰기, 화면 주소만 저장, 프로젝트 삭제 시 연쇄 삭제)
 - v1.2 보완 (구조 검사 구현): 스키마 필드 변경 없음, version 유지. 검사 규칙 R-08(루트가 아닌 page, 경고) 추가, 5절에 판정 기준 확정(NX-02·R-02·R-03·R-05·R-06·TW-02·HC-01)
 - v1.2: `stack.architecture`(type-based / feature-based / fsd), `route`, 노드 `location` 추가, Next.js + FSD 배치 규칙, FSD 검사 규칙 AR-01~AR-03
 

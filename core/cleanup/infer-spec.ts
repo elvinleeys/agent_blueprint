@@ -1,5 +1,5 @@
 import { DesignSystemSpecSchema, DSComponentSchema, type DesignSystemSpec, type DSComponent } from "../schema/design-system";
-import type { AnalyzedComponent } from "./types";
+import type { AnalyzedComponent, OfficialComponent } from "./types";
 
 // ── 스펙 JSON 직접 입력 ────────────────────────────────────────────
 
@@ -33,7 +33,14 @@ export type InferWarning =
   | { kind: "duplicate-name"; name: string; paths: string[] }
   | { kind: "invalid-component"; name: string; message: string };
 
-export type InferResult = { components: DSComponent[]; warnings: InferWarning[]; used: number; internalSkipped: number };
+export type InferResult = {
+  components: DSComponent[];
+  /** components와 같은 순서. 비교에서 합치기 판단에 쓰도록 상속 정보를 덧붙인 것 */
+  official: OfficialComponent[];
+  warnings: InferWarning[];
+  used: number;
+  internalSkipped: number;
+};
 
 /**
  * 디자인 시스템 폴더 안에서 내보낸 컴포넌트로 공식 컴포넌트 목록을 만든다(토큰은 만들지 않음).
@@ -46,6 +53,7 @@ export function inferComponents(analyzed: AnalyzedComponent[], folder: string): 
   for (const c of inFolder.filter((c) => c.exported)) byName.set(c.name, [...(byName.get(c.name) ?? []), c]);
 
   const components: DSComponent[] = [];
+  const official: OfficialComponent[] = [];
   for (const [name, list] of byName) {
     if (list.length > 1) warnings.push({ kind: "duplicate-name", name, paths: list.map((c) => c.path) });
     const c = list[0];
@@ -54,8 +62,10 @@ export function inferComponents(analyzed: AnalyzedComponent[], folder: string): 
     if (dropped.length) warnings.push({ kind: "variant-dropped", component: name, values: dropped });
     const candidate = { name, variants: valid, props: c.props.map((p) => ({ name: p.name, type: p.type || "unknown", required: p.required })) };
     const r = DSComponentSchema.safeParse(candidate);
-    if (r.success) components.push(r.data);
-    else warnings.push({ kind: "invalid-component", name, message: r.error.issues[0]?.message ?? "스키마 검증 실패" });
+    if (r.success) {
+      components.push(r.data);
+      official.push({ ...r.data, inherits: c.inherits, inheritsComponents: c.inheritsComponents });
+    } else warnings.push({ kind: "invalid-component", name, message: r.error.issues[0]?.message ?? "스키마 검증 실패" });
   }
-  return { components, warnings, used: components.length, internalSkipped: inFolder.filter((c) => !c.exported).length };
+  return { components, official, warnings, used: components.length, internalSkipped: inFolder.filter((c) => !c.exported).length };
 }

@@ -1,3 +1,8 @@
+import type { DSComponent } from "../schema/design-system";
+
+/** 비교에 쓰는 공식 컴포넌트. 상속 정보는 폴더에서 만든 스펙일 때만 있다(JSON 스펙에는 없음) */
+export type OfficialComponent = DSComponent & { inherits?: string[]; inheritsComponents?: string[] };
+
 /** 분석의 유일한 입력. 업로드·GitHub 어느 쪽이든 이 모양으로 만들어 넘긴다 */
 export type SourceFile = { path: string; content: string };
 

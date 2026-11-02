@@ -46,9 +46,9 @@ function WorkspaceBody({ project, onRenamed, structureLoadError }: { project: Pr
   const [tab, setTab] = useState<TabId>("structure");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-4 lg:min-h-0">
       <div>
-        <nav aria-label="경로" className="mb-2 flex items-center gap-1 text-sm text-foreground-tertiary">
+        <nav aria-label="경로" className="mb-1 flex items-center gap-1 text-sm text-foreground-tertiary">
           <GuardedLink href="/projects" className="hover:text-primary">
             프로젝트
           </GuardedLink>
@@ -80,7 +80,7 @@ function WorkspaceBody({ project, onRenamed, structureLoadError }: { project: Pr
         ))}
       </div>
 
-      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="flex flex-1 flex-col lg:min-h-0 lg:overflow-y-auto">
         {tab === "settings" && <ProjectSettingsTab project={project} onRenamed={onRenamed} />}
         {tab === "structure" && <StructurePanel projectId={project.id} loadError={structureLoadError} />}
         {tab === "design-system" && <DesignSystemPanel />}

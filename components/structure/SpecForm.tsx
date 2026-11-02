@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { canDraft, isImageOnly } from "@/lib/client/draft-request";
 import { SPEC_TEXT_KEYS } from "@/lib/db/spec-inputs";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ export default function SpecForm({ onGenerate }: { onGenerate: () => void }) {
   const setSpecField = useStructureStore((s) => s.setSpecField);
   const setRoute = useStructureStore((s) => s.setRoute);
 
+  const [compact] = useState(hasBlueprint); // 처음 열 때만 정한다(이후 사용자가 접고 펼친 상태를 덮지 않는다)
+
   const busy = status === "resizing" || status === "running";
   const ready = canDraft(spec, images.length);
 
@@ -30,12 +33,14 @@ export default function SpecForm({ onGenerate }: { onGenerate: () => void }) {
       }}
     >
       {SPEC_TEXT_KEYS.map((key) => (
-        <div key={key} className="flex flex-col gap-1">
-          <label htmlFor={`spec-${key}`} className="text-sm font-medium text-foreground">
+        // 설계도가 있으면 화면 개요만 펼치고 나머지는 접는다(내용은 접어도 그대로 남는다)
+        <details key={key} open={!compact || key === "overview"} className="group flex flex-col gap-1">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md text-sm font-medium text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
             {SPEC_LABELS[key]}
-          </label>
-          <Textarea id={`spec-${key}`} rows={3} value={spec[key] ?? ""} disabled={busy} onChange={(e) => setSpecField(key, e.target.value)} />
-        </div>
+            <span className="text-xs font-normal text-foreground-tertiary">{spec[key]?.trim() ? "입력됨" : ""}</span>
+          </summary>
+          <Textarea id={`spec-${key}`} aria-label={SPEC_LABELS[key]} className="mt-1" rows={3} value={spec[key] ?? ""} disabled={busy} onChange={(e) => setSpecField(key, e.target.value)} />
+        </details>
       ))}
 
       <div className="flex flex-col gap-1">

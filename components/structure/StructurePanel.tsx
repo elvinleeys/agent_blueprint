@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { StructureView } from "../../store/structure-store";
-import CheckResults, { countSummary } from "./CheckResults";
+import CheckDock from "./CheckDock";
 import DraftError from "./DraftError";
 import DraftProgress from "./DraftProgress";
 import { ConfirmDialog } from "./edit/ConfirmDialog";
@@ -21,15 +21,18 @@ import { useSaveQueue } from "./SaveQueueProvider";
 import SpecForm from "./SpecForm";
 import { useStructureApi, useStructureStore } from "./StructureStoreProvider";
 import TreeView from "./TreeViewLoader";
-import { useViolations, ViolationsProvider } from "./ViolationsProvider";
+import { ViolationsProvider } from "./ViolationsProvider";
+
+// 큰 화면에서 카드 본문이 남은 높이 안에서 스크롤되게 한다
+const SCROLL = "lg:min-h-0 lg:flex-1 lg:overflow-y-auto";
 
 function Layout({ projectId, loadError }: { projectId: string; loadError: string | null }) {
   const api = useStructureApi();
   const blueprint = useStructureStore((s) => s.blueprint);
   const view = useStructureStore((s) => s.view);
   const setView = useStructureStore((s) => s.setView);
-  const [inputOpen, setInputOpen] = useState(true);
-  const summary = countSummary(useViolations().violations);
+  // 설계도가 이미 있으면 스펙 입력은 처음부터 접어 둔다(없으면 입력이 첫 일이라 펼침)
+  const [inputOpen, setInputOpen] = useState(() => api.getState().blueprint === null);
 
   const queue = useSaveQueue();
   const [confirmReasons, setConfirmReasons] = useState<RegenerateReason[] | null>(null);
@@ -46,16 +49,17 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-3 lg:min-h-0">
       {loadError && (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{loadError}</AlertDescription>
         </Alert>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-12">
+      {/* 큰 화면: 세 열이 남은 높이를 나누고 각각 안에서 스크롤한다 */}
+      <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)]">
         {inputOpen && (
-          <Card className="lg:col-span-3">
+          <Card className="lg:col-span-3 lg:min-h-0">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 스펙 입력
@@ -64,13 +68,13 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
                 </Button>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className={SCROLL}>
               <SpecForm onGenerate={requestGenerate} />
             </CardContent>
           </Card>
         )}
 
-        <Card className={cn(inputOpen ? "lg:col-span-5" : "lg:col-span-8")}>
+        <Card className={cn("lg:min-h-0", inputOpen ? "lg:col-span-5" : "lg:col-span-8")}>
           <CardHeader>
             <CardTitle className="flex flex-wrap items-center justify-between gap-2">
               화면 구조
@@ -82,7 +86,7 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className={cn(SCROLL, "flex flex-col gap-4")}>
             <DraftProgress />
             <DraftError onRetry={requestGenerate} />
             {!blueprint ? (
@@ -107,27 +111,17 @@ function Layout({ projectId, loadError }: { projectId: string; loadError: string
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-4">
+        <Card className="lg:col-span-4 lg:min-h-0">
           <CardHeader>
             <CardTitle>노드 편집</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className={SCROLL}>
             <NodeEditPanel />
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            검사 결과
-            {summary && <span className="ml-2 text-sm font-normal text-foreground-secondary">{summary}</span>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CheckResults />
-        </CardContent>
-      </Card>
+      <CheckDock />
 
       <ConfirmDialog
         open={confirmReasons !== null}

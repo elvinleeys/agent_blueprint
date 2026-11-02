@@ -98,6 +98,13 @@ lib/client/                      # 파일 읽기·개수·크기 검사
 4. 코드 원본이 DB·로그에 남지 않는다.
 5. `vitest`·`tsc --noEmit`·`lint`·`next build` 통과.
 
+## 알려진 한계 (실제 코드에서 못 읽는 경우가 많으면 나중에 보완)
+- `@/` 같은 tsconfig 경로 별칭 import는 따라가지 않는다(상대 경로만). 못 읽은 타입은 `unresolved`로 남는다.
+- `export { X } from "./y"` 재내보내기를 거쳐 가져온 타입·cva는 따라가지 않는다.
+- 패키지(`node_modules`)의 타입, 올리지 않은 파일의 타입은 읽지 못한다. `typeof 라이브러리.컴포넌트`는 상속한 컴포넌트로 이름만 기록한다.
+- 완전한 타입 검사기(program) 기반 분석은 고도화 목록에 둔다.
+- 디자인 시스템 폴더에서 자동 생성한 스펙은 컴포넌트 목록만 만든다(토큰은 JSON 입력으로만).
+
 ## Open Questions
 1. `/api/analyze`(서버 분석)를 위해 `typescript`를 `devDependencies`→`dependencies`로 옮겨도 될까요? (새 패키지는 아님) 싫으면 브라우저 분석으로 바꾸되 번들이 커집니다.
 2. 기준표의 임계값(Jaccard 0.5, props 8개)과 "variant 이름 한정" 가정이 괜찮은가요?

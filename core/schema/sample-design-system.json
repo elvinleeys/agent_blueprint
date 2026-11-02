@@ -1,0 +1,26 @@
+{
+  "version": "1.2",
+  "components": [
+    {
+      "name": "Button",
+      "variants": ["primary", "secondary", "outline-large"],
+      "props": [
+        { "name": "variant", "type": "\"primary\" | \"secondary\" | \"outline-large\"", "required": false },
+        { "name": "disabled", "type": "boolean", "required": false },
+        { "name": "onClick", "type": "() => void", "required": false }
+      ]
+    },
+    {
+      "name": "Card",
+      "variants": [],
+      "props": [{ "name": "title", "type": "string", "required": true }]
+    }
+  ],
+  "tokens": {
+    "color": { "primary": "#2563EB", "text": "#111827" },
+    "spacing": { "4": "16px", "6": "24px" },
+    "radius": { "md": "8px" },
+    "font": { "title": "24px" },
+    "layout": { "maxWidth": "1200px" }
+  }
+}

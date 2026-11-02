@@ -87,16 +87,40 @@ describe("SpecInputSchema", () => {
 });
 
 describe("DesignSystemSpecSchema", () => {
-  const ok = {
-    version: "1.2",
-    components: [{ name: "Button", variants: ["primary"], props: [{ name: "label", type: "string", required: true }] }],
-    tokens: { colors: { primary: "#2563EB" }, spacing: { "4": "16px" } },
-  };
-  it("통과", () => expect(DesignSystemSpecSchema.safeParse(ok).success).toBe(true));
-  it("거부: tokens.colors 누락", () =>
-    expect(DesignSystemSpecSchema.safeParse({ ...ok, tokens: { spacing: {} } }).success).toBe(false));
-  it("거부: prop required 누락", () =>
-    expect(
-      DesignSystemSpecSchema.safeParse({ ...ok, components: [{ name: "B", variants: [], props: [{ name: "a", type: "t" }] }] }).success,
-    ).toBe(false));
+  const loadDs = (): Json => JSON.parse(readFileSync("core/schema/sample-design-system.json", "utf-8"));
+
+  it("예시 JSON 통과", () => expect(DesignSystemSpecSchema.safeParse(loadDs()).success).toBe(true));
+  it("통과: radius·font·layout 생략", () => {
+    const d = loadDs();
+    delete d.tokens.radius;
+    delete d.tokens.font;
+    delete d.tokens.layout;
+    expect(DesignSystemSpecSchema.safeParse(d).success).toBe(true);
+  });
+
+  const invalidDs: [string, (d: Json) => void][] = [
+    ["컴포넌트명 소문자", (d) => (d.components[0].name = "button")],
+    ["컴포넌트명 중복", (d) => (d.components[1].name = "Button")],
+    ["variant 빈 문자열", (d) => (d.components[0].variants[0] = "")],
+    ["variant 중복", (d) => (d.components[0].variants[1] = "primary")],
+    ["variant 대문자", (d) => (d.components[0].variants[0] = "Primary")],
+    ["variant 공백", (d) => (d.components[0].variants[0] = "my variant")],
+    ["prop 이름 중복", (d) => (d.components[0].props[1].name = "variant")],
+    ["prop type 빈 문자열", (d) => (d.components[0].props[0].type = "")],
+    ["prop required 누락", (d) => delete d.components[0].props[0].required],
+    ["color 빈 객체", (d) => (d.tokens.color = {})],
+    ["spacing 누락", (d) => delete d.tokens.spacing],
+    ["radius 빈 객체", (d) => (d.tokens.radius = {})],
+    ["font 빈 객체", (d) => (d.tokens.font = {})],
+    ["layout 빈 객체", (d) => (d.tokens.layout = {})],
+    ["옛 그룹명(colors만 있음)", (d) => ((d.tokens.colors = d.tokens.color), delete d.tokens.color)],
+    ["토큰 키에 '.'", (d) => (d.tokens.color["a.b"] = "#fff")],
+    ["토큰 값 빈 문자열", (d) => (d.tokens.color.primary = "")],
+    ["version 불일치", (d) => (d.version = "1.1")],
+  ];
+  it.each(invalidDs)("거부: %s", (_name, mutate) => {
+    const d = loadDs();
+    mutate(d);
+    expect(DesignSystemSpecSchema.safeParse(d).success).toBe(false);
+  });
 });

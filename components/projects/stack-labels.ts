@@ -6,7 +6,8 @@ export const FRAMEWORKS = [
 ] as const;
 
 export const EXPERIMENTAL_LABEL = "실험적";
-export const HTML_EXPERIMENTAL_NOTE = "HTML은 아직 실험적입니다. 전용 검사 규칙이 없고 지시서 문장도 제한적입니다.";
+/** 새 프로젝트 만들기에서 고를 수 있는 프레임워크. HTML은 숨긴다(이미 만든 HTML 프로젝트는 그대로 열리고, API도 받는다) */
+export const NEW_PROJECT_FRAMEWORKS = FRAMEWORKS.filter((f) => f.value !== "html");
 
 export const STYLINGS = [
   { value: "css", label: "CSS" },

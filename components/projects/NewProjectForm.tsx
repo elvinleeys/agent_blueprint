@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ARCHITECTURES, EXPERIMENTAL_LABEL, FRAMEWORKS, HTML_EXPERIMENTAL_NOTE, STYLINGS } from "./stack-labels";
+import { ARCHITECTURES, EXPERIMENTAL_LABEL, NEW_PROJECT_FRAMEWORKS, STYLINGS } from "./stack-labels";
 
 const FIELD = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
 
@@ -68,11 +68,10 @@ export default function NewProjectForm() {
         <input id="project-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} className={FIELD} />
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        <Select id="framework" label="프레임워크" value={framework} options={FRAMEWORKS} onChange={setFramework} />
+        <Select id="framework" label="프레임워크" value={framework} options={NEW_PROJECT_FRAMEWORKS} onChange={setFramework} />
         <Select id="styling" label="스타일 방식" value={styling} options={STYLINGS} onChange={setStyling} />
         <Select id="architecture" label="디렉토리 구조" value={architecture} options={ARCHITECTURES} onChange={setArchitecture} />
       </div>
-      {framework === "html" && <p className="text-xs text-foreground-tertiary">{HTML_EXPERIMENTAL_NOTE}</p>}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}

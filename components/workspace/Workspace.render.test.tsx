@@ -20,6 +20,13 @@ describe("Workspace", () => {
     expect(out).not.toContain("저장하지 못했습니다");
   });
 
+  it("지시서 탭은 활성이고 디자인 시스템 정리 탭만 준비 중으로 남는다", () => {
+    const out = html({ blueprint, savedInput: null });
+    expect(out).toMatch(/<button[^>]*id="tab-prompt"(?![^>]*disabled="")[^>]*>지시서<\/button>/);
+    expect(out).toMatch(/<button[^>]*id="tab-design-system"[^>]*disabled=""[^>]*>디자인 시스템 정리/);
+    expect(out.match(/\(준비 중\)/g)).toHaveLength(1);
+  });
+
   it("설계도가 없으면 안내를 그린다", () => {
     const out = html({ blueprint: null, savedInput: null });
     expect(out).toContain("아직 설계도가 없습니다");

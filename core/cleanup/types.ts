@@ -8,11 +8,13 @@ export type AnalyzedComponent = {
   /** 컴포넌트가 선언된 파일 경로 */
   path: string;
   props: ExtractedProp[];
-  /** `variant` prop의 문자열 값(유니온 또는 같은 파일의 cva 정의). 형식 검사는 하지 않은 원문 */
+  /** `variant` prop의 문자열 값(유니온, 같은 파일·올린 파일의 타입 별칭, cva 정의). 형식 검사는 하지 않은 원문 */
   variants: string[];
   /** 상속한 HTML 요소(React.ComponentProps<"button">, ButtonHTMLAttributes<…> 등) 예: ["button"]. 읽지 못한 것이 아니다 */
   inherits: string[];
-  /** 정말 읽지 못한 props 타입 조각(import한 타입, Omit<…> 등). 비어 있지 않으면 props 목록이 일부일 수 있다 */
+  /** 상속한 컴포넌트: ComponentProps<typeof DialogPrimitive.Root>의 감싼 대상을 글자 그대로("DialogPrimitive.Root"). props는 읽지 못해도 읽지 못한 것으로 세지 않는다 */
+  inheritsComponents: string[];
+  /** 정말 읽지 못한 props 타입 조각(패키지 import, 올리지 않은 파일의 타입, Omit<…> 등). 비어 있지 않으면 props 목록이 일부일 수 있다 */
   unresolved: string[];
   /** 파일 밖으로 내보내는 컴포넌트인가. false면 파일 안에서만 쓰는 "내부용"(비교 대상 아님) */
   exported: boolean;

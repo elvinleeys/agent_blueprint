@@ -3,36 +3,30 @@ import type { AnalyzedComponent, ExtractedProp, PartialFile, SourceFile } from "
 
 const PASCAL = /^[A-Z][A-Za-z0-9]*$/;
 const WRAPPERS = new Set(["forwardRef", "memo"]);
+const MAX_IMPORT_DEPTH = 8;
 
-type Ctx = {
+type Decl = ts.TypeNode | ts.InterfaceDeclaration;
+
+/** 파일 하나의 선언 모음. imports는 상대 경로 import만 담는다(패키지 import는 따라가지 않음) */
+type FileCtx = {
+  path: string;
   sf: ts.SourceFile;
-  types: Map<string, ts.TypeNode | ts.InterfaceDeclaration>;
+  types: Map<string, Decl>;
   /** cva 변수 이름 → { 그룹 이름 → 키 목록 } */
   cva: Map<string, Map<string, string[]>>;
+  imports: Map<string, { from: string; name: string }>;
 };
 
-type Collected = { props: ExtractedProp[]; unresolved: string[]; inherits: string[] };
+/** 올린 파일 전체. .ts는 컴포넌트로 세지 않고 타입을 찾는 데만 쓴다 */
+type Project = { sources: Map<string, SourceFile>; cache: Map<string, FileCtx> };
 
-const ELEMENT_NAMES: Record<string, string> = { Anchor: "a", Paragraph: "p", TextArea: "textarea", UList: "ul", OList: "ol", LI: "li", Image: "img", Div: "div", Html: "html" };
-const toTag = (cls: string) => ELEMENT_NAMES[cls] ?? cls.toLowerCase();
-
-/**
- * HTML 기본 속성을 물려받는 타입이면 요소 이름을 돌려준다.
- * ComponentProps<"button">·ComponentPropsWithoutRef<"div"> → 글자 인자, ButtonHTMLAttributes<HTMLButtonElement>·HTMLAttributes<HTMLDivElement> → 요소 클래스
- */
-function htmlInherit(refName: string, typeArgs: readonly ts.TypeNode[] | undefined): string | null {
-  const last = refName.split(".").pop() ?? "";
-  const arg = typeArgs?.[0];
-  if (/^ComponentProps(WithoutRef|WithRef)?$/.test(last)) {
-    return arg && ts.isLiteralTypeNode(arg) && ts.isStringLiteral(arg.literal) ? arg.literal.text : null;
-  }
-  const m = /^(\w*?)HTMLAttributes$/.exec(last);
-  if (!m) return null;
-  const cls = arg ? /^HTML(\w+)Element$/.exec(arg.getText()) : null;
-  if (cls) return toTag(cls[1]);
-  if (arg?.getText() === "HTMLElement") return "element";
-  return m[1] ? m[1].toLowerCase() : arg ? null : "element";
-}
+type Collected = {
+  props: ExtractedProp[];
+  unresolved: string[];
+  inherits: string[];
+  inheritsComponents: string[];
+  cvaVariants: string[] | null;
+};
 
 const nameText = (n: ts.PropertyName): string | null =>
   ts.isIdentifier(n) || ts.isStringLiteral(n) || ts.isNumericLiteral(n) ? n.text : null;
@@ -41,6 +35,8 @@ const hasJsx = (node: ts.Node): boolean => {
   if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node)) return true;
   return ts.forEachChild(node, (c) => (hasJsx(c) ? true : undefined)) ?? false;
 };
+
+// ── 파일 문맥과 상대 경로 import 따라가기 ─────────────────────────────
 
 /** `cva(base, { variants: { variant: { a: "", b: "" } } })` 에서 그룹별 키를 읽는다 */
 function readCva(init: ts.Expression): Map<string, string[]> | null {
@@ -62,22 +58,117 @@ function readCva(init: ts.Expression): Map<string, string[]> | null {
   return groups;
 }
 
-function collectDeclarations(sf: ts.SourceFile): Pick<Ctx, "types" | "cva"> {
-  const types: Ctx["types"] = new Map();
-  const cva: Ctx["cva"] = new Map();
+function buildCtx(file: SourceFile): FileCtx {
+  const kind = file.path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const sf = ts.createSourceFile(file.path, file.content, ts.ScriptTarget.Latest, true, kind);
+  const ctx: FileCtx = { path: file.path, sf, types: new Map(), cva: new Map(), imports: new Map() };
   for (const st of sf.statements) {
-    if (ts.isInterfaceDeclaration(st)) types.set(st.name.text, st);
-    else if (ts.isTypeAliasDeclaration(st)) types.set(st.name.text, st.type);
+    if (ts.isInterfaceDeclaration(st)) ctx.types.set(st.name.text, st);
+    else if (ts.isTypeAliasDeclaration(st)) ctx.types.set(st.name.text, st.type);
     else if (ts.isVariableStatement(st)) {
       for (const d of st.declarationList.declarations) {
         if (!ts.isIdentifier(d.name) || !d.initializer) continue;
         const groups = readCva(d.initializer);
-        if (groups) cva.set(d.name.text, groups);
+        if (groups) ctx.cva.set(d.name.text, groups);
+      }
+    } else if (ts.isImportDeclaration(st) && ts.isStringLiteral(st.moduleSpecifier) && st.moduleSpecifier.text.startsWith(".")) {
+      const bindings = st.importClause?.namedBindings;
+      if (bindings && ts.isNamedImports(bindings)) {
+        for (const e of bindings.elements) ctx.imports.set(e.name.text, { from: st.moduleSpecifier.text, name: (e.propertyName ?? e.name).text });
       }
     }
   }
-  return { types, cva };
+  return ctx;
 }
+
+const getCtx = (project: Project, path: string): FileCtx | undefined => {
+  const hit = project.cache.get(path);
+  if (hit) return hit;
+  const src = project.sources.get(path);
+  if (!src) return undefined;
+  const ctx = buildCtx(src);
+  project.cache.set(path, ctx);
+  return ctx;
+};
+
+/** 올린 파일 경로 기준으로 상대 import를 파일로 바꾼다. 못 찾으면 null */
+function resolveImport(project: Project, fromPath: string, spec: string): string | null {
+  const parts = fromPath.split("/").slice(0, -1);
+  for (const seg of spec.split("/")) {
+    if (seg === "." || seg === "") continue;
+    if (seg === "..") parts.pop();
+    else parts.push(seg);
+  }
+  const base = parts.join("/");
+  return [base, `${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`].find((p) => project.sources.has(p)) ?? null;
+}
+
+/** 이름의 타입 선언을 같은 파일에서, 없으면 상대 경로 import를 따라 찾는다(import 사슬은 깊이 제한). 순환은 seen이 막는다 */
+function lookupType(project: Project, ctx: FileCtx, name: string, depth = 0): { decl: Decl; ctx: FileCtx } | undefined {
+  const local = ctx.types.get(name);
+  if (local) return { decl: local, ctx };
+  const imp = ctx.imports.get(name);
+  if (!imp || depth >= MAX_IMPORT_DEPTH) return undefined;
+  const target = resolveImport(project, ctx.path, imp.from);
+  const tctx = target ? getCtx(project, target) : undefined;
+  return tctx ? lookupType(project, tctx, imp.name, depth + 1) : undefined;
+}
+
+function lookupCva(project: Project, ctx: FileCtx, name: string, depth = 0): Map<string, string[]> | undefined {
+  const local = ctx.cva.get(name);
+  if (local) return local;
+  const imp = ctx.imports.get(name);
+  if (!imp || depth >= MAX_IMPORT_DEPTH) return undefined;
+  const target = resolveImport(project, ctx.path, imp.from);
+  const tctx = target ? getCtx(project, target) : undefined;
+  return tctx ? lookupCva(project, tctx, imp.name, depth + 1) : undefined;
+}
+
+// ── HTML 요소·컴포넌트 상속 ─────────────────────────────────────────
+
+const ELEMENT_NAMES: Record<string, string> = { Anchor: "a", Paragraph: "p", TextArea: "textarea", UList: "ul", OList: "ol", LI: "li", Image: "img", Div: "div", Html: "html" };
+const toTag = (cls: string) => ELEMENT_NAMES[cls] ?? cls.toLowerCase();
+
+type Inherit = { html: string } | { component: string };
+
+/**
+ * 속성을 물려받는 타입이면 대상을 돌려준다.
+ * ComponentProps<"button"> → HTML 요소, ComponentProps<typeof DialogPrimitive.Root> → 컴포넌트(글자 그대로),
+ * ButtonHTMLAttributes<HTMLButtonElement>·HTMLAttributes<HTMLDivElement> → HTML 요소
+ */
+function inheritOf(refName: string, typeArgs: readonly ts.TypeNode[] | undefined): Inherit | null {
+  const last = refName.split(".").pop() ?? "";
+  const arg = typeArgs?.[0];
+  if (/^ComponentProps(WithoutRef|WithRef)?$/.test(last)) {
+    if (arg && ts.isLiteralTypeNode(arg) && ts.isStringLiteral(arg.literal)) return { html: arg.literal.text };
+    if (arg && ts.isTypeQueryNode(arg)) return { component: arg.exprName.getText() };
+    return null;
+  }
+  const m = /^(\w*?)HTMLAttributes$/.exec(last);
+  if (!m) return null;
+  const cls = arg ? /^HTML(\w+)Element$/.exec(arg.getText()) : null;
+  if (cls) return { html: toTag(cls[1]) };
+  if (arg?.getText() === "HTMLElement") return { html: "element" };
+  const tag = m[1] ? m[1].toLowerCase() : arg ? null : "element";
+  return tag ? { html: tag } : null;
+}
+
+const WRAPPER_TYPES = /^(Omit|Pick|Partial|Required|Readonly)$/;
+
+/** Omit<React.ComponentProps<"input">, "size">처럼 감싼 것도 첫 인자가 상속이면 상속으로 본다 */
+function inheritOfRef(name: string | null, refText: string, typeArgs: readonly ts.TypeNode[] | undefined): Inherit | null {
+  const direct = inheritOf(refText, typeArgs);
+  if (direct) return direct;
+  const first = typeArgs?.[0];
+  return name && WRAPPER_TYPES.test(name) && first && ts.isTypeReferenceNode(first) ? inheritOf(first.typeName.getText(), first.typeArguments) : null;
+}
+
+function recordInherit(out: Collected, inh: Inherit) {
+  if ("html" in inh) out.inherits.push(inh.html);
+  else out.inheritsComponents.push(inh.component);
+}
+
+// ── props 수집 ─────────────────────────────────────────────────────
 
 function fromMembers(members: readonly ts.TypeElement[], out: Collected) {
   for (const m of members) {
@@ -91,53 +182,88 @@ function fromMembers(members: readonly ts.TypeElement[], out: Collected) {
   }
 }
 
-function collect(node: ts.TypeNode | ts.InterfaceDeclaration, ctx: Ctx, out: Collected, seen: Set<string>) {
+function collect(project: Project, node: Decl, ctx: FileCtx, out: Collected, seen: Set<string>) {
+  const follow = (name: string) => {
+    const found = lookupType(project, ctx, name);
+    const key = found ? `${found.ctx.path}#${name}` : "";
+    if (!found || seen.has(key)) return false;
+    collect(project, found.decl, found.ctx, out, new Set(seen).add(key));
+    return true;
+  };
+
   if (ts.isInterfaceDeclaration(node)) {
     fromMembers(node.members, out);
     for (const h of node.heritageClauses ?? []) {
       for (const t of h.types) {
         const name = ts.isIdentifier(t.expression) ? t.expression.text : null;
-        const local = name ? ctx.types.get(name) : undefined;
-        const html = htmlInherit(t.expression.getText(), t.typeArguments);
-        if (name && local && !seen.has(name)) collect(local, ctx, out, new Set(seen).add(name));
-        else if (html) out.inherits.push(html);
+        const inh = inheritOfRef(name, t.expression.getText(), t.typeArguments);
+        if (name && follow(name)) continue;
+        if (inh) recordInherit(out, inh);
         else out.unresolved.push(t.getText());
       }
     }
   } else if (ts.isTypeLiteralNode(node)) fromMembers(node.members, out);
-  else if (ts.isParenthesizedTypeNode(node)) collect(node.type, ctx, out, seen);
-  else if (ts.isIntersectionTypeNode(node)) node.types.forEach((t) => collect(t, ctx, out, seen));
+  else if (ts.isParenthesizedTypeNode(node)) collect(project, node.type, ctx, out, seen);
+  else if (ts.isIntersectionTypeNode(node)) node.types.forEach((t) => collect(project, t, ctx, out, seen));
   else if (ts.isTypeReferenceNode(node)) {
     const name = ts.isIdentifier(node.typeName) ? node.typeName.text : null;
-    const local = name ? ctx.types.get(name) : undefined;
     const arg = node.typeArguments?.[0];
-    // Omit<React.ComponentProps<"button">, "x">처럼 감싼 것도 첫 인자가 HTML 상속이면 상속으로 본다
-    const html = htmlInherit(node.typeName.getText(), node.typeArguments) ?? (name && /^(Omit|Pick|Partial|Required|Readonly)$/.test(name) && arg && ts.isTypeReferenceNode(arg) ? htmlInherit(arg.typeName.getText(), arg.typeArguments) : null);
-    if (html) out.inherits.push(html);
-    else if (name === "VariantProps" && arg && ts.isTypeQueryNode(arg) && ts.isIdentifier(arg.exprName) && ctx.cva.has(arg.exprName.text)) {
-      for (const [group, keys] of ctx.cva.get(arg.exprName.text)!) {
+    const inh = inheritOfRef(name, node.typeName.getText(), node.typeArguments);
+    const groups =
+      name === "VariantProps" && arg && ts.isTypeQueryNode(arg) && ts.isIdentifier(arg.exprName) ? lookupCva(project, ctx, arg.exprName.text) : undefined;
+    if (inh) recordInherit(out, inh);
+    else if (groups) {
+      for (const [group, keys] of groups) {
         out.props.push({ name: group, type: keys.map((k) => JSON.stringify(k)).join(" | ") || "string", required: false });
       }
-    } else if (name && local && !seen.has(name)) collect(local, ctx, out, new Set(seen).add(name));
-    else out.unresolved.push(node.getText());
+      out.cvaVariants = groups.get("variant") ?? out.cvaVariants;
+    } else if (!(name && follow(name))) out.unresolved.push(node.getText());
   } else out.unresolved.push(node.getText());
 }
 
-/** 유니온 타입 노드에서 문자열 리터럴 값. 문자열 리터럴이 아닌 멤버가 있으면 null */
-function literalUnion(type: ts.TypeNode): string[] | null {
+/** props 타입에서 prop 이름 → 타입 노드(variant 값을 읽기 위한 것). collect와 같은 해석 규칙 */
+function propTypeNodes(project: Project, node: Decl, ctx: FileCtx, map: Map<string, { node: ts.TypeNode; ctx: FileCtx }>, seen: Set<string>) {
+  const members = (ms: readonly ts.TypeElement[]) => {
+    for (const m of ms) {
+      if (!ts.isPropertySignature(m) || !m.type) continue;
+      const n = nameText(m.name);
+      if (n && !map.has(n)) map.set(n, { node: m.type, ctx });
+    }
+  };
+  const follow = (name: string) => {
+    const found = lookupType(project, ctx, name);
+    const key = found ? `${found.ctx.path}#${name}` : "";
+    if (found && !seen.has(key)) propTypeNodes(project, found.decl, found.ctx, map, new Set(seen).add(key));
+  };
+  if (ts.isInterfaceDeclaration(node)) {
+    members(node.members);
+    for (const h of node.heritageClauses ?? []) for (const t of h.types) if (ts.isIdentifier(t.expression)) follow(t.expression.text);
+  } else if (ts.isTypeLiteralNode(node)) members(node.members);
+  else if (ts.isParenthesizedTypeNode(node)) propTypeNodes(project, node.type, ctx, map, seen);
+  else if (ts.isIntersectionTypeNode(node)) node.types.forEach((t) => propTypeNodes(project, t, ctx, map, seen));
+  else if (ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName)) follow(node.typeName.text);
+}
+
+/** 유니온 타입 노드에서 문자열 리터럴 값(타입 별칭은 따라간다). 문자열 리터럴이 아닌 멤버가 있으면 null */
+function literalUnion(project: Project, type: ts.TypeNode, ctx: FileCtx, depth = 0): string[] | null {
   const members = ts.isUnionTypeNode(type) ? type.types : [type];
   const values: string[] = [];
   for (const m of members) {
     if (m.kind === ts.SyntaxKind.UndefinedKeyword) continue;
     if (ts.isLiteralTypeNode(m) && m.literal.kind === ts.SyntaxKind.NullKeyword) continue;
     if (ts.isLiteralTypeNode(m) && ts.isStringLiteral(m.literal)) values.push(m.literal.text);
-    else return null;
+    else if (ts.isTypeReferenceNode(m) && ts.isIdentifier(m.typeName) && depth < MAX_IMPORT_DEPTH) {
+      const found = lookupType(project, ctx, m.typeName.text);
+      const sub = found && !ts.isInterfaceDeclaration(found.decl) ? literalUnion(project, found.decl, found.ctx, depth + 1) : null;
+      if (!sub) return null;
+      values.push(...sub);
+    } else return null;
   }
   return values.length ? values : null;
 }
 
 /** 처음 매개변수의 props 타입 노드. forwardRef<Ref, Props>(…)처럼 타입 인자에 있으면 그것을 쓴다 */
-function propsTypeNode(fn: ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration, typeArgs?: readonly ts.TypeNode[]) {
+function propsTypeNode(fn: FnLike, typeArgs?: readonly ts.TypeNode[]) {
   const p = fn.parameters[0];
   if (p?.type) return p.type;
   return typeArgs && typeArgs.length >= 2 ? typeArgs[1] : typeArgs?.length === 1 ? typeArgs[0] : undefined;
@@ -163,73 +289,26 @@ function unwrap(expr: ts.Expression): { fn: FnLike; typeArgs?: readonly ts.TypeN
 const baseName = (path: string) => (path.split("/").pop() ?? "").replace(/\.[^.]+$/, "");
 const toPascal = (s: string) => s.replace(/(^|[-_.\s]+)([a-zA-Z0-9])/g, (_m, _s, c: string) => c.toUpperCase());
 
-function build(name: string, fn: FnLike, typeArgs: readonly ts.TypeNode[] | undefined, path: string, ctx: Ctx, exported: boolean): AnalyzedComponent | null {
+function build(project: Project, ctx: FileCtx, name: string, fn: FnLike, typeArgs: readonly ts.TypeNode[] | undefined, exported: boolean): AnalyzedComponent | null {
   if (!fn.body || !hasJsx(fn.body)) return null;
-  const out: Collected = { props: [], unresolved: [], inherits: [] };
+  const out: Collected = { props: [], unresolved: [], inherits: [], inheritsComponents: [], cvaVariants: null };
   const typeNode = propsTypeNode(fn, typeArgs);
-  if (typeNode) collect(typeNode, ctx, out, new Set());
+  const nodes = new Map<string, { node: ts.TypeNode; ctx: FileCtx }>();
+  if (typeNode) {
+    collect(project, typeNode, ctx, out, new Set());
+    propTypeNodes(project, typeNode, ctx, nodes, new Set());
+  }
   const seenNames = new Set<string>();
   const props = out.props.filter((p) => !seenNames.has(p.name) && seenNames.add(p.name));
 
-  let variants: string[] = [];
-  const typeNodeByName = new Map<string, ts.TypeNode>();
-  if (typeNode) collectPropTypeNodes(typeNode, ctx, typeNodeByName, new Set());
-  const vNode = typeNodeByName.get("variant");
-  const literal = vNode ? literalUnion(vNode) : null;
-  if (literal) variants = literal;
-  else {
-    const cvaProp = props.find((p) => p.name === "variant");
-    const fromCva = cvaProp ? readVariantFromCva(ctx, typeNode) : null;
-    if (fromCva) variants = fromCva;
-  }
-  return { name, path, props, variants: [...new Set(variants)], inherits: [...new Set(out.inherits)], unresolved: out.unresolved, exported };
+  const v = nodes.get("variant");
+  const variants = (v && literalUnion(project, v.node, v.ctx)) ?? out.cvaVariants ?? [];
+  const uniq = (xs: string[]) => [...new Set(xs)];
+  return { name, path: ctx.path, props, variants: uniq(variants), inherits: uniq(out.inherits), inheritsComponents: uniq(out.inheritsComponents), unresolved: out.unresolved, exported };
 }
 
-/** variant prop의 타입 노드를 찾기 위해 props 타입을 한 번 더 훑는다(collect와 같은 해석 규칙) */
-function collectPropTypeNodes(node: ts.TypeNode | ts.InterfaceDeclaration, ctx: Ctx, map: Map<string, ts.TypeNode>, seen: Set<string>) {
-  const members = (ms: readonly ts.TypeElement[]) => {
-    for (const m of ms) {
-      if (ts.isPropertySignature(m) && m.type) {
-        const n = nameText(m.name);
-        if (n && !map.has(n)) map.set(n, m.type);
-      }
-    }
-  };
-  if (ts.isInterfaceDeclaration(node)) {
-    members(node.members);
-    for (const h of node.heritageClauses ?? []) {
-      for (const t of h.types) {
-        const name = ts.isIdentifier(t.expression) ? t.expression.text : null;
-        const local = name ? ctx.types.get(name) : undefined;
-        if (name && local && !seen.has(name)) collectPropTypeNodes(local, ctx, map, new Set(seen).add(name));
-      }
-    }
-  } else if (ts.isTypeLiteralNode(node)) members(node.members);
-  else if (ts.isParenthesizedTypeNode(node)) collectPropTypeNodes(node.type, ctx, map, seen);
-  else if (ts.isIntersectionTypeNode(node)) node.types.forEach((t) => collectPropTypeNodes(t, ctx, map, seen));
-  else if (ts.isTypeReferenceNode(node) && ts.isIdentifier(node.typeName)) {
-    const local = ctx.types.get(node.typeName.text);
-    if (local && !seen.has(node.typeName.text)) collectPropTypeNodes(local, ctx, map, new Set(seen).add(node.typeName.text));
-  }
-}
+// ── 파일·프로젝트 분석 ──────────────────────────────────────────────
 
-/** props 타입 안의 VariantProps<typeof x>가 가리키는 cva 정의에서 variant 그룹의 키 */
-function readVariantFromCva(ctx: Ctx, typeNode: ts.TypeNode | undefined): string[] | null {
-  if (!typeNode) return null;
-  let found: string[] | null = null;
-  const visit = (n: ts.Node) => {
-    if (found) return;
-    if (ts.isTypeReferenceNode(n) && ts.isIdentifier(n.typeName) && n.typeName.text === "VariantProps") {
-      const arg = n.typeArguments?.[0];
-      if (arg && ts.isTypeQueryNode(arg) && ts.isIdentifier(arg.exprName)) found = ctx.cva.get(arg.exprName.text)?.get("variant") ?? null;
-    }
-    ts.forEachChild(n, visit);
-  };
-  visit(typeNode);
-  return found;
-}
-
-/** 파일 하나에서 컴포넌트(PascalCase 이름, JSX를 반환하는 함수)를 찾는다 */
 export type FileAnalysis = { components: AnalyzedComponent[]; syntaxErrors: PartialFile["errors"] };
 
 const isExported = (st: ts.Statement) => !!ts.getModifiers(st as ts.HasModifiers)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword || m.kind === ts.SyntaxKind.DefaultKeyword);
@@ -247,53 +326,67 @@ function syntaxErrorsOf(file: SourceFile, sf: ts.SourceFile): PartialFile["error
   }));
 }
 
-export function analyzeFile(file: SourceFile): FileAnalysis {
-  const sf = ts.createSourceFile(file.path, file.content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const ctx: Ctx = { sf, ...collectDeclarations(sf) };
+const newProject = (files: SourceFile[]): Project => ({ sources: new Map(files.map((f) => [f.path, f])), cache: new Map() });
+
+/** 컴포넌트를 찾는 파일인가: .tsx만(.d.ts 제외). .ts는 타입을 찾는 데만 쓴다 */
+const isComponentFile = (path: string) => path.endsWith(".tsx") && !path.endsWith(".d.tsx");
+
+function analyzeInProject(project: Project, file: SourceFile): FileAnalysis {
+  const ctx = getCtx(project, file.path)!;
+  const syntaxErrors = syntaxErrorsOf(file, ctx.sf);
+  if (!isComponentFile(file.path)) return { components: [], syntaxErrors };
+
   const found: AnalyzedComponent[] = [];
   const add = (c: AnalyzedComponent | null) => c && !found.some((f) => f.name === c.name) && found.push(c);
   const defaultName = toPascal(baseName(file.path));
 
   // `export { A, B as C }`(가져오기 없는 것)와 `export default A`로 내보내는 로컬 이름
   const exportedNames = new Set<string>();
-  for (const st of sf.statements) {
+  for (const st of ctx.sf.statements) {
     if (ts.isExportDeclaration(st) && !st.moduleSpecifier && st.exportClause && ts.isNamedExports(st.exportClause)) {
       st.exportClause.elements.forEach((e) => exportedNames.add((e.propertyName ?? e.name).text));
     } else if (ts.isExportAssignment(st) && ts.isIdentifier(st.expression)) exportedNames.add(st.expression.text);
   }
 
-  for (const st of sf.statements) {
+  for (const st of ctx.sf.statements) {
     if (ts.isFunctionDeclaration(st)) {
       const isDefault = ts.getModifiers(st)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword);
       const name = st.name?.text ?? (isDefault ? defaultName : "");
-      if (PASCAL.test(name)) add(build(name, st, undefined, file.path, ctx, isExported(st) || exportedNames.has(name)));
+      if (PASCAL.test(name)) add(build(project, ctx, name, st, undefined, isExported(st) || exportedNames.has(name)));
     } else if (ts.isVariableStatement(st)) {
       for (const d of st.declarationList.declarations) {
         if (!ts.isIdentifier(d.name) || !PASCAL.test(d.name.text) || !d.initializer) continue;
         const u = unwrap(d.initializer);
-        if (u) add(build(d.name.text, u.fn, u.typeArgs, file.path, ctx, isExported(st) || exportedNames.has(d.name.text)));
+        if (u) add(build(project, ctx, d.name.text, u.fn, u.typeArgs, isExported(st) || exportedNames.has(d.name.text)));
       }
     } else if (ts.isExportAssignment(st) && !st.isExportEquals) {
       const u = unwrap(st.expression);
       if (!u) continue;
       const named = ts.isFunctionExpression(u.fn) ? u.fn.name?.text : undefined;
       const name = named && PASCAL.test(named) ? named : defaultName;
-      if (PASCAL.test(name)) add(build(name, u.fn, u.typeArgs, file.path, ctx, true));
+      if (PASCAL.test(name)) add(build(project, ctx, name, u.fn, u.typeArgs, true));
     }
   }
-  return { components: found, syntaxErrors: syntaxErrorsOf(file, sf) };
+  return { components: found, syntaxErrors };
 }
+
+/** 파일 하나만으로 분석한다(다른 파일의 타입은 따라가지 않음) */
+export const analyzeFile = (file: SourceFile): FileAnalysis => analyzeInProject(newProject([file]), file);
 
 export const extractFromFile = (file: SourceFile) => analyzeFile(file).components;
 
-/** 여러 파일 분석. 파일 하나가 분석 중 실패해도 나머지는 계속하고, 문법 오류가 있는 파일은 partialFiles에 알린다 */
+/**
+ * 여러 파일 분석. 올린 파일 안의 상대 경로 import 타입을 따라가며 props를 읽는다.
+ * 파일 하나가 분석 중 실패해도 나머지는 계속하고, 문법 오류가 있는 파일은 partialFiles로 알린다
+ */
 export function extractComponents(files: SourceFile[]): { components: AnalyzedComponent[]; failedPaths: string[]; partialFiles: PartialFile[] } {
+  const project = newProject(files);
   const components: AnalyzedComponent[] = [];
   const failedPaths: string[] = [];
   const partialFiles: PartialFile[] = [];
   for (const f of files) {
     try {
-      const r = analyzeFile(f);
+      const r = analyzeInProject(project, f);
       components.push(...r.components);
       if (r.syntaxErrors.length) partialFiles.push({ path: f.path, errors: r.syntaxErrors });
     } catch {

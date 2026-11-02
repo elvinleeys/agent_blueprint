@@ -106,8 +106,21 @@ describe("extractFromFile: props 해석", () => {
     expect(inh(`export const D = (p: Omit<React.ComponentProps<"input">, "size"> & { s: number }) => <input/>;`)).toMatchObject({ inherits: ["input"], unresolved: [] });
     expect(inh(`interface P extends React.AnchorHTMLAttributes<HTMLAnchorElement> { x: string }
       export const E = (p: P) => <a/>;`)).toMatchObject({ inherits: ["a"], unresolved: [], props: [{ name: "x" }] });
-    // 요소를 알 수 없는 것(제네릭 컴포넌트 props 등)은 못 읽은 것으로 남는다
-    expect(inh(`export const F = (p: React.ComponentProps<typeof Foo>) => <div/>;`)).toMatchObject({ inherits: [], unresolved: ["React.ComponentProps<typeof Foo>"] });
+    // 요소를 알 수 없는 상속(ComponentProps<T> 등)은 못 읽은 것으로 남는다
+    expect(inh(`export const F = (p: React.ComponentProps<T>) => <div/>;`)).toMatchObject({ inherits: [], inheritsComponents: [], unresolved: ["React.ComponentProps<T>"] });
+  });
+
+  it("라이브러리·다른 컴포넌트 상속은 inheritsComponents에 글자 그대로 기록하고 unresolved에서 뺀다", () => {
+    const [a] = run(`
+      import * as DialogPrimitive from "@radix-ui/react-dialog";
+      export function Dialog(p: React.ComponentProps<typeof DialogPrimitive.Root>) { return <div/>; }`);
+    expect(a).toMatchObject({ inheritsComponents: ["DialogPrimitive.Root"], inherits: [], unresolved: [] });
+
+    const [b] = run(`export const B = (p: React.ComponentPropsWithoutRef<typeof Slot> & { x: string }) => <div/>;`);
+    expect(b).toMatchObject({ inheritsComponents: ["Slot"], unresolved: [], props: [{ name: "x" }] });
+
+    const [c] = run(`export const C = (p: Omit<React.ComponentProps<typeof Base>, "size"> & ButtonHTMLAttributes<HTMLButtonElement>) => <div/>;`);
+    expect(c).toMatchObject({ inheritsComponents: ["Base"], inherits: ["button"], unresolved: [] });
   });
 
   it("자기 자신을 가리키는 타입도 멈춘다", () => {
@@ -154,6 +167,70 @@ describe("extractFromFile: variants", () => {
       export const X = (p: VariantProps<typeof buttonVariants>) => <div/>;`);
     expect(c.variants).toEqual([]);
     expect(c.unresolved).toEqual(["VariantProps<typeof buttonVariants>"]);
+  });
+});
+
+describe("올린 파일 사이의 상대 경로 import 타입", () => {
+  const ok = (files: Record<string, string>) =>
+    extractComponents(Object.entries(files).map(([path, content]) => ({ path, content })));
+  const find = (r: ReturnType<typeof ok>, name: string) => r.components.find((c) => c.name === name)!;
+
+  it(".ts 파일의 interface·type을 따라가 props를 읽고, .ts에서는 컴포넌트를 세지 않는다", () => {
+    const r = ok({
+      "ui/types.ts": `export interface ButtonProps { label: string; size?: "sm" | "lg" }
+        export const NotComponent = () => <i/>;`,
+      "ui/Button.tsx": `import type { ButtonProps } from "./types";
+        export const Button = (p: ButtonProps) => <button/>;`,
+    });
+    expect(r.components.map((c) => c.name)).toEqual(["Button"]);
+    expect(find(r, "Button")).toMatchObject({ props: [{ name: "label" }, { name: "size" }], unresolved: [] });
+  });
+
+  it("폴더 이동(../)·index 파일·별칭 import·이어진 import를 따라간다", () => {
+    const r = ok({
+      "lib/base.ts": `export type Base = { id: string }`,
+      "lib/index.ts": `import { Base as B } from "./base"; export type Mid = B & { mid: number }`,
+      "ui/forms/Field.tsx": `import { Mid as M } from "../../lib";
+        export const Field = (p: M) => <div/>;`,
+    });
+    expect(find(r, "Field").props.map((p) => p.name)).toEqual(["id", "mid"]);
+  });
+
+  it("variant 타입 별칭과 다른 파일의 cva를 따라간다", () => {
+    const r = ok({
+      "ui/v.ts": `export type Tone = "calm" | "loud";
+        export const boxVariants = cva("b", { variants: { variant: { soft: "", hard: "" } } });`,
+      "ui/A.tsx": `import { Tone } from "./v";
+        export const A = (p: { variant: Tone }) => <i/>;`,
+      "ui/B.tsx": `import { boxVariants } from "./v";
+        export const B = (p: VariantProps<typeof boxVariants>) => <i/>;`,
+    });
+    expect(find(r, "A").variants).toEqual(["calm", "loud"]);
+    expect(find(r, "B").variants).toEqual(["soft", "hard"]);
+  });
+
+  it("순환 import는 멈추고, 패키지·올리지 않은 파일의 타입은 따라가지 않아 unresolved로 남는다", () => {
+    const r = ok({
+      "a.ts": `import { B } from "./b"; export type A = B & { a: string }`,
+      "b.ts": `import { A } from "./a"; export type B = A & { b: string }`,
+      "X.tsx": `import { A } from "./a";
+        import { Pkg } from "some-package";
+        import { Missing } from "./not-uploaded";
+        export const X = (p: A & Pkg & Missing) => <div/>;`,
+    });
+    expect(find(r, "X").props.map((p) => p.name).sort()).toEqual(["a", "b"]);
+    // 순환으로 다시 만난 A는 더 따라가지 않고 못 읽은 것으로 남는다
+    expect(find(r, "X").unresolved).toEqual(["A", "Pkg", "Missing"]);
+  });
+
+  it("파일 하나만 분석하면(extractFromFile) 다른 파일의 타입은 못 읽는다", () => {
+    const [c] = extractFromFile({ path: "X.tsx", content: `import { P } from "./p"; export const X = (p: P) => <div/>;` });
+    expect(c.unresolved).toEqual(["P"]);
+  });
+
+  it(".ts 파일의 문법 오류도 partialFiles로 알린다", () => {
+    const r = ok({ "t.ts": `export type = {{{` });
+    expect(r.partialFiles.map((p) => p.path)).toEqual(["t.ts"]);
   });
 });
 

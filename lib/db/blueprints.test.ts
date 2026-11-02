@@ -12,7 +12,7 @@ beforeEach(() => void vi.spyOn(console, "error").mockImplementation(() => {}));
 
 describe("saveBlueprint (최근 판 갱신)", () => {
   it("최근 판이 있으면 그 행을 update한다(snake_case, nodes는 평면 배열 그대로, children 없음)", async () => {
-    const { db, calls } = fakeDb({ data: { id: "bp-latest" } }, { data: written });
+    const { db, calls } = fakeDb({ data: { id: "bp-latest" } }, { data: null }, { data: written });
     const r = await saveBlueprint(db, "p1", sample());
     expect(r).toEqual({ ok: true, data: { revision: 3, updatedAt: written.updated_at } });
     expect(find(calls, "insert")).toEqual([]);
@@ -120,7 +120,7 @@ describe("AI 초안 판 보존", () => {
   });
 
   it("최신 판이 AI 초안이어도 저장하려는 설계도가 아직 ai(수정 없음)이면 그 판을 갱신한다", async () => {
-    const { db, calls } = fakeDb({ data: { id: "b1", generated_by: "ai" } }, { data: { revision: 1, updated_at: "t" } });
+    const { db, calls } = fakeDb({ data: { id: "b1", generated_by: "ai" } }, { data: null }, { data: { revision: 1, updated_at: "t" } });
     await saveBlueprint(db, "p1", as("ai"));
     expect(find(calls, "insert")).toEqual([]);
     expect(find(calls, "update")).toHaveLength(1);
@@ -130,7 +130,7 @@ describe("AI 초안 판 보존", () => {
     const { db, calls } = fakeDb(
       { data: { revision: 1, updated_at: "t1" } },                       // 초안 생성: 새 판(1판, ai)
       { data: { id: "b1", generated_by: "ai" } }, { data: { revision: 2, updated_at: "t2" } }, // 첫 수정 저장 → 새 판(2판, user)
-      { data: { id: "b2", generated_by: "user" } }, { data: { revision: 2, updated_at: "t3" } }, // 두 번째 저장 → 2판 갱신
+      { data: { id: "b2", generated_by: "user" } }, { data: null }, { data: { revision: 2, updated_at: "t3" } }, // 두 번째 저장 → 2판 갱신
     );
     const draft = await createBlueprintRevision(db, "p1", as("ai"));
     const first = await saveBlueprint(db, "p1", as("user"));
@@ -143,9 +143,38 @@ describe("AI 초안 판 보존", () => {
   });
 });
 
+describe("saveBlueprint — 지시서 연결 판 보존 (보완 A)", () => {
+  it("최신 판에 지시서가 연결돼 있으면 update 대신 새 판을 insert한다", async () => {
+    const { db, calls } = fakeDb({ data: { id: "b1", generated_by: "user" } }, { data: { id: "e1" } }, { data: { revision: 4, updated_at: "t" } });
+    const r = await saveBlueprint(db, "p1", sample());
+    expect(r).toMatchObject({ ok: true, data: { revision: 4 } });
+    expect(find(calls, "update")).toEqual([]);
+    expect(find(calls, "insert")[0][1]).toMatchObject({ project_id: "p1" });
+    expect(find(calls, "eq")).toContainEqual(["eq", "blueprint_id", "b1"]);
+  });
+
+  it("연결 확인 중 DB 오류면 저장하지 않고 unavailable", async () => {
+    const { db, calls } = fakeDb({ data: { id: "b1", generated_by: "user" } }, { error: { code: "XX000" } });
+    expect(await saveBlueprint(db, "p1", sample())).toMatchObject({ ok: false, kind: "unavailable" });
+    expect(find(calls, "update")).toEqual([]);
+    expect(find(calls, "insert")).toEqual([]);
+  });
+
+  it("지시서 연결 후 첫 수정은 새 판, 그다음 수정은 그 새 판을 갱신", async () => {
+    const { db, calls } = fakeDb(
+      { data: { id: "b1", generated_by: "user" } }, { data: { id: "e1" } }, { data: { revision: 2, updated_at: "t" } },
+      { data: { id: "b2", generated_by: "user" } }, { data: null }, { data: { revision: 2, updated_at: "t2" } },
+    );
+    await saveBlueprint(db, "p1", sample());
+    await saveBlueprint(db, "p1", sample());
+    expect(calls.filter((c) => c[0] === "insert" || c[0] === "update").map((c) => c[0])).toEqual(["insert", "update"]);
+    expect(find(calls, "eq")).toContainEqual(["eq", "id", "b2"]);
+  });
+});
+
 describe("saveBlueprint — 이전 판 보호", () => {
   it("DB가 이전 판 수정을 거부(BP001)하면 conflict", async () => {
-    const r = await saveBlueprint(fakeDb({ data: { id: "bp-old" } }, { error: { code: "BP001" } }).db, "p1", sample());
+    const r = await saveBlueprint(fakeDb({ data: { id: "bp-old" } }, { data: null }, { error: { code: "BP001" } }).db, "p1", sample());
     expect(r).toEqual({ ok: false, kind: "conflict", message: "이전 판은 수정할 수 없습니다." });
   });
 });

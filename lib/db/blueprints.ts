@@ -22,6 +22,7 @@ const validate = (blueprint: unknown) => BlueprintSchema.safeParse(blueprint);
  * 편집 중 자동 저장: 가장 최근 판을 갱신한다. 판이 하나도 없으면 첫 판을 만든다.
  * 단, 최신 판이 AI 초안(generated_by "ai")이고 저장하려는 설계도가 사용자 수정본("user")이면
  * AI 원본을 덮어쓰지 않도록 새 판을 추가한다. 그 뒤의 자동 저장은 그 새 판을 갱신한다.
+ * 최신 판에 지시서(prompt_exports)가 연결돼 있을 때도 지시서가 가리키는 내용을 바꾸지 않도록 새 판을 추가한다.
  */
 export async function saveBlueprint(db: SupabaseClient, projectId: string, blueprint: unknown): Promise<DbResult<RevisionInfo>> {
   const parsed = validate(blueprint);
@@ -33,7 +34,13 @@ export async function saveBlueprint(db: SupabaseClient, projectId: string, bluep
 
   const row = latest.data as { id: string; generated_by: string } | null;
   const keepAiDraft = row?.generated_by === "ai" && parsed.data.generatedBy === "user";
-  const write = row && !keepAiDraft
+  let linked = false;
+  if (row && !keepAiDraft) {
+    const exp = await db.from("prompt_exports").select("id").eq("blueprint_id", row.id).limit(1).maybeSingle();
+    if (exp.error) return fromDbError(exp.error, SAVE_FAILED);
+    linked = exp.data !== null;
+  }
+  const write = row && !keepAiDraft && !linked
     ? db.from("blueprints").update(payload).eq("id", row.id)
     : db.from("blueprints").insert({ project_id: projectId, ...payload });
   const { data, error } = await write.select("revision, updated_at").single();

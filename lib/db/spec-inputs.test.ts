@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SpecInput } from "../../core/schema/spec-input";
 import { fakeDb } from "./fake-db";
-import { loadSpecInput, saveSpecInput } from "./spec-inputs";
+import { loadSpecInput, saveSpecInput, saveSpecRoute } from "./spec-inputs";
 
 const find = (calls: unknown[][], name: string) => calls.filter((c) => c[0] === name);
 const spec = (over: Partial<SpecInput> = {}): SpecInput => ({ version: "1.2", imageCount: 0, overview: "상품 상세", stateData: "장바구니 개수", ...over });
@@ -65,5 +65,41 @@ describe("loadSpecInput", () => {
   it("DB 오류는 사용자용 메시지", async () => {
     const { db } = fakeDb({ error: { code: "XX000" } });
     expect(await loadSpecInput(db, "p1")).toMatchObject({ ok: false, kind: "unavailable" });
+  });
+});
+
+describe("saveSpecRoute (보완 B)", () => {
+  it("행이 있으면 route만 update하고 insert·upsert는 하지 않는다(스펙 항목·이미지 수 보존)", async () => {
+    const { db, calls } = fakeDb({ data: [{ id: "s1" }] });
+    expect(await saveSpecRoute(db, "p1", "/products/[id]")).toEqual({ ok: true, data: null });
+    expect(find(calls, "update")).toEqual([["update", { route: "/products/[id]" }]]);
+    expect(find(calls, "eq")).toContainEqual(["eq", "project_id", "p1"]);
+    expect(find(calls, "insert")).toEqual([]);
+    expect(find(calls, "upsert")).toEqual([]);
+  });
+
+  it("행이 없으면 빈 스펙으로 새로 만든다", async () => {
+    const { db, calls } = fakeDb({ data: [] }, {});
+    expect(await saveSpecRoute(db, "p1", "/p")).toEqual({ ok: true, data: null });
+    expect(find(calls, "insert")[0][1]).toEqual({ project_id: "p1", version: "1.2", route: "/p", image_count: 0 });
+  });
+
+  it("null이면 주소를 지운다", async () => {
+    const { db, calls } = fakeDb({ data: [{ id: "s1" }] });
+    await saveSpecRoute(db, "p1", null);
+    expect(find(calls, "update")).toEqual([["update", { route: null }]]);
+  });
+
+  it("형식이 틀리면 DB를 부르지 않고 invalid_data", async () => {
+    for (const bad of ["products", "/a b", "", "/" + "x".repeat(200)]) {
+      const { db, calls } = fakeDb();
+      expect(await saveSpecRoute(db, "p1", bad)).toMatchObject({ ok: false, kind: "invalid_data" });
+      expect(calls).toEqual([]);
+    }
+  });
+
+  it("DB 오류는 unavailable, RLS 거부는 not_found", async () => {
+    expect(await saveSpecRoute(fakeDb({ error: { code: "XX000" } }).db, "p1", "/p")).toMatchObject({ ok: false, kind: "unavailable" });
+    expect(await saveSpecRoute(fakeDb({ data: [] }, { error: { code: "42501" } }).db, "p1", "/p")).toMatchObject({ ok: false, kind: "not_found" });
   });
 });

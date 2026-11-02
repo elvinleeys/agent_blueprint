@@ -64,3 +64,23 @@ export async function loadSpecInput(db: SupabaseClient, projectId: string): Prom
   for (const key of SPEC_TEXT_KEYS) if (values[key] !== null) spec[key] = values[key];
   return { ok: true, data: { spec, route: r.route, imageCount: r.image_count } };
 }
+
+// 화면 주소 규칙: 마이그레이션 spec_inputs_route의 check와 같다
+const RouteSchema = z.string().regex(/^\/[^\s]{0,199}$/, "화면 주소는 /로 시작하고 공백 없이 200자 이내여야 합니다.").nullable();
+
+/**
+ * 화면 주소만 저장한다(스펙 7개 항목·이미지 수는 건드리지 않음). 지시서 탭에서 쓴다.
+ * 행이 있으면 route만 update하고, 없으면 빈 스펙으로 새로 만든다.
+ */
+export async function saveSpecRoute(db: SupabaseClient, projectId: string, route: string | null): Promise<DbResult<null>> {
+  const parsed = RouteSchema.safeParse(route);
+  if (!parsed.success) return fromZodError(parsed.error, "화면 주소가 올바르지 않아 저장하지 않았습니다.");
+
+  const updated = await db.from("spec_inputs").update({ route: parsed.data }).eq("project_id", projectId).select("id");
+  if (updated.error) return fromDbError(updated.error, SAVE_FAILED);
+  if ((updated.data as unknown[] | null)?.length) return { ok: true, data: null };
+
+  const { error } = await db.from("spec_inputs").insert({ project_id: projectId, version: "1.2", route: parsed.data, image_count: 0 });
+  if (error) return fromDbError(error, SAVE_FAILED);
+  return { ok: true, data: null };
+}

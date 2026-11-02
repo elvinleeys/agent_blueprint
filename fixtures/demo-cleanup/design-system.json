@@ -1,0 +1,39 @@
+{
+  "version": "1.2",
+  "components": [
+    {
+      "name": "Button",
+      "variants": ["primary", "secondary", "outline-large"],
+      "props": [
+        { "name": "variant", "type": "\"primary\" | \"secondary\" | \"outline-large\"", "required": false },
+        { "name": "label", "type": "string", "required": true },
+        { "name": "disabled", "type": "boolean", "required": false },
+        { "name": "onClick", "type": "() => void", "required": false }
+      ]
+    },
+    {
+      "name": "Input",
+      "variants": [],
+      "props": [
+        { "name": "value", "type": "string", "required": true },
+        { "name": "onChange", "type": "(value: string) => void", "required": true },
+        { "name": "placeholder", "type": "string", "required": false },
+        { "name": "invalid", "type": "boolean", "required": false }
+      ]
+    },
+    {
+      "name": "Dialog",
+      "variants": [],
+      "props": [
+        { "name": "open", "type": "boolean", "required": true },
+        { "name": "title", "type": "string", "required": true },
+        { "name": "onClose", "type": "() => void", "required": true },
+        { "name": "children", "type": "ReactNode", "required": false }
+      ]
+    }
+  ],
+  "tokens": {
+    "color": { "primary": "#2563EB", "text": "#111827" },
+    "spacing": { "4": "16px", "6": "24px" }
+  }
+}

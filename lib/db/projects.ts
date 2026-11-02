@@ -62,6 +62,14 @@ export async function renameProject(db: SupabaseClient, id: string, rawName: str
   return { ok: true, data: toProject(data as Row) };
 }
 
+/** 프로젝트를 지운다. 설계도·스펙 입력·지시서는 DB의 연쇄 삭제(on delete cascade)가 함께 지운다. 지운 행이 없으면(없거나 남의 것, RLS) not_found */
+export async function deleteProject(db: SupabaseClient, id: string): Promise<DbResult<{ id: string }>> {
+  const { data, error } = await db.from("projects").delete().eq("id", id).select("id");
+  if (error) return fromDbError(error, "프로젝트를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  if (!(data as unknown[] | null)?.length) return { ok: false, kind: "not_found", message: "대상을 찾을 수 없습니다." };
+  return { ok: true, data: { id } };
+}
+
 /** 내 프로젝트 목록(최근 수정 순). 다른 사용자의 행은 RLS가 걸러낸다 */
 export async function listProjects(db: SupabaseClient): Promise<DbResult<Project[]>> {
   const { data, error } = await db.from("projects").select(COLUMNS).order("updated_at", { ascending: false }).limit(MAX_PROJECTS);

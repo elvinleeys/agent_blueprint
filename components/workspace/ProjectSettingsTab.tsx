@@ -2,7 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { requestDeleteProject } from "@/lib/client/delete-project";
 import type { Project } from "../../lib/db/projects";
+import DeleteProjectDialog from "./DeleteProjectDialog";
 import { ARCHITECTURES, FRAMEWORKS, labelOf, STYLINGS } from "../projects/stack-labels";
 
 export default function ProjectSettingsTab({ project, onRenamed }: { project: Project; onRenamed: (p: Project) => void }) {
@@ -10,6 +13,9 @@ export default function ProjectSettingsTab({ project, onRenamed }: { project: Pr
   const [name, setName] = useState(project.name);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -36,6 +42,22 @@ export default function ProjectSettingsTab({ project, onRenamed }: { project: Pr
     } finally {
       setPending(false);
     }
+  }
+
+  async function remove() {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const outcome = await requestDeleteProject(project.id);
+    if (outcome.kind === "done") {
+      // 지운 프로젝트의 화면에 남지 않도록 목록으로 이동한다(이동하면 이 화면은 사라진다)
+      router.push("/projects");
+      router.refresh();
+      return;
+    }
+    if (outcome.needsLogin) return router.push(`/?next=${encodeURIComponent(`/projects/${project.id}`)}`);
+    setDeleteError(outcome.message);
+    setDeleting(false);
   }
 
   const stack = project.stack;
@@ -78,6 +100,19 @@ export default function ProjectSettingsTab({ project, onRenamed }: { project: Pr
         </dl>
         <p className="mt-2 text-xs text-foreground-tertiary">스택을 바꾸려면 새 프로젝트를 만드세요.</p>
       </section>
+
+      <section aria-labelledby="danger-title" className="flex flex-col gap-2 border-t border-border pt-6">
+        <h2 id="danger-title" className="text-sm font-medium text-foreground">
+          프로젝트 삭제
+        </h2>
+        <p className="text-xs text-foreground-tertiary">설계도의 모든 판, 스펙 입력, 지시서 기록이 함께 삭제되고 되돌릴 수 없습니다.</p>
+        <div>
+          <Button type="button" variant="destructive" onClick={() => { setDeleteError(null); setDeleteOpen(true); }}>
+            프로젝트 삭제
+          </Button>
+        </div>
+      </section>
+      {deleteOpen && <DeleteProjectDialog open projectName={project.name} pending={deleting} error={deleteError} onConfirm={remove} onCancel={() => setDeleteOpen(false)} />}
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renameProject } from "../db/projects";
-import { handleProjectPatch } from "./project-handler";
+import { deleteProject, renameProject } from "../db/projects";
+import { handleProjectDelete, handleProjectPatch } from "./project-handler";
 import { requireSession } from "./session";
 
 vi.mock("server-only", () => ({}));
 vi.mock("./session", () => ({ requireSession: vi.fn() }));
-vi.mock("../db/projects", () => ({ renameProject: vi.fn() }));
+vi.mock("../db/projects", () => ({ renameProject: vi.fn(), deleteProject: vi.fn() }));
 
 const db = {} as never;
 const ID = "3f2b8c1e-9a4d-4e0b-8d7a-1c2b3a4d5e6f";
@@ -17,6 +17,7 @@ const project = { id: ID, name: "새 이름" };
 beforeEach(() => {
   vi.mocked(requireSession).mockReset().mockResolvedValue({ ok: true, db, userId: "u1" });
   vi.mocked(renameProject).mockReset();
+  vi.mocked(deleteProject).mockReset();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -64,5 +65,31 @@ describe("PATCH /api/projects/[id]", () => {
   it("DB 오류는 503", async () => {
     vi.mocked(renameProject).mockResolvedValue({ ok: false, kind: "unavailable", message: "m" });
     expect((await handleProjectPatch(patch({ name: "x" }), ctx())).status).toBe(503);
+  });
+});
+
+describe("DELETE /api/projects/[id]", () => {
+  const del = () => new Request(`http://localhost/api/projects/${ID}`, { method: "DELETE" });
+
+  it("세션이 없으면 401, uuid가 아니면 400이고 DB를 호출하지 않는다", async () => {
+    vi.mocked(requireSession).mockResolvedValueOnce({ ok: false, response: new Response("{}", { status: 401 }) });
+    expect((await handleProjectDelete(del(), ctx())).status).toBe(401);
+    expect((await handleProjectDelete(del(), ctx("abc"))).status).toBe(400);
+    expect(deleteProject).not.toHaveBeenCalled();
+  });
+
+  it("성공하면 200 { id }", async () => {
+    vi.mocked(deleteProject).mockResolvedValue({ ok: true, data: { id: ID } });
+    const res = await handleProjectDelete(del(), ctx());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: ID });
+    expect(deleteProject).toHaveBeenCalledWith(db, ID);
+  });
+
+  it("없거나 남의 프로젝트는 404, DB 오류는 503", async () => {
+    vi.mocked(deleteProject).mockResolvedValue({ ok: false, kind: "not_found", message: "m" });
+    expect((await handleProjectDelete(del(), ctx())).status).toBe(404);
+    vi.mocked(deleteProject).mockResolvedValue({ ok: false, kind: "unavailable", message: "m" });
+    expect((await handleProjectDelete(del(), ctx())).status).toBe(503);
   });
 });

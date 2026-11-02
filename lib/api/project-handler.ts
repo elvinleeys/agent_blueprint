@@ -1,7 +1,18 @@
 import "server-only";
-import { renameProject } from "../db/projects";
+import { deleteProject, renameProject } from "../db/projects";
 import { dbFailureToHttp, invalidInput, parseProjectId, readJson, respond, type IdContext } from "./http";
 import { requireSession } from "./session";
+
+/** DELETE /api/projects/[id] — 프로젝트와 딸린 데이터(설계도·스펙 입력·지시서)를 DB 연쇄 삭제로 지운다. 없거나 남의 프로젝트면 404 */
+export async function handleProjectDelete(_request: Request, ctx: IdContext): Promise<Response> {
+  const session = await requireSession();
+  if (!session.ok) return session.response;
+  const id = await parseProjectId(ctx);
+  if (!id.ok) return respond(id.error);
+
+  const r = await deleteProject(session.db, id.id);
+  return r.ok ? Response.json({ id: r.data.id }) : respond(dbFailureToHttp(r));
+}
 
 /** PATCH /api/projects/[id] — 본문 { name }만 받는다. 스택은 바꿀 수 없다 */
 export async function handleProjectPatch(request: Request, ctx: IdContext): Promise<Response> {

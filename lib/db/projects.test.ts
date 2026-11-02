@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeDb } from "./fake-db";
-import { createProject, getProject, listProjects, renameProject } from "./projects";
+import { createProject, deleteProject, getProject, listProjects, renameProject } from "./projects";
 
 const STACK = { framework: "next", styling: "tailwind", architecture: "feature-based" };
 const row = { id: "p1", name: "내 프로젝트", framework: "next", styling: "tailwind", architecture: "feature-based", created_at: "2026-10-29T00:00:00Z", updated_at: "2026-10-29T01:00:00Z" };
@@ -73,6 +73,24 @@ describe("getProject", () => {
 
   it("DB 오류는 unavailable", async () => {
     expect(await getProject(fakeDb({ error: { code: "XX000" } }).db, "p1")).toMatchObject({ ok: false, kind: "unavailable" });
+  });
+});
+
+describe("deleteProject", () => {
+  it("id로만 지우고 연쇄 삭제는 DB에 맡긴다(다른 표를 직접 지우지 않는다)", async () => {
+    const { db, calls } = fakeDb({ data: [{ id: "p1" }] });
+    expect(await deleteProject(db, "p1")).toEqual({ ok: true, data: { id: "p1" } });
+    expect(calls.filter((c) => c[0] === "from")).toEqual([["from", "projects"]]);
+    expect(called(calls, "delete")).toBeDefined();
+    expect(called(calls, "eq")).toEqual(["eq", "id", "p1"]);
+  });
+  it("지운 행이 없으면(없거나 남의 프로젝트, RLS) not_found", async () => {
+    expect(await deleteProject(fakeDb({ data: [] }).db, "p1")).toMatchObject({ ok: false, kind: "not_found" });
+    expect(await deleteProject(fakeDb({ data: null }).db, "p1")).toMatchObject({ ok: false, kind: "not_found" });
+  });
+  it("DB 오류는 unavailable, 권한 거부는 not_found", async () => {
+    expect(await deleteProject(fakeDb({ error: { code: "XX000" } }).db, "p1")).toMatchObject({ ok: false, kind: "unavailable" });
+    expect(await deleteProject(fakeDb({ error: { code: "42501" } }).db, "p1")).toMatchObject({ ok: false, kind: "not_found" });
   });
 });
 

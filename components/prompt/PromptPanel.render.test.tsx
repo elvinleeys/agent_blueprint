@@ -5,7 +5,7 @@ import { BlueprintSchema } from "@/core/schema/blueprint";
 import { SaveQueueProvider } from "../structure/SaveQueueProvider";
 import { StructureStoreProvider } from "../structure/StructureStoreProvider";
 import type { StructureInit } from "../../store/structure-store";
-import { COMMON_RULES_NOTE, errorConfirmDescription, isValidRoute, NO_BLUEPRINT_NOTE, RULES_FOLDER_NOTE, SKIP_NOTE } from "./export-notes";
+import { COMMON_RULES_NOTE, ROUTE_HELP, errorConfirmDescription, isValidRoute, NO_BLUEPRINT_NOTE, RULES_FOLDER_NOTE, SKIP_NOTE } from "./export-notes";
 import PromptPanel from "./PromptPanel";
 
 // 서버 렌더링 스모크 테스트: 클릭·내보내기 흐름은 브라우저에서 확인한다(순서 규칙은 lib/client/run-export.test.ts)
@@ -25,6 +25,18 @@ describe("PromptPanel", () => {
     for (const t of ["설계도 (최신 판)", "디자인 시스템 정리 계획 (준비 중)", "화면 주소", "/products/[id]", RULES_FOLDER_NOTE, COMMON_RULES_NOTE, SKIP_NOTE, "내보내기"]) expect(out).toContain(t);
     expect(out).toMatch(/<input[^>]*type="radio"[^>]*disabled/);
     expect(out).not.toContain("미해결 오류가"); // 확인 창은 닫혀 있다
+  });
+
+  it("화면 주소 안내는 스택(프레임워크)마다 다르다", () => {
+    for (const framework of ["next", "react", "html"] as const) {
+      const bp = { ...blueprint, stack: { ...blueprint.stack, framework } };
+      const out = html({ blueprint: bp, savedInput: null });
+      expect(out).toContain(ROUTE_HELP[framework].replaceAll("&", "&amp;").replaceAll(">", "&gt;"));
+    }
+    expect(new Set(Object.values(ROUTE_HELP)).size).toBe(3);
+    expect(ROUTE_HELP.next).toContain("페이지 파일 위치");
+    expect(ROUTE_HELP.react).toContain(":id");
+    expect(ROUTE_HELP.html).toContain("참고");
   });
 
   it("설계도가 없으면 구조 설계 탭 안내만 그린다", () => {

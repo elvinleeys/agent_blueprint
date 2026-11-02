@@ -1,9 +1,12 @@
 // 스택 값(저장값)과 화면 라벨. 클라이언트에서도 쓰므로 zod를 가져오지 않고 문자열 리터럴만 둔다
 export const FRAMEWORKS = [
-  { value: "html", label: "HTML" },
+  { value: "html", label: "HTML", experimental: true },
   { value: "react", label: "React" },
   { value: "next", label: "Next.js" },
 ] as const;
+
+export const EXPERIMENTAL_LABEL = "실험적";
+export const HTML_EXPERIMENTAL_NOTE = "HTML은 아직 실험적입니다. 전용 검사 규칙이 없고 지시서 문장도 제한적입니다.";
 
 export const STYLINGS = [
   { value: "css", label: "CSS" },

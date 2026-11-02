@@ -10,7 +10,7 @@ import { ConfirmDialog } from "../structure/edit/ConfirmDialog";
 import { useSaveQueue } from "../structure/SaveQueueProvider";
 import { useStructureApi, useStructureStore } from "../structure/StructureStoreProvider";
 import { useViolations, ViolationsProvider } from "../structure/ViolationsProvider";
-import { COMMON_RULES_NOTE, errorConfirmDescription, isValidRoute, NO_BLUEPRINT_NOTE, ROUTE_ERROR, RULES_FOLDER_NOTE, SKIP_NOTE, SPEC_EMPTY_WARNING, unresolvedErrors } from "./export-notes";
+import { COMMON_RULES_NOTE, errorConfirmDescription, isValidRoute, NO_BLUEPRINT_NOTE, ROUTE_ERROR, ROUTE_HELP, RULES_FOLDER_NOTE, SKIP_NOTE, SPEC_EMPTY_WARNING, unresolvedErrors } from "./export-notes";
 import ExportDocumentCard from "./ExportDocumentCard";
 
 type Result = { data: ExportData; editRevision: number };
@@ -87,7 +87,7 @@ function Body({ projectId, onGoStructure }: { projectId: string; onGoStructure: 
             </label>
             <Input id="export-route" value={route} disabled={running} onChange={(e) => setRoute(e.target.value)} aria-invalid={routeInvalid} aria-describedby="export-route-help" />
             <p id="export-route-help" className={routeInvalid ? "text-xs text-destructive" : "text-xs text-foreground-tertiary"}>
-              {routeInvalid ? ROUTE_ERROR : "비워 두면 라우팅 파일 위치를 정하지 못한다는 안내가 지시서에 들어갑니다. 예: /products/[id]"}
+              {routeInvalid ? ROUTE_ERROR : ROUTE_HELP[blueprint.stack.framework]}
             </p>
           </div>
 

@@ -1,5 +1,8 @@
 import type { Violation } from "@/core/rules/types";
+import type { Blueprint } from "@/core/schema/blueprint";
 import type { ExportFormat } from "@/lib/client/run-export";
+
+type Framework = Blueprint["stack"]["framework"];
 
 // 지시서 탭의 고정 안내 문구
 export const RULES_FOLDER_NOTE = "화면 규칙 파일은 프로젝트의 .claude/rules/ 폴더에 넣으세요.";
@@ -8,6 +11,13 @@ export const SKIP_NOTE = "복사와 내려받기는 같은 내용이어도 몇 �
 export const SPEC_EMPTY_WARNING = "스펙 항목이 비어 있어 규칙이 적습니다. 스펙을 입력하고 초안을 다시 만들면 규칙이 더 채워집니다.";
 export const NO_BLUEPRINT_NOTE = "아직 설계도가 없습니다. 구조 설계 탭에서 초안을 만든 뒤 내보낼 수 있습니다.";
 export const ROUTE_ERROR = "화면 주소는 /로 시작하고 공백이 없어야 합니다. 예: /products/[id]";
+
+/** 화면 주소 칸 설명: 스택마다 주소가 쓰이는 곳이 다르다 */
+export const ROUTE_HELP: Record<Framework, string> = {
+  next: "Next.js에서 페이지 파일 위치를 정하는 데 쓰입니다. 예: /products/[id] 비워 두면 라우팅 파일 위치를 정하지 못한다는 안내가 지시서에 들어갑니다.",
+  react: "라우터에 연결할 경로로 쓰입니다. [id]는 :id 형식으로 바뀝니다. 예: /products/[id] → /products/:id 비워 두면 연결할 경로를 정하지 못한다는 안내가 지시서에 들어갑니다.",
+  html: "파일 경로를 정할 때 참고만 합니다. 예: /products/detail 비워 두어도 됩니다.",
+};
 
 export const DOCUMENT_HINT: Record<ExportFormat, string> = {
   claude_md: "화면 규칙 파일: 이 화면에서 무엇을 만드는지 정한 규칙입니다. .claude/rules/ 폴더에 넣어 두세요.",

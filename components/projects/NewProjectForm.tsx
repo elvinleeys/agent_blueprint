@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ARCHITECTURES, FRAMEWORKS, STYLINGS } from "./stack-labels";
+import { ARCHITECTURES, EXPERIMENTAL_LABEL, FRAMEWORKS, HTML_EXPERIMENTAL_NOTE, STYLINGS } from "./stack-labels";
 
 const FIELD = "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
 
-type Option = { value: string; label: string };
+type Option = { value: string; label: string; experimental?: boolean };
 
 function Select({ id, label, value, options, onChange }: { id: string; label: string; value: string; options: readonly Option[]; onChange: (v: string) => void }) {
   return (
@@ -17,7 +17,8 @@ function Select({ id, label, value, options, onChange }: { id: string; label: st
       <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={FIELD}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label} ({o.value})
+            {o.label}
+            {o.experimental ? ` · ${EXPERIMENTAL_LABEL}` : ""} ({o.value})
           </option>
         ))}
       </select>
@@ -71,6 +72,7 @@ export default function NewProjectForm() {
         <Select id="styling" label="스타일 방식" value={styling} options={STYLINGS} onChange={setStyling} />
         <Select id="architecture" label="디렉토리 구조" value={architecture} options={ARCHITECTURES} onChange={setArchitecture} />
       </div>
+      {framework === "html" && <p className="text-xs text-foreground-tertiary">{HTML_EXPERIMENTAL_NOTE}</p>}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}

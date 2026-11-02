@@ -43,8 +43,8 @@ AgentBlueprint: AI 에이전트가 코드를 쓰기 전에 프론트엔드 구�
 
 ## 배포 결과
 
-- 배포 주소: (배포 주소 적기, 아직 기록하지 않음)
-- `docs/deploy-checklist.md`의 배포 후 확인 8가지를 모두 통과했다(RLS·연쇄 삭제 포함). 함수 최대 실행 시간은 300초.
+- 배포 주소: https://agent-blueprint-cpvq.vercel.app/
+- `docs/deploy-checklist.md`의 배포 후 확인 8가지를 통과했다. 함수 최대 실행 시간은 300초. 배포 환경에서 내 데이터의 저장·조회·연쇄 삭제는 확인했고, 다른 계정 격리는 SQL 격리 확인 스크립트로만 검증했다.
 - 내보내기가 로컬보다 약간 느리다(DB 왕복과 지역 차이로 추정, 측정하지 않음). 지금은 조치하지 않는다.
 - `.env.example`의 `SUPABASE_SERVICE_ROLE_KEY`는 코드에서 쓰지 않는다(정리 후보).
 
@@ -54,7 +54,7 @@ AgentBlueprint: AI 에이전트가 코드를 쓰기 전에 프론트엔드 구�
 
 구현할 단계는 끝났다. 남은 것은 사용자의 화면 확인과 그 결과에 따른 수정이다.
 
-- **사용자 화면 확인**: 지시서 탭 내보내기(drain 순서, 오류 확인 창, 스펙 비어 있음 경고, 복사·내려받기), `prompt_exports` RLS(행 생성, 같은 내용 재내보내기 시 증가 없음, 편집 시 새 판, 다른 계정에서 안 보임), 프로젝트 삭제(이름 재입력, 연쇄 삭제, 목록 이동, 남의 프로젝트 404).
+- **(완료)** 사용자 화면 확인: 지시서 탭 내보내기, `prompt_exports` 저장, 프로젝트 삭제는 배포에서 확인했다. 다른 계정 격리는 배포 화면이 아니라 SQL 격리 확인 스크립트(`supabase/tests/`)로만 검증했다.
 - **확인 결과에 따른 수정**: 문제가 나오면 해당 `lib/client/run-export.ts`, `lib/api/exports-handler.ts`, `components/prompt/`, `components/workspace/ProjectSettingsTab.tsx`부터 본다.
 - **작은 정리 후보**: 구조 설계 탭 입력칸의 화면 주소 도움말을 스택별 문구(`components/prompt/export-notes.ts`의 `ROUTE_HELP`)로 통일.
 - **일정상 뒤로 미룬 것**: 기능 B(디자인 시스템 정리). 고도화 목록은 `tasks/plan-prompt-export.md`(지시서 추가 메모 칸, HTML·CSS에 맞는 블록·클래스 중심 설계 포함).
@@ -96,7 +96,7 @@ npm run build                # 빌드
 ## 알려진 한계와 아직 확인하지 못한 것
 
 - **경쟁 상태는 처리하지 않았다**: `saveSpecRoute`(행이 없을 때 동시 호출), `saveBlueprint`(지시서 연결 확인과 쓰기 사이), 내보내기(비교와 기록 사이, 최신 판 id 읽기와 설계도 읽기 사이).
-- `prompt_exports` RLS와 프로젝트 삭제의 연쇄 삭제는 배포 후 확인(2026-11-02)에서 실제 Supabase로 확인했다. 자동 테스트는 여전히 가짜 DB 기준이다.
+- 배포 환경에서 내 데이터의 저장·조회·연쇄 삭제는 확인했고, 다른 계정 격리는 SQL 격리 확인 스크립트로만 검증했다. 자동 테스트는 여전히 가짜 DB 기준이다.
 - `.claude/rules`의 `paths` glob이 실제 Claude Code에서 도는지 열어 보지 못했다(문서에 맞춰 작성).
 - 토큰 인식은 `color`·`spacing`·`radius`·`layout`·`font`·`shadow`·`size`·`border`·`opacity` 접두사만 하고, 클래스로 바꾸는 것은 색·간격·모서리뿐이다.
 - 기준 파일(`fixtures/prompts/`)은 AI 응답 1건 기준이라 가정 필드(`assumedFields`)가 있는 입력의 기준 파일은 없다.

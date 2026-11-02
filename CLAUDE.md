@@ -41,7 +41,7 @@ app/                       # 라우팅만. 로직을 두지 않는다 (globals.c
   projects/[id]/           # 작업공간 (설정·구조 설계·디자인 시스템·지시서)
   api/draft/route.ts       # AI 초안 생성 (NDJSON 스트림 응답)
   api/explain/route.ts     # 위반 설명·정리 제안
-  api/analyze/route.ts     # 업로드 코드 분석
+  api/analyze/route.ts     # 디자인 시스템 정리: 올린 코드 분석·비교 (코드 원본 저장 안 함)
   api/projects/            # 프로젝트 목록·생성, [id](이름 변경·삭제), [id]/blueprint(불러오기·자동 저장), [id]/revisions(판 목록·새 판 추가), [id]/exports(지시서 내보내기)
   auth/callback/route.ts   # GitHub 로그인 콜백
   login/page.tsx           # 쿼리를 유지해 홈(/)으로 보내는 주소 (로그인은 홈이 맡음)
@@ -57,20 +57,21 @@ core/                      # 순수 TypeScript. React·Next.js import 금지
   adapters/styling/        # css(HC-01), css-modules(CM-01), tailwind(TW-01·02). prompt.ts: 스타일 문장·Tailwind 토큰 대응표·반응형 변환
   adapters/architecture/   # fsd(AR-01~03). type-based·feature-based는 전용 검사 규칙이 없음. prompt.ts: 파일 위치·구현 순서·paths 머리말
   prompt/                  # 지시서 생성기(export-prompt: 분기, export-common: 공통·파일 이름, rule-file: 화면 규칙 파일, task-prompt: 지시서. 템플릿만 쓰고 AI를 부르지 않아 같은 입력이면 같은 출력), AI 초안 프롬프트(draft-prompt, repair-prompt), strict 스키마 변환
+  cleanup/                 # 디자인 시스템 정리(기능 B, 순수 함수. 입력은 {path, content}[]라 업로드·GitHub 등 입력 방식과 무관). extract(.tsx에서 컴포넌트·props·variant·상속한 HTML 요소/컴포넌트·내보냄 여부, typescript 파서만 사용, 올린 파일 사이의 상대 경로 import 타입 따라가기·문법 오류 파일 표시), infer-spec(스펙 JSON 검증, 디자인 시스템 파일에서 공식 목록 만들기), compare(C-01·C-02·C-03·C-05, 기준값은 위쪽 COMPARE_CONFIG 한 곳), analyze(전체 파이프라인), filter-files·upload-summary·picked-files(업로드 거르기·상한·목록 합치기). prompt/cleanup-prompt가 정리 지시서를 만든다
   edit/                    # 노드 편집 연산(순수 함수: 성공 시 새 설계도, 실패 시 거부 이유·노드·경로). update-node(내용·배치·차지 칸·스타일, 값 검증은 스키마로), layout(display 전환·반응형 한 줄·영향 계산·빈 스타일), move-node(+부모 후보), reorder-node, add-child, delete-node, notice(자동 변경 안내 문구). 드래그 편집도 같은 연산을 쓴다
-components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, home/ 홈 소개·로그인, layout/ 공통 헤더·GuardedLink(저장 안 된 수정이 있으면 이동 전에 묻는 링크), auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼(HTML은 "실험적" 표시), workspace/ 작업공간 탭·설정·프로젝트 삭제 확인 창(스토어와 저장 큐를 탭 바깥에서 들고 있음), prompt/ 지시서 탭(PromptPanel: 화면 주소·내보내기·오류 확인 창, ExportDocumentCard: 미리보기·복사·내려받기, export-notes: 고정 안내 문구), structure/ 구조 설계 탭: 스펙 입력·진행·오류·미리보기·트리, NodeEditPanel(노드 편집 패널), edit/(구역·입력칸·목록·확인 창: 연산을 부르고 결과만 반영), auto-save·SaveQueueProvider·SaveStatus(자동 저장), generate(초안 생성 흐름: 시작→저장 정리→생성), regenerate-confirm(다시 생성 확인 조건), ViolationsProvider(설계도가 바뀔 때만 검사를 계산해 context로 제공, 결과는 저장하지 않음)·CheckResults(검사 결과 카드)·violation-mark(오류 빨강·경고 주황 실선, AI 가정은 회색 점선))
+components/                # 화면 컴포넌트 (ui/ shadcn/ui 공통 부품, home/ 홈 소개·로그인, layout/ 공통 헤더·GuardedLink(저장 안 된 수정이 있으면 이동 전에 묻는 링크), auth/ 로그인·로그아웃·계정, projects/ 목록·생성 폼(HTML은 "실험적" 표시), workspace/ 작업공간 탭·설정·프로젝트 삭제 확인 창(스토어와 저장 큐를 탭 바깥에서 들고 있음), prompt/ 지시서 탭(PromptPanel: 화면 주소·내보내기·오류 확인 창, ExportDocumentCard: 미리보기·복사·내려받기, export-notes: 고정 안내 문구), structure/ 구조 설계 탭: 스펙 입력·진행·오류·미리보기·트리, NodeEditPanel(노드 편집 패널), edit/(구역·입력칸·목록·확인 창: 연산을 부르고 결과만 반영), auto-save·SaveQueueProvider·SaveStatus(자동 저장), generate(초안 생성 흐름: 시작→저장 정리→생성), regenerate-confirm(다시 생성 확인 조건), ViolationsProvider(설계도가 바뀔 때만 검사를 계산해 context로 제공, 결과는 저장하지 않음)·CheckResults(검사 결과 카드)·violation-mark(오류 빨강·경고 주황 실선, AI 가정은 회색 점선)), design-system/ 디자인 시스템 정리 탭: DesignSystemPanel(두 칸: 디자인 시스템=폴더 업로드 또는 JSON, 검사할 코드=폴더 업로드 또는 파일 선택, 결과는 저장하지 않음)·FileListSection(선택할 때마다 추가·파일별 삭제·모두 지우기·이번 분석에서만 빼는 체크)·ResultSection(경고가 위, 정보, 접힌 "공식 목록에 없음")·CleanupExportCard(정리 지시서 복사·내려받기))
 store/                     # Zustand 스토어 (structure-store: 작업공간별 설계도·스펙 입력·초안 진행·선택·보기 상태, applyEdit(편집 적용)·editRevision·저장 상태·입력 오류·노드 선택 확인)
 lib/utils.ts              # cn 클래스 병합(shadcn)
 lib/supabase/              # Supabase 클라이언트 (client.ts, server.ts 분리), proxy.ts(세션 갱신)
 lib/auth/                  # 서버 전용 인증 처리 (callback-handler: /auth/callback 처리)
-lib/client/                # 브라우저 전용 (resize-images: 캔버스 축소, draft-request: 요청 구성, draft-stream: NDJSON 읽기·끊김 감지, run-draft: 초안 생성 한 번의 흐름, save-queue: 자동 저장 큐(800ms 디바운스·한 번에 하나·settle), save-blueprint: 설계도 저장 PUT과 사용자용 오류 문구, leave-guard: 저장 안 된 수정이 있을 때 떠나기 전 경고, run-export: 지시서 내보내기 흐름(저장 큐 drain 성공 뒤에만 요청), copy-text: 클립보드 복사 대체 방식·.md 내려받기, delete-project: 프로젝트 삭제 요청·이름 재입력 확인)
+lib/client/                # 브라우저 전용 (resize-images: 캔버스 축소, draft-request: 요청 구성, draft-stream: NDJSON 읽기·끊김 감지, run-draft: 초안 생성 한 번의 흐름, save-queue: 자동 저장 큐(800ms 디바운스·한 번에 하나·settle), save-blueprint: 설계도 저장 PUT과 사용자용 오류 문구, leave-guard: 저장 안 된 수정이 있을 때 떠나기 전 경고, run-export: 지시서 내보내기 흐름(저장 큐 drain 성공 뒤에만 요청), copy-text: 클립보드 복사 대체 방식·.md 내려받기, delete-project: 프로젝트 삭제 요청·이름 재입력 확인, run-analyze: 디자인 시스템 정리 분석 요청과 오류 문구)
 lib/db/                    # DB 접근 함수 (projects(삭제 포함), blueprints, spec-inputs(화면 주소만 저장하는 saveSpecRoute 포함), prompt-exports: 클라이언트를 인자로 받고 결과를 DbResult로 반환, 저장 전·읽은 뒤 Zod 검증)
 supabase/migrations/       # 표·RLS·GRANT SQL (대시보드 SQL 편집기로 직접 실행, 절차는 docs/db-migration.md)
 supabase/tests/            # RLS 격리 확인 스크립트(적용 후 실행, 끝에 rollback)
-lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, http: 오류 매핑·JSON 읽기, *-handler: 라우트별 처리)
+lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, http: 오류 매핑·JSON 읽기(readJson은 라우트별 본문 한도), *-handler: 라우트별 처리, analyze-handler: 본문 3MB·칸마다 30개/파일 200KB/합계 1MB)
 lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용·단계 알림 콜백, draft-http: 요청 검증·오류 매핑, draft-stream: NDJSON 스트림·하트비트, draft-handler: /api/draft 처리)
 scripts/                   # 개발용 실행 스크립트 (test-draft.ts: lib/ai를 호출하는 초안 생성 검증, 실제 API 호출은 직접 실행)
-fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음)
+fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음. demo-cleanup/: 디자인 시스템 정리를 눈으로 확인하는 예시, 일부러 문제를 넣음, 기대 결과는 core/cleanup/demo-cleanup.test.ts)
 tasks/                     # 계획·테스트 결과·응답 원문 (draft-test-result.md, draft-outputs/)
 ```
 
@@ -117,6 +118,19 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 
 규칙 판정은 코드(`core/rules`)로 하고, 위반 이유 설명과 수정 제안만 AI(OpenAI API)에 맡긴다.
 
+### 디자인 시스템 정리 비교 규칙 (기능 B, `core/cleanup/compare.ts`, 설계도 검사와 별개이며 저장하지 않음)
+
+공식 컴포넌트는 디자인 시스템 칸에 올린 파일(내보낸 컴포넌트) 또는 붙여넣은 스펙 JSON에서 얻고, 검사할 코드의 내보낸 컴포넌트와 비교한다. 파일 안에서만 쓰는 내부용 컴포넌트는 비교하지 않는다.
+
+| ID | 기준 | 심각도 |
+| --- | --- | --- |
+| C-01 공식 목록에 없음 | 공식 이름과 정확히 같은 이름이 없음(화면 전용 컴포넌트는 정상이라 낮춤, 화면에서는 접힌 묶음) | 정보 |
+| C-02 합치기 후보 | (이름 단어 Jaccard ≥ 0.5 그리고 props 이름 Jaccard ≥ 0.5) 또는 (같은 라이브러리 컴포넌트 상속 + 이름 단어 1개 이상 겹침). 같은 HTML 요소 상속은 조건이 아니라 근거 표시. 공식끼리 제외, 이어진 후보는 1건 | 공식이 들어가면 경고, 아니면 정보 |
+| C-03 나누기 후보 | 직접 선언한 props가 8개 초과 | 경고 |
+| C-05 공식과 같은 이름의 별도 구현 | 디자인 시스템 파일을 올린 경우에만. JSON 스펙은 구현 위치를 알 수 없어 같은 이름을 공식 구현으로 봄 | 경고 |
+
+알려진 한계: `@/` 경로 별칭·`export … from` 재내보내기·패키지 타입은 따라가지 않아 props를 일부만 읽을 수 있다(요약에 개수만 표시). 완전한 타입 검사기 기반 분석은 고도화 목록.
+
 ## 필수 규칙
 
 - OpenAI API는 반드시 서버(Route Handler)에서만 호출한다. 클라이언트 컴포넌트에서 직접 호출하지 않는다.
@@ -140,7 +154,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 
 ## 일정상 우선순위 (일정이 밀릴 때 줄이는 순서)
 
-1. 기능 B(디자인 시스템 정리) 전체
+1. 기능 B(디자인 시스템 정리) 전체 (최소 버전은 구현됨: 업로드·비교·정리 지시서. GitHub 저장소 입력은 미구현)
 2. 계정 화면(S-09)의 사용량 표시
 3. HTML·CSS 어댑터
 4. FSD 검사 규칙(AR-01~AR-03)
@@ -163,7 +177,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 | --- | --- | --- | --- | --- |
 | `/api/draft` | POST | `multipart/form-data`: stack(projectId가 없을 때만 필요), projectId(선택, 있으면 프로젝트 소유를 AI 호출 전에 확인하고 스택은 프로젝트 값을 쓰며 성공한 초안을 새 판으로 저장하고 스펙 입력(7개 항목·route·이미지 수, 이미지 원본 제외)을 spec_inputs에 저장), route(선택), spec(JSON, 7개 항목 일부), images(0~3장), imageMeta(선택, 이미지별 originalWidth) | 시작 전 오류는 상태 코드 + JSON. 통과하면 200 NDJSON 스트림(줄마다 JSON): `stage`(accepted·generating·validating·normalizing·regenerating·saving), `ping`(10초 하트비트), 마지막 줄 `done`(`{ blueprint, meta(attempts, elapsedMs, normalized, saved) }`) 또는 `error`(`status`와 `error`, 저장 실패는 `blueprint` 포함) | OpenAI 호출, 스키마 검증, 검증 실패 시 자동 보정 후 재검증, 그래도 실패하면 1회 재시도. 사전 오류는 400·401·404(projectId)·413·503(projectId 조회), 시작 후 오류는 스트림 `error`의 status로 422·429·502·504·503(저장 실패). 마감은 재시도 포함 텍스트만 45초·이미지 포함 60초. 클라이언트는 `done`·`error` 없이 끝나거나 30초 무수신이면 끊긴 것으로 처리 |
 | `/api/explain` | POST | 위반 1건 또는 정리 대상 | 설명·수정 제안 | OpenAI 호출 |
-| `/api/analyze` | POST | 업로드 컴포넌트 코드 | props·variant·스타일 값 | 코드 원본 저장 안 함 |
+| `/api/analyze` | POST | JSON `{ codeFiles: [{path, content}], designSystemFiles?: [{path, content}], specJson?: string }`(designSystemFiles와 specJson 중 하나만) | 200 `{ result }`(공식 수, 비교 결과 findings, 요약, 문법 오류 파일, 스펙 생성 시 버린 값) | 본문 3MB 이하. 칸(코드·디자인 시스템)마다 서버가 다시 거르고 30개·파일당 200KB·합계 1MB 검사(넘으면 413과 "더 좁은 폴더" 안내). AI 호출·저장·로그 없음. 오류는 400·401·413·422(스펙 JSON 오류, 공식 컴포넌트 없음) |
 | `/api/projects` | GET/POST | POST: JSON `{ name, stack }` | `{ projects }` / 201 `{ project }` | 로그인 세션 필수, 본인 프로젝트만(RLS) |
 | `/api/projects/[id]` | PATCH/DELETE | PATCH: JSON `{ name }`(이름만, 1~100자) / DELETE: 본문 없음 | 200 `{ project }` / 200 `{ id }` | 스택은 바꿀 수 없음. DELETE는 설계도·스펙 입력·지시서를 DB 연쇄 삭제로 함께 지움(이름 재입력 확인은 화면이 맡음). 없거나 남의 프로젝트는 404. 오류는 400·401·404·413(PATCH)·422(PATCH)·503 |
 | `/api/projects/[id]/blueprint` | GET/PUT | GET: `?revision=N`(생략 시 최신 판) / PUT: 설계도 JSON | `{ blueprint }`(내 프로젝트인데 판이 없으면 null, 없거나 남의 프로젝트는 404) / `{ revision, updatedAt }` | PUT은 자동 저장: 최신 판 갱신. 최신 판이 AI 초안이고 저장본이 사용자 수정본이면 새 판 추가(AI 원본 보존). 최신 판에 지시서(`prompt_exports`)가 연결돼 있어도 새 판 추가 |
@@ -197,7 +211,7 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 - 지시서 내보내기(`POST /api/projects/[id]/exports`)는 화면에서 `lib/client/run-export`의 `runExport`를 거친다: 저장 큐 `drain()`이 true일 때만 요청한다(서버는 DB에 저장된 최신 판만 쓰므로, 보내지 않은 수정이 남은 채 요청하면 이전 내용으로 지시서가 만들어진다). 지시서와 연결된 판은 `saveBlueprint`가 갱신하지 않고 새 판으로 저장한다(`lib/db/blueprints.ts`).
 - 스택 어댑터(`core/adapters`)를 수정할 때는 해당 어댑터에만 영향이 가도록 하고, 다른 어댑터·공통 규칙을 함께 건드리지 않는다.
 - 파일을 만들거나 고칠 때는 Write·Edit 도구를 쓴다. 셸 heredoc(`cat <<EOF`, `python - <<EOF`)로 긴 내용을 쓰지 않는다(인용 부호·한글·`'''`가 섞이면 구문 오류로 명령 전체가 실행되지 않는다). 셸은 실행·검사 명령에만 쓴다.
-- 서버(`next start`·`next dev` 등)를 띄워 확인할 때는 직접 띄운 포트의 프로세스만 종료한다. `taskkill /IM node.exe`처럼 node 프로세스 전체를 종료하지 않는다(사용자가 켜 둔 개발 서버가 꺼진다). 포트는 사용자가 쓰는 3000이 아닌 다른 번호를 쓰고, 포트로 PID를 찾아 그 PID만 종료한다.
+- 서버(`next start`·`next dev` 등)를 띄워 확인할 때는 직접 띄운 포트의 프로세스만 종료한다. `taskkill /IM node.exe`처럼 node 프로세스 전체를 종료하지 않는다(사용자가 켜 둔 개발 서버가 꺼진다). 로그인 없이 되는 확인은 사용자가 쓰는 3000이 아닌 다른 포트를 쓰고, 포트로 PID를 찾아 그 PID만 종료한다. **로그인이 필요한 화면은 개발 서버 3000번 포트(사용자가 띄움)에서만 확인한다.** Supabase Redirect URLs에 `http://localhost:3000/**`만 등록돼 있어, 다른 포트로 띄우면 로그인 후 Site URL(Vercel 배포)로 넘어간다(`docs/deploy-checklist.md` 3절·5절). 다른 포트를 쓰려면 Redirect URLs에도 추가해야 한다.
 - 지시서 템플릿은 부모 노드별 `layout`을 배치 문장으로, 노드별 `location`을 "파일 위치" 섹션으로 포함해야 한다. 또한 F-002의 7개 입력 항목이 "필수 규칙"·"금지 사항" 섹션에 빠짐없이 반영되는지 확인한다.
 
 ## 비고

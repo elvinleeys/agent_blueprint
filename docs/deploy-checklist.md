@@ -38,7 +38,9 @@
 1. **마이그레이션 적용 확인**: `supabase/migrations/`의 두 파일(`20261029120000_create_core_tables.sql`, `20261030120000_spec_inputs_route.sql`)이 배포에 쓰는 프로젝트에 적용돼 있어야 한다(절차: `docs/db-migration.md`). 개발용과 배포용 프로젝트를 나눴다면 배포용에 다시 적용한다. 표 4개(`projects`, `spec_inputs`, `blueprints`, `prompt_exports`)에 RLS가 켜져 있는지 본다.
 2. **로그인 주소 추가** (Authentication → URL Configuration):
    - Site URL: 배포 주소 `https://<배포 도메인>`
-   - Redirect URLs에 `https://<배포 도메인>/auth/callback` 추가. 로컬 개발용 `http://localhost:3000/auth/callback`은 남겨 둔다.
+   - Redirect URLs에 `https://<배포 도메인>/**`와 `http://localhost:3000/**`를 추가한다(`/auth/callback`만 적은 항목은 `?next=` 같은 쿼리가 붙은 돌아올 주소와 맞지 않을 수 있어 `/**`로 넓힌다). 앱이 실제로 돌아올 주소가 이 목록에 없으면 Supabase는 로그인 후 **Site URL(배포 주소)로 보낸다**.
+   - **로그인이 필요한 화면은 로컬에서 개발 서버 3000번 포트로만 확인한다.** 다른 포트(예: 3100)로 띄우면 그 주소(`http://localhost:3100/**`)도 Redirect URLs에 추가해야 하고, 추가하지 않으면 로그인 뒤 배포 사이트로 넘어간다.
+   - 로그인 설정을 바꾼 뒤에는 **시크릿 창**에서 확인한다(이전 세션 쿠키와 캐시가 섞이지 않는다).
    - Vercel 미리보기 배포를 로그인까지 쓸 때만 `https://*-<팀 슬러그>.vercel.app/auth/callback` 같은 패턴을 추가한다(와일드카드 범위가 넓으니 필요할 때만).
 3. **GitHub 로그인**(Authentication → Providers → GitHub): 켜져 있고 Client ID·Secret이 들어 있어야 한다.
 4. **GitHub OAuth App**: Authorization callback URL은 앱 주소가 아니라 **Supabase의 콜백** `https://<project-id>.supabase.co/auth/v1/callback`이다. 배포 도메인을 바꿔도 이 값은 그대로다.
@@ -51,6 +53,7 @@ OpenAI 호출은 초안 생성 한 번뿐이다(비용이 든다). 텍스트만 
    - 배포 주소 `/`에서 "GitHub로 시작하기" → GitHub 승인 → `/projects`로 돌아오는지.
    - 로그아웃 후 `/projects` 직접 접근 시 `/?next=%2Fprojects`로 가고, 로그인하면 원래 주소로 돌아오는지.
    - 실패하면 `/?error=auth` 안내가 뜬다(3절 2·4번을 먼저 의심).
+   - 로컬(`http://localhost:3000`)에서 로그인했는데 배포 사이트로 넘어가면 Redirect URLs 불일치다(3절 2번, 5절 표). 시크릿 창에서 다시 확인한다.
 2. **프로젝트 생성**: 새 프로젝트를 만들면 작업공간으로 이동하는지. 새로고침해도 유지되는지.
 3. **초안 생성 스트리밍과 하트비트**: 스펙 항목을 하나 이상 적고 "초안 생성". 진행 단계(요청 접수 → 생성 중 → 검증 …)가 차례로 바뀌고 끝나면 트리·미리보기가 나오는지. 10초마다 하트비트(`ping`)가 와서 30초 무수신으로 끊김 처리되지 않는지(브라우저 개발자 도구 Network의 `/api/draft` 응답이 완료 전에 조금씩 도착하는지). 응답이 끝까지 모아서 한 번에 오면 스트리밍이 막힌 것이다(중간에 응답을 버퍼링하는 프록시가 없는지 확인).
 4. **편집 자동 저장**: 노드 이름이나 책임을 고치면 약 1초 뒤 "저장됨"이 뜨는지. 새로고침 후 수정이 남아 있는지. 처음 수정하면 AI 초안은 그대로 두고 새 판이 생기는지(Supabase `blueprints` 행).
@@ -65,6 +68,7 @@ OpenAI 호출은 초안 생성 한 번뿐이다(비용이 든다). 텍스트만 
 | --- | --- |
 | 빌드 실패 | Vercel → Deployments → 해당 배포 → Build Logs. 로컬에서 `npx tsc --noEmit`, `npm run lint`, `npm run build` 재현 |
 | 로그인이 `/?error=auth`로 돌아옴 | Supabase Redirect URLs·Site URL(3절 2), GitHub OAuth App의 callback URL(3절 4), Supabase → Logs → Auth |
+| 로컬에서 로그인했더니 Vercel 사이트로 넘어감(그래서 방금 만든 화면이 "준비 중" 같은 **예전 배포** 모습으로 보임) | 원인: Supabase Redirect URLs에 실제로 돌아올 주소(`http://localhost:3000/...`)가 없어 Site URL(Vercel)로 보내진 것. 해결: Redirect URLs에 `http://localhost:3000/**`와 `<배포 주소>/**` 추가(3절 2). 확인은 시크릿 창에서. 다른 포트로 띄웠다면 그 주소도 추가하거나 3000번으로 확인 |
 | 로그인했는데 곧바로 로그아웃됨, 모든 API가 401 | `NEXT_PUBLIC_SUPABASE_*` 값이 맞는지, 값을 바꾼 뒤 **재배포**했는지. 브라우저 쿠키 `sb-…` 존재 여부 |
 | 초안 생성이 "연결이 끊겼습니다" | Vercel → Logs(Functions)에서 `/api/draft`의 실행 시간·타임아웃. 최대 실행 시간 설정(2절 5). 하트비트가 안 오면 스트리밍 버퍼링 의심 |
 | 초안 생성이 502·429·504 | OpenAI 계정의 키·결제·한도·모델 접근 권한. `OPENAI_API_KEY`가 Production에 있는지. Vercel Function 로그(원문 오류는 서버 로그에만 남는다) |

@@ -31,7 +31,33 @@ AgentBlueprint: AI 에이전트가 코드를 쓰기 전에 프론트엔드 구�
 | 부가 | 프로젝트 삭제 `DELETE /api/projects/[id]` + 설정 탭 삭제 버튼(이름 재입력) (`6c49024`) | 완료 |
 | 6 | 문서 갱신(`CLAUDE.md`, `data-model.md` 7-2절, `docs/dev-log/2026-11-02.md`, 이 문서, 계획 문서의 고도화 목록) | 완료 |
 
-검증 상태: 전체 `vitest` 859개 통과, `tsc`·`lint` 통과. 실제 Supabase·OpenAI를 부른 검증은 하지 않았다(`next build` 통과: `/api/projects/[id]/exports`를 포함한 라우트가 모두 컴파일됨).
+검증 상태: 전체 `vitest` 1005개 통과, `tsc`·`lint`·`next build` 통과(`/api/analyze` 포함). 실제 Supabase·OpenAI를 부른 검증은 하지 않았다.
+
+### 기능 B(디자인 시스템 정리) 최소 버전 (구현됨, 사용자 화면 확인 대기)
+
+스펙·계획·판정 기준은 `SPEC-design-system-cleanup.md`, 기준 규칙은 `CLAUDE.md`의 "디자인 시스템 정리 비교 규칙".
+
+| 단계 | 내용 | 상태 |
+| --- | --- | --- |
+| 1 | DS 스키마를 단수형 토큰 그룹으로 확정, 예시 JSON (`38f85f1`) | 완료 |
+| 2 | `.tsx`에서 컴포넌트·props·variant 추출, HTML·컴포넌트 상속 기록, 내보냄 여부, 문법 오류 파일 표시, 올린 파일 사이 상대 경로 import 따라가기 (`81141b0`, `ca9b9b9`, `d839299`) | 완료 |
+| 3 | 스펙 JSON 검증, 디자인 시스템 파일에서 공식 목록 만들기 (`80048d2`) | 완료 |
+| 4 | 비교 C-01·C-02·C-03, 기준값은 `compare.ts`의 `COMPARE_CONFIG` (`3913594`) | 완료 |
+| 5 | `/api/analyze`, 정리 탭 화면, 정리 지시서, C-05 (`29b0c22`, `d2fc51d`, `6d8663d`), 업로드 두 칸 분리·목록 추가·파일별 삭제 (`9a36b60`), 예시 폴더 (`1850288`) | 완료 |
+| 6 | 공개 GitHub 저장소 입력 | **미구현**(시간이 남으면) |
+
+- 화면: 디자인 시스템 칸(폴더 업로드 또는 스펙 JSON)과 검사할 코드 칸(폴더 업로드 또는 파일 여러 개 선택). 선택할 때마다 목록에 추가, 같은 경로는 합침, 파일별 삭제·모두 지우기, 체크 해제는 이번 분석에서만 빼기. 결과는 저장하지 않고 탭을 벗어나면 사라진다.
+- C-05는 디자인 시스템 **파일**을 올린 경우에만 건다. 같은 폴더를 두 칸에 모두 올리면 내용이 같고 경로 끝이 이어지는 파일은 같은 파일로 보고 코드 쪽에서 뺀다(`sameAsDesignSystemCount`).
+- 예시: `fixtures/demo-cleanup/README.md`. 디자인 시스템 칸에 `design-system/`, 코드 칸에 `app/`을 올리면 경고 3·정보 8, JSON 스펙이면 경고 2·정보 8(`core/cleanup/demo-cleanup.test.ts`가 고정).
+- 알려진 한계: `@/` 경로 별칭·`export … from` 재내보내기·패키지 타입은 따라가지 않는다. 임계값(이름·props 유사도 0.5, props 8개)은 실제 코드로 돌려 본 뒤 조정한다(`COMPARE_CONFIG`). 고도화 목록은 `tasks/plan-prompt-export.md`의 "기능 B 고도화".
+- 새 의존성은 없다. `typescript`를 devDependencies에서 dependencies로 옮겼다(서버가 런타임에 쓴다). 브라우저 번들에는 들어가지 않는다.
+
+### 로그인 주소 주의 (로컬 확인)
+
+- 증상: 로그아웃 후 로컬에서 로그인하면 Vercel 사이트로 넘어가 디자인 시스템 탭이 "준비 중"(예전 배포)으로 보였다.
+- 원인: Supabase Redirect URLs와 실제로 돌아올 주소가 맞지 않아 Site URL(Vercel)로 보내졌다.
+- 해결: Redirect URLs에 `http://localhost:3000/**`와 `<배포 주소>/**`를 추가한다. 확인은 시크릿 창에서 한다.
+- 규칙: **로그인이 필요한 화면은 개발 서버 3000번 포트에서만 확인한다.** 다른 포트로 띄우면 그 주소도 Redirect URLs에 추가해야 한다. 자세한 내용은 `docs/deploy-checklist.md` 3절·5절.
 
 ### 내보내기 API (4단계, 구현됨)
 
@@ -50,7 +76,7 @@ AgentBlueprint: AI 에이전트가 코드를 쓰기 전에 프론트엔드 구�
 
 ## 남은 작업
 
-**다음 작업은 기능 B(디자인 시스템 정리) 최소 버전이다.** 아래 "사용자 화면 확인" 항목은 배포 확인으로 끝났다.
+**기능 B 최소 버전은 6단계(GitHub 저장소 입력)만 남았고, 사용자의 화면 확인이 먼저다(`fixtures/demo-cleanup/README.md`로 확인).** 아래 "사용자 화면 확인" 항목은 배포 확인으로 끝났다.
 
 구현할 단계는 끝났다. 남은 것은 사용자의 화면 확인과 그 결과에 따른 수정이다.
 
@@ -72,21 +98,21 @@ AgentBlueprint: AI 에이전트가 코드를 쓰기 전에 프론트엔드 구�
 - `core/`는 React·Next.js·브라우저 API를 import하지 않는다. `app/`에는 `page.tsx`·`route.ts`·`layout.tsx`만 둔다(컴포넌트는 `components/`).
 - 설계도 편집은 `core/edit` 연산 + 스토어 `applyEdit`로만 한다. 설계도 저장은 저장 큐(`lib/client/save-queue`)만 거친다(화면에서 직접 `fetch` 금지).
 - OpenAI·service role key는 서버에서만. 모든 API 라우트는 세션 확인 후 401. Supabase 오류는 사용자용 문구로 바꿔 보여 준다.
-- 서버를 띄워 확인할 때는 3000이 아닌 포트를 쓰고 그 포트의 PID만 종료한다(`taskkill /IM node.exe` 금지).
+- 서버를 띄워 확인할 때는 그 포트의 PID만 종료한다(`taskkill /IM node.exe` 금지). 로그인 없이 되는 확인은 3000이 아닌 포트를 쓰고, **로그인이 필요한 화면은 사용자의 3000번 서버에서만 확인한다**(다른 포트는 Supabase Redirect URLs에 없어 로그인 뒤 Vercel로 넘어간다).
 - 이미 있는 어댑터·규칙 코드는 건드리지 않는다. 새 편집 규칙은 `core/edit`에 두고 화면에 중복하지 않는다.
 
 ## 꼭 읽을 파일
 
 1. `CLAUDE.md` (규칙·폴더 구조·API 표)
 2. `.claude/skills/define-schema/data-model.md` (스키마 기준 문서)
-3. `tasks/plan-prompt-export.md` (단계·보완 A·B·고도화 목록·알려진 한계)
+3. `tasks/plan-prompt-export.md` (단계·보완 A·B·고도화 목록·알려진 한계), `SPEC-design-system-cleanup.md` (기능 B 스펙)
 4. `docs/dev-log/2026-11-02.md` (최신 개발 로그, 지시서 3~6단계·프로젝트 삭제), `docs/dev-log/2026-11-01.md` (지시서 1~2단계와 기준 파일 검토 결정)
 5. 지시서 화면·내보내기 관련: `components/workspace/Workspace.tsx`, `components/structure/SaveQueueProvider.tsx`·`ViolationsProvider.tsx`, `store/structure-store.ts`, `lib/client/save-queue.ts`(`drain`), `lib/api/exports-handler.ts`, `core/prompt/export-prompt.ts`
 
 ## 실행·검증 명령
 
 ```bash
-npm run dev                  # 개발 서버(기본 3000은 사용자가 쓴다. 확인용은 npx next dev -p 3100 처럼 다른 포트)
+npm run dev                  # 개발 서버(기본 3000은 사용자가 쓴다. 로그인 없이 되는 확인만 npx next dev -p 3100 처럼 다른 포트. 로그인이 필요한 화면은 3000번에서만)
 npm test                     # 단위 테스트 (vitest run). 파일 하나: npx vitest run <경로>
 npx tsc --noEmit             # 타입 검사 (커밋 전 필수)
 npm run lint                 # 린트

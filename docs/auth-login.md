@@ -3,7 +3,7 @@
 ## 1. 설정 체크리스트 (코드 밖)
 - Supabase 대시보드 → Authentication → Providers → GitHub 켜기(GitHub OAuth App의 Client ID·Secret 입력)
 - GitHub OAuth App의 Authorization callback URL: `https://<프로젝트>.supabase.co/auth/v1/callback` (앱 주소가 아님)
-- Supabase → Authentication → URL Configuration → Redirect URLs에 `http://localhost:3000/auth/callback`과 배포 주소의 `/auth/callback` 추가
+- Supabase → Authentication → URL Configuration → Redirect URLs에 `http://localhost:3000/**`와 배포 주소의 `/**` 추가(`/auth/callback`만 적으면 돌아올 주소와 맞지 않아 Site URL로 보내질 수 있다. 자세한 내용과 증상은 `docs/deploy-checklist.md` 3절·5절)
 - `.env.local`에 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (이 작업에서는 `SUPABASE_SERVICE_ROLE_KEY`를 쓰지 않는다)
 
 ## 2. 동작

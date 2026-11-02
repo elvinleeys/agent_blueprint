@@ -1,12 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { requestDeleteProject } from "@/lib/client/delete-project";
 import type { Project } from "../../lib/db/projects";
 import DeleteProjectDialog from "./DeleteProjectDialog";
 import { ARCHITECTURES, FRAMEWORKS, labelOf, STYLINGS } from "../projects/stack-labels";
+
+/** 완료 버튼을 누를 수 있는 조건: 저장 중이 아니고, 비어 있지 않고, 현재 이름과 다를 때 */
+export const canCommitName = (current: string, draft: string, pending: boolean) => !pending && draft.trim() !== "" && draft.trim() !== current;
 
 export default function ProjectSettingsTab({ project, onRenamed }: { project: Project; onRenamed: (p: Project) => void }) {
   const router = useRouter();
@@ -17,11 +21,32 @@ export default function ProjectSettingsTab({ project, onRenamed }: { project: Pr
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 수정을 시작하면 입력칸이 활성화된 뒤 포커스하고 이름을 선택한다
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  function startEdit() {
+    setMessage(null);
+    setEditing(true);
+  }
+  function cancelEdit() {
+    if (pending) return;
+    setName(project.name);
+    setEditing(false);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (pending) return;
+    if (!editing || !canCommitName(project.name, name, pending)) return;
     const trimmed = name.trim();
-    if (trimmed.length < 1 || trimmed.length > 100) return setMessage({ kind: "error", text: "프로젝트 이름은 1~100자여야 합니다." });
+    if (trimmed.length > 100) return setMessage({ kind: "error", text: "프로젝트 이름은 1~100자여야 합니다." });
     setPending(true);
     setMessage(null);
     try {
@@ -35,6 +60,7 @@ export default function ProjectSettingsTab({ project, onRenamed }: { project: Pr
       if (!res.ok) return setMessage({ kind: "error", text: body?.error?.message ?? "이름을 바꾸지 못했습니다. 잠시 후 다시 시도해 주세요." });
       onRenamed(body.project);
       setName(body.project.name);
+      setEditing(false);
       setMessage({ kind: "ok", text: "이름을 바꿨습니다." });
       router.refresh(); // 목록 등 서버에서 만든 화면에 새 이름 반영
     } catch {
@@ -67,22 +93,38 @@ export default function ProjectSettingsTab({ project, onRenamed }: { project: Pr
         <label htmlFor="rename" className="text-sm font-medium text-foreground">
           프로젝트 이름
         </label>
-        <input
+        <Input
           id="rename"
+          ref={inputRef}
           value={name}
+          disabled={!editing}
           onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") cancelEdit();
+          }}
           maxLength={100}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+          className="disabled:bg-section disabled:opacity-100"
         />
         {message && (
           <p role={message.kind === "error" ? "alert" : "status"} className={`text-sm ${message.kind === "error" ? "text-destructive" : "text-success"}`}>
             {message.text}
           </p>
         )}
-        <div>
-          <button type="submit" disabled={pending} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover active:bg-primary-active disabled:opacity-50">
-            {pending ? "저장 중…" : "이름 저장"}
-          </button>
+        <div className="flex gap-2">
+          {editing ? (
+            <>
+              <Button type="submit" disabled={!canCommitName(project.name, name, pending)}>
+                {pending ? "저장 중…" : "완료"}
+              </Button>
+              <Button type="button" variant="outline" onClick={cancelEdit} disabled={pending}>
+                취소
+              </Button>
+            </>
+          ) : (
+            <Button type="button" variant="outline" onClick={startEdit}>
+              이름 수정
+            </Button>
+          )}
         </div>
       </form>
 

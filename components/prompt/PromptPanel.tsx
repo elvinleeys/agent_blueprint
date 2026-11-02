@@ -5,13 +5,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { postExport, runExport, type ExportData, type ExportFailure } from "@/lib/client/run-export";
 import { ConfirmDialog } from "../structure/edit/ConfirmDialog";
 import { useSaveQueue } from "../structure/SaveQueueProvider";
 import { useStructureApi, useStructureStore } from "../structure/StructureStoreProvider";
 import { useViolations, ViolationsProvider } from "../structure/ViolationsProvider";
 import { COMMON_RULES_NOTE, errorConfirmDescription, isValidRoute, NO_BLUEPRINT_NOTE, ROUTE_ERROR, ROUTE_HELP, RULES_FOLDER_NOTE, SKIP_NOTE, SPEC_EMPTY_WARNING, unresolvedErrors } from "./export-notes";
-import ExportDocumentCard from "./ExportDocumentCard";
+import ExportDocumentCard, { TITLE } from "./ExportDocumentCard";
 
 type Result = { data: ExportData; editRevision: number };
 
@@ -125,9 +126,21 @@ function Body({ projectId, onGoStructure }: { projectId: string; onGoStructure: 
             </Alert>
           )}
           <p className="text-sm text-foreground-secondary">설계도 {result.data.revision}판 기준으로 만들었습니다.</p>
-          {result.data.documents.map((doc) => (
-            <ExportDocumentCard key={doc.format} doc={doc} />
-          ))}
+          {/* 두 문서를 위아래로 쌓지 않고 탭으로 전환한다 */}
+          <Tabs defaultValue={result.data.documents[0]?.format}>
+            <TabsList>
+              {result.data.documents.map((doc) => (
+                <TabsTrigger key={doc.format} value={doc.format}>
+                  {TITLE[doc.format]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {result.data.documents.map((doc) => (
+              <TabsContent key={doc.format} value={doc.format} className="mt-4">
+                <ExportDocumentCard doc={doc} />
+              </TabsContent>
+            ))}
+          </Tabs>
         </div>
       )}
 

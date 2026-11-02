@@ -15,8 +15,21 @@ export default function CleanupExportCard({ content }: { content: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center justify-between gap-2">
-          정리 지시서
-          <span className="text-xs font-normal text-foreground-tertiary">{CLEANUP_FILE_NAME} · 저장하지 않음</span>
+          <span className="flex flex-col gap-0.5">
+            정리 지시서
+            <span className="text-xs font-normal text-foreground-tertiary">{CLEANUP_FILE_NAME} · 저장하지 않음</span>
+          </span>
+          <span className="flex flex-wrap items-center justify-end gap-2">
+            <span role="status" aria-live="polite" className={copy === "failed" ? "text-sm font-normal text-destructive" : "text-sm font-normal text-foreground-tertiary"}>
+              {copy && COPY_MESSAGE[copy]}
+            </span>
+            <Button type="button" size="sm" onClick={async () => setCopy(await copyText(content))}>
+              복사
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => downloadMarkdown(CLEANUP_FILE_NAME, content)}>
+              .md 내려받기
+            </Button>
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -24,18 +37,7 @@ export default function CleanupExportCard({ content }: { content: string }) {
         <label htmlFor="cleanup-export" className="sr-only">
           정리 지시서 미리보기
         </label>
-        <Textarea id="cleanup-export" readOnly rows={14} value={content} className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" onClick={async () => setCopy(await copyText(content))}>
-            복사
-          </Button>
-          <Button type="button" variant="outline" onClick={() => downloadMarkdown(CLEANUP_FILE_NAME, content)}>
-            .md 내려받기
-          </Button>
-          <span role="status" aria-live="polite" className={copy === "failed" ? "text-sm text-destructive" : "text-sm text-foreground-tertiary"}>
-            {copy && COPY_MESSAGE[copy]}
-          </span>
-        </div>
+        <Textarea id="cleanup-export" readOnly rows={14} value={content} className="max-h-96 overflow-y-auto font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
       </CardContent>
     </Card>
   );

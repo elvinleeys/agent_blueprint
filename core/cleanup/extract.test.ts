@@ -94,7 +94,20 @@ describe("extractFromFile: props 해석", () => {
       type P = Other & React.ComponentProps<"button"> & Omit<Foo, "a"> & { ok: string };
       export const X = (p: P) => <div/>;`);
     expect(c.props).toEqual([{ name: "ok", type: "string", required: true }]);
-    expect(c.unresolved).toEqual(["Other", 'React.ComponentProps<"button">', 'Omit<Foo, "a">']);
+    expect(c.unresolved).toEqual(["Other", 'Omit<Foo, "a">']);
+    expect(c.inherits).toEqual(["button"]);
+  });
+
+  it("HTML 기본 속성 상속은 unresolved가 아니라 inherits로 기록한다", () => {
+    const inh = (src: string) => run(src)[0];
+    expect(inh(`export const A = (p: React.ComponentPropsWithoutRef<"div"> & { a: string }) => <div/>;`)).toMatchObject({ inherits: ["div"], unresolved: [] });
+    expect(inh(`export const B = (p: React.ButtonHTMLAttributes<HTMLButtonElement>) => <button/>;`)).toMatchObject({ inherits: ["button"], unresolved: [] });
+    expect(inh(`export const C = (p: HTMLAttributes<HTMLDivElement>) => <div/>;`)).toMatchObject({ inherits: ["div"], unresolved: [] });
+    expect(inh(`export const D = (p: Omit<React.ComponentProps<"input">, "size"> & { s: number }) => <input/>;`)).toMatchObject({ inherits: ["input"], unresolved: [] });
+    expect(inh(`interface P extends React.AnchorHTMLAttributes<HTMLAnchorElement> { x: string }
+      export const E = (p: P) => <a/>;`)).toMatchObject({ inherits: ["a"], unresolved: [], props: [{ name: "x" }] });
+    // 요소를 알 수 없는 것(제네릭 컴포넌트 props 등)은 못 읽은 것으로 남는다
+    expect(inh(`export const F = (p: React.ComponentProps<typeof Foo>) => <div/>;`)).toMatchObject({ inherits: [], unresolved: ["React.ComponentProps<typeof Foo>"] });
   });
 
   it("자기 자신을 가리키는 타입도 멈춘다", () => {
@@ -131,7 +144,8 @@ describe("extractFromFile: variants", () => {
       export function Button(p: React.ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean }) { return <button/>; }`);
     expect(c.variants).toEqual(["default", "icon-sm"]);
     expect(c.props.map((p) => p.name)).toEqual(["variant", "size", "asChild"]);
-    expect(c.unresolved).toEqual(['React.ComponentProps<"button">']);
+    expect(c.unresolved).toEqual([]);
+    expect(c.inherits).toEqual(["button"]);
   });
 
   it("다른 파일의 cva를 가리키면 variants는 비고 unresolved에 남는다", () => {
@@ -143,14 +157,54 @@ describe("extractFromFile: variants", () => {
   });
 });
 
+describe("내보냄 여부", () => {
+  it("export 키워드·export {…}·export default는 내보냄, 나머지는 내부용", () => {
+    const flags = Object.fromEntries(
+      run(`
+        export function A() { return <a/>; }
+        export const B = () => <b/>;
+        function C() { return <c/>; }
+        const D = () => <d/>;
+        const E = () => <e/>;
+        function F() { return <f/>; }
+        const G = () => <g/>;
+        export { D, E as Renamed };
+        export default F;`).map((c) => [c.name, c.exported]),
+    );
+    expect(flags).toEqual({ A: true, B: true, C: false, D: true, E: true, F: true, G: false });
+  });
+
+  it("export default 이름 없는 컴포넌트·forwardRef는 내보냄", () => {
+    expect(run(`export default () => <i/>;`, "Icon.tsx")[0].exported).toBe(true);
+    expect(run(`export default forwardRef((p: {}, r) => <i/>);`, "Icon.tsx")[0].exported).toBe(true);
+  });
+});
+
 describe("extractComponents", () => {
+  const broken = { path: "c/broken.tsx", content: `export const Ok = () => <a/>;\nexport const = <<< {{{` };
+
   it("여러 파일을 합치고 경로를 남긴다", () => {
-    const { components, failedPaths } = extractComponents([
+    const { components, failedPaths, partialFiles } = extractComponents([
       { path: "a/A.tsx", content: `export const A = () => <a/>;` },
       { path: "b/B.tsx", content: `export const B = () => <b/>;` },
-      { path: "c/broken.tsx", content: `export const = <<< {{{` },
     ]);
     expect(components.map((c) => [c.name, c.path])).toEqual([["A", "a/A.tsx"], ["B", "b/B.tsx"]]);
-    expect(failedPaths).toEqual([]); // 파서가 오류를 견디므로 실패가 아니라 "컴포넌트 없음"
+    expect(failedPaths).toEqual([]);
+    expect(partialFiles).toEqual([]);
+  });
+
+  it("문법 오류가 있는 파일은 읽힌 부분만 분석하고 partialFiles로 알린다", () => {
+    const { components, partialFiles } = extractComponents([{ path: "a/A.tsx", content: `export const A = () => <a/>;` }, broken]);
+    expect(components.map((c) => c.name)).toEqual(["A", "Ok"]);
+    expect(partialFiles).toHaveLength(1);
+    expect(partialFiles[0].path).toBe("c/broken.tsx");
+    expect(partialFiles[0].errors.length).toBeGreaterThan(0);
+    expect(partialFiles[0].errors.length).toBeLessThanOrEqual(3);
+    expect(partialFiles[0].errors[0]).toMatchObject({ line: 2, message: expect.any(String) });
+  });
+
+  it("타입 오류는 문법 오류로 세지 않는다", () => {
+    const { partialFiles } = extractComponents([{ path: "a.tsx", content: `const x: number = "s"; export const A = () => <a>{x}</a>;` }]);
+    expect(partialFiles).toEqual([]);
   });
 });

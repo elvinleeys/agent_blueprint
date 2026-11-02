@@ -2,14 +2,13 @@ import "server-only";
 import { z } from "zod";
 import { httpError } from "../ai/draft-http";
 import { analyzeFiles } from "../../core/cleanup/analyze";
-import { checkLimits, filterFiles, UPLOAD_LIMITS } from "../../core/cleanup/filter-files";
+import { checkLimits, describeLimitProblems, filterFiles } from "../../core/cleanup/filter-files";
 import { invalidInput, readJson, respond } from "./http";
 import { requireSession } from "./session";
 
 /** 코드 1MB + JSON 이스케이프 여유 + 스펙 JSON. Vercel 요청 본문 한도(4.5MB) 안 */
 export const ANALYZE_MAX_BODY_BYTES = 2 * 1024 * 1024;
 const MAX_SPEC_JSON_BYTES = 200 * 1024;
-const NARROWER_HINT = "더 좁은 폴더(예: src/components/ui)를 선택하세요.";
 
 const BodySchema = z
   .object({
@@ -42,10 +41,7 @@ export async function handleAnalyzePost(request: Request): Promise<Response> {
   // 화면이 이미 거르지만 서버도 같은 규칙으로 거르고 상한을 다시 검사한다(화면을 거치지 않은 요청 방어)
   const { accepted } = filterFiles(files.map((f) => ({ ...f, size: byteLength(f.content) })));
   const problems = checkLimits(accepted);
-  if (problems.length) {
-    const msg = problems.map((p) => ({ "too-many-files": `파일이 ${UPLOAD_LIMITS.maxFiles}개를 넘습니다.`, "file-too-large": `파일 하나가 ${UPLOAD_LIMITS.maxFileBytes / 1024}KB를 넘습니다.`, "total-too-large": "파일 합계가 1MB를 넘습니다." })[p.kind]).join(" ");
-    return respond(httpError(413, "payload_too_large", `${msg} ${NARROWER_HINT}`, false));
-  }
+  if (problems.length) return respond(httpError(413, "payload_too_large", describeLimitProblems(problems), false));
   if (accepted.length === 0) return respond(invalidInput("분석할 .ts·.tsx 파일이 없습니다."));
 
   const outcome = analyzeFiles(

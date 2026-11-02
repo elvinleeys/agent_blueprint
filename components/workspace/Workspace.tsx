@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Project } from "../../lib/db/projects";
 import type { StructureInit } from "../../store/structure-store";
+import DesignSystemPanel from "../design-system/DesignSystemPanel";
 import GuardedLink from "../layout/GuardedLink";
 import PromptPanel from "../prompt/PromptPanel";
 import { SaveQueueProvider } from "../structure/SaveQueueProvider";
@@ -16,7 +17,7 @@ type TabId = "settings" | "structure" | "design-system" | "prompt";
 const TABS: { id: TabId; label: string; enabled: boolean }[] = [
   { id: "settings", label: "프로젝트 설정", enabled: true },
   { id: "structure", label: "구조 설계", enabled: true },
-  { id: "design-system", label: "디자인 시스템 정리", enabled: false },
+  { id: "design-system", label: "디자인 시스템 정리", enabled: true },
   { id: "prompt", label: "지시서", enabled: true },
 ];
 
@@ -82,6 +83,7 @@ function WorkspaceBody({ project, onRenamed, structureLoadError }: { project: Pr
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "settings" && <ProjectSettingsTab project={project} onRenamed={onRenamed} />}
         {tab === "structure" && <StructurePanel projectId={project.id} loadError={structureLoadError} />}
+        {tab === "design-system" && <DesignSystemPanel />}
         {tab === "prompt" && <PromptPanel projectId={project.id} onGoStructure={() => setTab("structure")} />}
       </div>
     </div>

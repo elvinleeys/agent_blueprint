@@ -33,6 +33,19 @@ export function filterFiles<T extends FileEntry>(entries: T[]): FilterResult<T> 
 
 export type LimitProblem = { kind: "too-many-files" | "file-too-large" | "total-too-large"; paths?: string[] };
 
+export const NARROWER_FOLDER_HINT = "더 좁은 폴더(예: src/components/ui)를 선택하세요.";
+
+/** 상한 문제를 사용자용 문장으로. 화면과 서버가 같은 문구를 쓴다 */
+export function describeLimitProblems(problems: LimitProblem[], limits = UPLOAD_LIMITS): string {
+  if (!problems.length) return "";
+  const text: Record<LimitProblem["kind"], string> = {
+    "too-many-files": `파일이 ${limits.maxFiles}개를 넘습니다.`,
+    "file-too-large": `파일 하나가 ${limits.maxFileBytes / 1024}KB를 넘습니다.`,
+    "total-too-large": `파일 합계가 ${limits.maxTotalBytes / (1024 * 1024)}MB를 넘습니다.`,
+  };
+  return `${problems.map((p) => text[p.kind]).join(" ")} ${NARROWER_FOLDER_HINT}`;
+}
+
 /** 보내기 전 상한 검사. 문제가 하나라도 있으면 보내지 않는다 */
 export function checkLimits(entries: FileEntry[], limits = UPLOAD_LIMITS): LimitProblem[] {
   const problems: LimitProblem[] = [];

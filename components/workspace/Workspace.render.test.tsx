@@ -20,11 +20,11 @@ describe("Workspace", () => {
     expect(out).not.toContain("저장하지 못했습니다");
   });
 
-  it("지시서 탭은 활성이고 디자인 시스템 정리 탭만 준비 중으로 남는다", () => {
+  it("지시서 탭과 디자인 시스템 정리 탭은 모두 활성이다(준비 중 탭 없음)", () => {
     const out = html({ blueprint, savedInput: null });
     expect(out).toMatch(/<button[^>]*id="tab-prompt"(?![^>]*disabled="")[^>]*>지시서<\/button>/);
-    expect(out).toMatch(/<button[^>]*id="tab-design-system"[^>]*disabled=""[^>]*>디자인 시스템 정리/);
-    expect(out.match(/\(준비 중\)/g)).toHaveLength(1);
+    expect(out).toMatch(/<button[^>]*id="tab-design-system"(?![^>]*disabled="")[^>]*>디자인 시스템 정리<\/button>/);
+    expect(out).not.toContain("(준비 중)");
   });
 
   it("설계도가 없으면 안내를 그린다", () => {

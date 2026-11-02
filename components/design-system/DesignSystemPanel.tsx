@@ -3,60 +3,51 @@
 import { useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { AnalyzeResult, SpecSource } from "@/core/cleanup/analyze";
-import { summarizeUpload } from "@/core/cleanup/upload-summary";
+import type { SourceFile } from "@/core/cleanup/types";
+import type { UploadSummary } from "@/core/cleanup/upload-summary";
 import { buildCleanupPrompt } from "@/core/prompt/cleanup-prompt";
 import { runAnalyze, type AnalyzeFailure } from "@/lib/client/run-analyze";
 import CleanupExportCard from "./CleanupExportCard";
+import FileListSection from "./FileListSection";
 import ResultSection from "./ResultSection";
-import UploadSection, { type PickedFile } from "./UploadSection";
+import { useUploadList, type PickedFile, type UploadList } from "./useUploadList";
 
-type SpecMode = "folder" | "json";
+type DsMode = "files" | "json";
+
+const readContents = (summary: UploadSummary<PickedFile>): Promise<SourceFile[]> =>
+  Promise.all(summary.selected.map(async (f) => ({ path: f.path, content: await f.file.text() })));
+
+const ready = (u: UploadList) => !!u.summary && u.summary.selected.length > 0 && u.summary.problems.length === 0;
 
 /**
  * 디자인 시스템 정리 탭. 결과는 화면에만 두고 저장하지 않는다(탭을 벗어나면 사라진다).
- * 순서: 코드 올리기(거르기·체크) → 스펙 얻는 방법 → 분석 → 결과 → 정리 지시서
+ * 순서: 디자인 시스템(폴더 업로드 또는 JSON) → 검사할 코드(폴더 업로드 또는 파일 선택) → 분석 → 결과 → 정리 지시서
  */
 export default function DesignSystemPanel() {
-  const [picked, setPicked] = useState<PickedFile[]>([]);
-  const [unchecked, setUnchecked] = useState<ReadonlySet<string>>(new Set());
-  const [mode, setMode] = useState<SpecMode>("folder");
-  const [folder, setFolder] = useState("");
+  const ds = useUploadList();
+  const code = useUploadList();
+  const [mode, setMode] = useState<DsMode>("files");
   const [json, setJson] = useState("");
   const [running, setRunning] = useState(false);
   const [failure, setFailure] = useState<AnalyzeFailure | null>(null);
   const [result, setResult] = useState<AnalyzeResult | null>(null);
 
-  const summary = useMemo(() => (picked.length ? summarizeUpload(picked, unchecked) : null), [picked, unchecked]);
-  const specReady = mode === "folder" ? folder.trim() !== "" : json.trim() !== "";
-  const canRun = !running && !!summary && summary.selected.length > 0 && summary.problems.length === 0 && specReady;
+  const dsReady = mode === "files" ? ready(ds) : json.trim() !== "";
+  const canRun = !running && ready(code) && dsReady;
   const prompt = useMemo(() => (result ? buildCleanupPrompt(result) : null), [result]);
 
-  function onPick(files: PickedFile[]) {
-    setPicked(files);
-    setUnchecked(new Set());
-    setResult(null);
-    setFailure(null);
-  }
-
-  function onToggle(path: string) {
-    setUnchecked((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(path)) next.add(path);
-      return next;
-    });
-  }
+  const missing = !ready(code) ? "검사할 코드 파일을 올려 주세요." : !dsReady ? (mode === "files" ? "디자인 시스템 폴더를 올려 주세요." : "스펙 JSON을 입력하세요.") : "";
 
   async function run() {
-    if (!summary) return;
+    if (!code.summary || (mode === "files" && !ds.summary)) return;
     setRunning(true);
     setFailure(null);
-    // 입력 내용(스펙·체크 상태)은 실패해도 그대로 둔다. 코드는 이 요청에만 쓰고 저장하지 않는다
-    const files = await Promise.all(summary.selected.map(async (f) => ({ path: f.path, content: await f.file.text() })));
-    const spec: SpecSource = mode === "folder" ? { kind: "folder", folder: folder.trim() } : { kind: "json", text: json };
-    const outcome = await runAnalyze(files, spec);
+    // 입력 내용(올린 파일·체크 상태·JSON)은 실패해도 그대로 둔다. 코드는 이 요청에만 쓰고 저장하지 않는다
+    const codeFiles = await readContents(code.summary);
+    const designSystem: SpecSource = mode === "files" ? { kind: "files", files: await readContents(ds.summary!) } : { kind: "json", text: json };
+    const outcome = await runAnalyze(codeFiles, designSystem);
     if (outcome.ok) setResult(outcome.result);
     else {
       setResult(null);
@@ -68,44 +59,63 @@ export default function DesignSystemPanel() {
   return (
     <div className="flex flex-col gap-8">
       <p className="text-sm text-foreground-secondary">
-        디자인 시스템의 공식 컴포넌트와 실제 코드를 비교해, 공식 목록에 없거나 서로 비슷한 컴포넌트를 찾고 정리 지시서를 만듭니다.
+        디자인 시스템의 공식 컴포넌트와 실제 코드를 비교해, 공식 목록에 없거나 서로 비슷한 컴포넌트를 찾고 정리 지시서를 만듭니다. 코드는 분석에만 쓰고 저장하지 않습니다.
       </p>
 
-      <UploadSection summary={summary} unchecked={unchecked} onPick={onPick} onToggle={onToggle} disabled={running} />
-
-      <section aria-labelledby="ds-spec-title" className="flex flex-col gap-3">
-        <h2 id="ds-spec-title" className="text-lg font-semibold text-foreground">
-          2. 공식 디자인 시스템 정하기
+      <section aria-labelledby="ds-system-title" className="flex flex-col gap-3">
+        <h2 id="ds-system-title" className="text-lg font-semibold text-foreground">
+          1. 디자인 시스템 (공식)
         </h2>
-        <div role="radiogroup" aria-label="스펙을 얻는 방법" className="flex flex-wrap gap-4 text-sm text-foreground">
+        <div role="radiogroup" aria-label="디자인 시스템을 정하는 방법" className="flex flex-wrap gap-4 text-sm text-foreground">
           <label className="flex items-center gap-2">
-            <input type="radio" name="spec-mode" checked={mode === "folder"} onChange={() => setMode("folder")} disabled={running} />
-            디자인 시스템 폴더로 만들기
+            <input type="radio" name="ds-mode" checked={mode === "files"} onChange={() => setMode("files")} disabled={running} />
+            폴더 업로드
           </label>
           <label className="flex items-center gap-2">
-            <input type="radio" name="spec-mode" checked={mode === "json"} onChange={() => setMode("json")} disabled={running} />
-            스펙 JSON 직접 입력
+            <input type="radio" name="ds-mode" checked={mode === "json"} onChange={() => setMode("json")} disabled={running} />
+            스펙 JSON 붙여넣기
           </label>
         </div>
-
-        {mode === "folder" ? (
-          <label className="flex flex-col gap-1 text-sm text-foreground">
-            디자인 시스템 폴더 경로
-            <Input value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="src/components/ui" disabled={running} />
-            <span className="text-xs text-foreground-tertiary">올린 파일 경로 안에서 이 폴더의 내보낸 컴포넌트가 공식 컴포넌트가 됩니다. 이 폴더 안의 컴포넌트는 비교 대상에서 빠집니다.</span>
-          </label>
+        {mode === "files" ? (
+          <>
+            <p className="text-sm text-foreground-secondary">디자인 시스템 폴더(예: src/components/ui)를 선택하세요. 올린 파일에서 내보낸 컴포넌트가 공식 컴포넌트가 됩니다. 다른 저장소의 폴더여도 됩니다.</p>
+            <FileListSection idPrefix="ds" pickers={[{ label: "디자인 시스템 폴더 선택", directory: true }]} upload={ds} disabled={running} />
+          </>
         ) : (
           <label className="flex flex-col gap-1 text-sm text-foreground">
             디자인 시스템 스펙 JSON
-            <Textarea value={json} onChange={(e) => setJson(e.target.value)} rows={8} className="font-mono text-xs" placeholder='{ "version": "1.2", "components": [...], "tokens": { "color": {...}, "spacing": {...} } }' disabled={running} />
+            <Textarea
+              value={json}
+              onChange={(e) => setJson(e.target.value)}
+              rows={8}
+              className="font-mono text-xs"
+              placeholder='{ "version": "1.2", "components": [...], "tokens": { "color": {...}, "spacing": {...} } }'
+              disabled={running}
+            />
+            <span className="text-xs text-foreground-tertiary">JSON으로 받은 스펙은 파일 위치를 알 수 없어, 코드의 같은 이름 컴포넌트를 공식 구현으로 보고 &ldquo;같은 이름의 별도 구현&rdquo; 경고를 걸지 않습니다.</span>
           </label>
         )}
+      </section>
 
+      <section aria-labelledby="ds-code-title" className="flex flex-col gap-3">
+        <h2 id="ds-code-title" className="text-lg font-semibold text-foreground">
+          2. 검사할 코드
+        </h2>
+        <p className="text-sm text-foreground-secondary">정리할 코드가 있는 폴더(예: src)를 선택하거나 파일을 여러 개 선택하세요. 파일이 많으면 더 좁은 폴더(예: src/components/ui)를 선택하세요.</p>
+        <FileListSection
+          idPrefix="code"
+          pickers={[
+            { label: "폴더 선택", directory: true },
+            { label: "파일 여러 개 선택 (폴더 선택이 안 되는 브라우저용)", directory: false },
+          ]}
+          upload={code}
+          disabled={running}
+        />
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" onClick={run} disabled={!canRun}>
             {running ? "분석 중…" : "분석하기"}
           </Button>
-          {!specReady && <span className="text-xs text-foreground-tertiary">{mode === "folder" ? "디자인 시스템 폴더 경로를 입력하세요." : "스펙 JSON을 입력하세요."}</span>}
+          {missing && <span className="text-xs text-foreground-tertiary">{missing}</span>}
         </div>
       </section>
 

@@ -122,27 +122,28 @@ describe("C-02 합치기 후보", () => {
 });
 
 describe("C-05 공식과 같은 이름의 별도 구현(경고)", () => {
-  const official = [{ ...off("Button", "label"), path: "src/ui/Button.tsx" }];
-  const analyzed = [comp("Button", { path: "src/ui/Button.tsx" }), comp("Button", { path: "src/features/Button.tsx" }), comp("Page", { path: "src/pages/Page.tsx" })];
+  // 공식은 디자인 시스템으로 올린 파일에서 만들었고(path 있음), 코드에는 디자인 시스템 파일이 들어 있지 않다
+  const official = [{ ...off("Button", "label"), path: "design-system/Button.tsx" }];
+  const code = [comp("Button", { path: "app/Button.tsx" }), comp("Page", { path: "app/Page.tsx" })];
 
-  it("폴더로 만든 스펙: 폴더 밖의 같은 이름은 경고, 폴더 안의 공식 구현은 아니다", () => {
-    const r = compareDesignSystem({ official, analyzed, designSystemFolder: "src/ui" });
+  it("디자인 시스템 파일로 만든 공식 목록: 코드의 같은 이름은 경고", () => {
+    const r = compareDesignSystem({ official, analyzed: code, officialFromFiles: true });
     const c05 = rules(r.findings, "C-05");
     expect(c05).toHaveLength(1);
-    expect(c05[0]).toMatchObject({ severity: "warning", officialPath: "src/ui/Button.tsx", component: { name: "Button", path: "src/features/Button.tsx" } });
-    expect(c05[0].message).toContain("같은 이름의 별도 구현입니다(공식: src/ui/Button.tsx)");
+    expect(c05[0]).toMatchObject({ severity: "warning", officialPath: "design-system/Button.tsx", component: { name: "Button", path: "app/Button.tsx" } });
+    expect(c05[0].message).toContain("같은 이름의 별도 구현입니다(공식: design-system/Button.tsx)");
     // 공식 이름이라 C-01(공식 목록에 없음)에는 오르지 않는다
     expect(rules(r.findings, "C-01").map((f) => f.component.name)).toEqual(["Page"]);
   });
 
-  it("JSON 스펙(폴더 없음): 같은 이름은 공식 구현으로 보고 경고하지 않는다", () => {
-    const r = compareDesignSystem({ official: [off("Button", "label")], analyzed });
+  it("JSON 스펙(파일 없음): 같은 이름은 공식 구현으로 보고 경고하지 않는다", () => {
+    const r = compareDesignSystem({ official: [off("Button", "label")], analyzed: code });
     expect(rules(r.findings, "C-05")).toEqual([]);
     expect(rules(r.findings, "C-01").map((f) => f.component.name)).toEqual(["Page"]);
   });
 
-  it("내부용(내보내지 않음)이거나 폴더 안인 같은 이름은 경고하지 않고, 경고는 정보보다 앞에 놓인다", () => {
-    const r = compareDesignSystem({ official, analyzed: [comp("Button", { path: "src/features/B.tsx", exported: false }), ...analyzed], designSystemFolder: "src/ui" });
+  it("내부용(내보내지 않음)인 같은 이름은 경고하지 않고, 경고는 정보보다 앞에 놓인다", () => {
+    const r = compareDesignSystem({ official, analyzed: [comp("Button", { path: "app/B.tsx", exported: false }), ...code], officialFromFiles: true });
     expect(rules(r.findings, "C-05")).toHaveLength(1);
     expect(r.findings.map((f) => f.rule)).toEqual(["C-05", "C-01"]);
   });
@@ -153,16 +154,6 @@ describe("비교 대상 정하기와 요약", () => {
     const r = compareDesignSystem({ official: [], analyzed: [comp("Used"), comp("Hidden", { exported: false })] });
     expect(r.findings.map((f) => ("component" in f ? f.component.name : ""))).toEqual(["Used"]);
     expect(r.summary).toMatchObject({ comparedCount: 1, internalCount: 1 });
-  });
-
-  it("디자인 시스템 폴더 안 컴포넌트는 비교에서 뺀다", () => {
-    const r = compareDesignSystem({
-      official: [off("Button", "a", "b")],
-      analyzed: [comp("Button", { path: "src/ui/Button.tsx" }), comp("Card", { path: "src/ui/Card.tsx" }), comp("Page", { path: "src/pages/Page.tsx" })],
-      designSystemFolder: "src/ui",
-    });
-    expect(r.summary).toMatchObject({ inDesignSystemFolderCount: 2, comparedCount: 1 });
-    expect(r.findings.map((f) => ("component" in f ? f.component.name : ""))).toEqual(["Page"]);
   });
 
   it("못 읽은 것은 요약 개수로만 알린다(결과 목록에 올리지 않음)", () => {
@@ -183,17 +174,23 @@ describe("비교 대상 정하기와 요약", () => {
 });
 
 describe("파이프라인: 코드 → 분석 → 스펙 생성 → 비교", () => {
-  it("폴더로 만든 공식 목록과 비교한다(상속 정보가 합치기 판단에 쓰임)", () => {
-    const files = {
-      "src/ui/Dialog.tsx": `import * as P from "@x/dialog";
-        export function Dialog(p: React.ComponentProps<typeof P.Root>) { return <div/>; }`,
-      "src/features/ConfirmDialog.tsx": `import * as P from "@x/dialog";
-        export const ConfirmDialog = (p: React.ComponentProps<typeof P.Root> & { message: string }) => <div/>;`,
-      "src/features/Cart.tsx": `export const Cart = () => <div/>;`,
-    };
-    const analyzed = extractComponents(Object.entries(files).map(([path, content]) => ({ path, content }))).components;
-    const inferred = inferComponents(analyzed, "src/ui");
-    const r = compareDesignSystem({ official: inferred.official, analyzed, designSystemFolder: "src/ui" });
+  it("디자인 시스템 파일로 만든 공식 목록과 코드를 비교한다(상속 정보가 합치기 판단에 쓰임)", () => {
+    const toFiles = (files: Record<string, string>) => Object.entries(files).map(([path, content]) => ({ path, content }));
+    const designSystem = extractComponents(
+      toFiles({
+        "ds/Dialog.tsx": `import * as P from "@x/dialog";
+          export function Dialog(p: React.ComponentProps<typeof P.Root>) { return <div/>; }`,
+      }),
+    ).components;
+    const analyzed = extractComponents(
+      toFiles({
+        "app/ConfirmDialog.tsx": `import * as P from "@x/dialog";
+          export const ConfirmDialog = (p: React.ComponentProps<typeof P.Root> & { message: string }) => <div/>;`,
+        "app/Cart.tsx": `export const Cart = () => <div/>;`,
+      }),
+    ).components;
+    const inferred = inferComponents(designSystem);
+    const r = compareDesignSystem({ official: inferred.official, analyzed, officialFromFiles: true });
     const c02 = rules(r.findings, "C-02");
     expect(c02).toHaveLength(1);
     expect(c02[0]).toMatchObject({ severity: "warning", members: [{ name: "Dialog", official: true }, { name: "ConfirmDialog" }] });

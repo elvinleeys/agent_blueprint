@@ -58,8 +58,10 @@ export default function ResultSection({ result }: { result: AnalyzeResult }) {
       <p className="text-sm text-foreground-secondary">
         공식 컴포넌트 {result.officialCount}개 기준 · 비교한 컴포넌트 {summary.comparedCount}개
         {summary.internalCount > 0 && ` · 파일 안에서만 쓰는 ${summary.internalCount}개 제외`}
-        {summary.inDesignSystemFolderCount > 0 && ` · 디자인 시스템 폴더 안 ${summary.inDesignSystemFolderCount}개 제외`}
       </p>
+      {result.sameAsDesignSystemCount > 0 && (
+        <p className="text-sm text-foreground-secondary">검사할 코드에 올린 파일 중 디자인 시스템 파일과 내용이 같은 {result.sameAsDesignSystemCount}개는 비교에서 뺐습니다.</p>
+      )}
 
       {partial.length > 0 && (
         <Alert variant="destructive">

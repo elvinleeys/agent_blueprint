@@ -20,14 +20,6 @@ export function parseSpecJson(text: string): SpecParseResult {
 
 // ── 디자인 시스템 폴더에서 스펙 자동 생성 ──────────────────────────
 
-const norm = (p: string) => p.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-
-/** 경로가 지정한 폴더 안인가. 업로드 경로 앞에 선택한 폴더의 상위 이름이 붙어 있어도(`my-app/src/ui/A.tsx`) 폴더 이름 구간이 이어서 나오면 맞는 것으로 본다 */
-export function isInFolder(path: string, folder: string): boolean {
-  const f = norm(folder);
-  return f !== "" && `/${norm(path)}`.includes(`/${f}/`);
-}
-
 export type InferWarning =
   | { kind: "variant-dropped"; component: string; values: string[] }
   | { kind: "duplicate-name"; name: string; paths: string[] }
@@ -43,14 +35,13 @@ export type InferResult = {
 };
 
 /**
- * 디자인 시스템 폴더 안에서 내보낸 컴포넌트로 공식 컴포넌트 목록을 만든다(토큰은 만들지 않음).
+ * 디자인 시스템으로 올린 파일들(분석 결과)에서 내보낸 컴포넌트로 공식 컴포넌트 목록을 만든다(토큰은 만들지 않음).
  * 스펙 스키마를 어기는 값은 버리고 경고로 알린다: kebab-case가 아닌 variant, 같은 이름의 중복(먼저 나온 것을 씀)
  */
-export function inferComponents(analyzed: AnalyzedComponent[], folder: string): InferResult {
-  const inFolder = analyzed.filter((c) => isInFolder(c.path, folder));
+export function inferComponents(analyzed: AnalyzedComponent[]): InferResult {
   const warnings: InferWarning[] = [];
   const byName = new Map<string, AnalyzedComponent[]>();
-  for (const c of inFolder.filter((c) => c.exported)) byName.set(c.name, [...(byName.get(c.name) ?? []), c]);
+  for (const c of analyzed.filter((c) => c.exported)) byName.set(c.name, [...(byName.get(c.name) ?? []), c]);
 
   const components: DSComponent[] = [];
   const official: OfficialComponent[] = [];
@@ -67,5 +58,5 @@ export function inferComponents(analyzed: AnalyzedComponent[], folder: string): 
       official.push({ ...r.data, inherits: c.inherits, inheritsComponents: c.inheritsComponents, path: c.path });
     } else warnings.push({ kind: "invalid-component", name, message: r.error.issues[0]?.message ?? "스키마 검증 실패" });
   }
-  return { components, official, warnings, used: components.length, internalSkipped: inFolder.filter((c) => !c.exported).length };
+  return { components, official, warnings, used: components.length, internalSkipped: analyzed.filter((c) => !c.exported).length };
 }

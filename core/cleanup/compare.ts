@@ -1,4 +1,3 @@
-import { isInFolder } from "./infer-spec";
 import type { AnalyzedComponent, OfficialComponent } from "./types";
 
 /** 판정 기준값. 실제 코드로 돌려 본 뒤 조정하기 쉽게 여기에만 둔다 */
@@ -26,12 +25,10 @@ export type Finding =
 
 export type CompareSummary = {
   officialCount: number;
-  /** 비교한 컴포넌트(내보낸 것, 디자인 시스템 폴더 밖) */
+  /** 비교한 컴포넌트(검사할 코드에서 내보낸 것) */
   comparedCount: number;
   /** 파일 안에서만 쓰는 내부용이라 비교하지 않은 컴포넌트 */
   internalCount: number;
-  /** 디자인 시스템 폴더 안이라 비교 대상에서 뺀 컴포넌트 */
-  inDesignSystemFolderCount: number;
   /** props 일부만 읽은 비교 대상 컴포넌트(C-04 요약). 결과 목록에는 올리지 않는다 */
   unresolvedCount: number;
 };
@@ -40,9 +37,10 @@ export type CompareResult = { findings: Finding[]; summary: CompareSummary };
 
 export type CompareInput = {
   official: OfficialComponent[];
+  /** 검사할 코드에서 분석한 컴포넌트(디자인 시스템 파일은 포함하지 않는다) */
   analyzed: AnalyzedComponent[];
-  /** 폴더에서 스펙을 만든 경우, 그 폴더 안 컴포넌트는 비교 대상에서 뺀다 */
-  designSystemFolder?: string;
+  /** 공식 목록을 디자인 시스템으로 올린 파일에서 만들었는가. true일 때만 C-05(같은 이름의 별도 구현)를 건다 */
+  officialFromFiles?: boolean;
 };
 
 const words = (name: string) => new Set((name.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+/g) ?? []).map((w) => w.toLowerCase()));
@@ -79,13 +77,11 @@ function judgePair(a: Node, b: Node): string[] | null {
 }
 
 export function compareDesignSystem(input: CompareInput): CompareResult {
-  const { official, analyzed, designSystemFolder } = input;
+  const { official, analyzed, officialFromFiles } = input;
   const officialNames = new Set(official.map((o) => o.name));
 
-  const outside = analyzed.filter((c) => !designSystemFolder || !isInFolder(c.path, designSystemFolder));
-  const inFolderCount = analyzed.length - outside.length;
-  const exported = outside.filter((c) => c.exported);
-  const internalCount = outside.length - exported.length;
+  const exported = analyzed.filter((c) => c.exported);
+  const internalCount = analyzed.length - exported.length;
 
   const findings: Finding[] = [];
   const refOf = (c: AnalyzedComponent): CompRef => ({ name: c.name, path: c.path, official: officialNames.has(c.name) });
@@ -97,7 +93,7 @@ export function compareDesignSystem(input: CompareInput): CompareResult {
 
   // C-05 공식과 같은 이름의 별도 구현(경고): 디자인 시스템 폴더로 스펙을 만든 경우에만. 폴더 밖에 같은 이름이 따로 있다는 뜻이다.
   // JSON 스펙은 구현 위치를 알 수 없어 같은 이름을 공식 구현으로 본다(지금처럼 C-01·합치기 쌍에서만 뺀다)
-  if (designSystemFolder) {
+  if (officialFromFiles) {
     for (const c of exported) {
       const o = official.find((x) => x.name === c.name);
       if (!o) continue;
@@ -167,7 +163,6 @@ export function compareDesignSystem(input: CompareInput): CompareResult {
       officialCount: official.length,
       comparedCount: exported.length,
       internalCount,
-      inDesignSystemFolderCount: inFolderCount,
       unresolvedCount: exported.filter((c) => c.unresolved.length > 0).length,
     },
   };

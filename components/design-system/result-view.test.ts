@@ -10,16 +10,15 @@ const props = (...n: string[]) => n.map((name) => ({ name, type: "string", requi
 
 describe("groupFindings", () => {
   const r = compareDesignSystem({
-    official: [{ name: "Button", variants: [], props: [{ name: "a", type: "string", required: true }], path: "src/ui/Button.tsx" }],
+    official: [{ name: "Button", variants: [], props: [{ name: "a", type: "string", required: true }], path: "ds/Button.tsx" }],
     analyzed: [
-      comp("Button", { path: "src/ui/Button.tsx" }),
       comp("Button", { path: "src/features/Button.tsx" }),
       comp("UserCard", { props: props("n", "m") }),
       comp("UserCardWide", { props: props("n", "m") }),
       comp("Big", { props: props(..."abcdefghi".split("")) }),
       comp("Cart"),
     ],
-    designSystemFolder: "src/ui",
+    officialFromFiles: true,
   });
   const g = groupFindings(r.findings);
 

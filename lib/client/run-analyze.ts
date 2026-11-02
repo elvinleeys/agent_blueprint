@@ -8,8 +8,9 @@ export type AnalyzeOutcome = { ok: true; result: AnalyzeResult } | { ok: false; 
 
 const NETWORK_ERROR: AnalyzeFailure = { message: "서버에 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.", details: [], retryable: true };
 
-export async function runAnalyze(files: SourceFile[], spec: SpecSource, fetchImpl: typeof fetch = fetch): Promise<AnalyzeOutcome> {
-  const body = spec.kind === "folder" ? { files, designSystemFolder: spec.folder } : { files, specJson: spec.text };
+/** 검사할 코드 파일과 디자인 시스템(파일 묶음 또는 스펙 JSON)을 보낸다 */
+export async function runAnalyze(codeFiles: SourceFile[], designSystem: SpecSource, fetchImpl: typeof fetch = fetch): Promise<AnalyzeOutcome> {
+  const body = designSystem.kind === "files" ? { codeFiles, designSystemFiles: designSystem.files } : { codeFiles, specJson: designSystem.text };
   let res: Response;
   try {
     res = await fetchImpl("/api/analyze", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });

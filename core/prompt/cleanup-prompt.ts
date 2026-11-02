@@ -29,7 +29,7 @@ export function buildCleanupPrompt(result: AnalyzeResult): string {
     "# 디자인 시스템 정리 지시서",
     "",
     `> 출처: ${CLEANUP_SOURCE} (AgentBlueprint 디자인 시스템 정리). 공식 컴포넌트 ${result.officialCount}개 기준, 비교한 컴포넌트 ${summary.comparedCount}개.`,
-    result.specSource === "folder" ? `> 공식 컴포넌트는 \`${result.designSystemFolder}\` 폴더의 내보낸 컴포넌트입니다.` : "> 공식 컴포넌트는 사용자가 입력한 디자인 시스템 스펙(JSON)입니다.",
+    result.specSource === "files" ? `> 공식 컴포넌트는 올린 디자인 시스템 파일 ${result.designSystemFileCount}개에서 내보낸 컴포넌트입니다.` : "> 공식 컴포넌트는 사용자가 입력한 디자인 시스템 스펙(JSON)입니다.",
     "",
     "## 목표",
     "",
@@ -94,7 +94,7 @@ export function buildCleanupPrompt(result: AnalyzeResult): string {
     ]),
   );
 
-  const limits: string[] = [`- 이 목록은 코드를 정적으로 읽어 만든 것입니다. 올린 파일 ${result.fileCount}개만 분석했고, \`@/\` 경로 별칭과 \`export … from\` 재내보내기는 따라가지 않았습니다.`];
+  const limits: string[] = [`- 이 목록은 코드를 정적으로 읽어 만든 것입니다. 올린 코드 파일 ${result.codeFileCount}개만 분석했고, \`@/\` 경로 별칭과 \`export … from\` 재내보내기는 따라가지 않았습니다.`];
   if (summary.unresolvedCount) limits.push(`- props를 일부만 읽은 컴포넌트가 ${summary.unresolvedCount}개 있어 props 비교가 부정확할 수 있습니다. 판단 전에 실제 코드를 확인한다.`);
   if (summary.internalCount) limits.push(`- 파일 안에서만 쓰는 컴포넌트 ${summary.internalCount}개는 비교하지 않았습니다.`);
   for (const p of result.partialFiles) limits.push(`- 문법 오류로 일부만 분석된 파일: \`${p.path}\` (${p.errors[0]?.line}줄: ${p.errors[0]?.message})`);

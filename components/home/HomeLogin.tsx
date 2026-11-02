@@ -6,8 +6,8 @@ type Params = Promise<{ next?: string | string[]; error?: string | string[] }>;
 export default async function HomeLogin({ searchParams }: { searchParams: Params }) {
   const { next, error } = await searchParams;
   return (
-    <div className="flex flex-col items-center gap-4">
-      {error === "auth" && <p role="alert" className="text-destructive">로그인에 실패했습니다. 다시 시도해 주세요.</p>}
+    <div className="flex flex-col items-start gap-3">
+      {error === "auth" && <p role="alert" className="text-sm text-destructive">로그인에 실패했습니다. 다시 시도해 주세요.</p>}
       <LoginButton next={typeof next === "string" ? next : undefined} />
     </div>
   );

@@ -23,7 +23,8 @@ export function countSummary(violations: Violation[]): string {
     .join(" · ");
 }
 
-export default function CheckResults() {
+/** readOnly: 노드 이름을 눌러 선택하는 동작 없이 목록만 보인다(홈 랜딩의 예시용) */
+export default function CheckResults({ readOnly = false }: { readOnly?: boolean }) {
   const blueprint = useStructureStore((s) => s.blueprint);
   const select = useStructureStore((s) => s.requestSelect); // 화면에만 있는 틀린 입력이 있으면 확인을 거친다
   const { violations } = useViolations();
@@ -50,7 +51,12 @@ export default function CheckResults() {
                     <span className="text-foreground">{v.message}</span>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {v.nodeIds.map((id) => (
+                    {v.nodeIds.map((id) =>
+                      readOnly ? (
+                        <span key={id} className="rounded-md border border-border px-2 py-0.5 text-xs text-foreground">
+                          {names.get(id) ?? id}
+                        </span>
+                      ) : (
                       <button
                         key={id}
                         type="button"
@@ -59,7 +65,8 @@ export default function CheckResults() {
                       >
                         {names.get(id) ?? id}
                       </button>
-                    ))}
+                      ),
+                    )}
                   </div>
                 </li>
               ))}

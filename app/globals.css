@@ -109,3 +109,33 @@
     @apply font-sans;
   }
 }
+
+/* 홈 랜딩 예시 미리보기: 상자가 바깥에서 안쪽으로(깊이), 같은 깊이에서는 순서대로 나타난다. CSS만 쓰고 움직임 줄이기 설정이면 멈춘다 */
+@keyframes box-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-reveal] {
+  animation: box-in 420ms ease-out both;
+  animation-delay: calc(var(--reveal-depth, 0ms) + var(--reveal-nth, 0ms));
+}
+[data-reveal][data-depth="1"] { --reveal-depth: 350ms; }
+[data-reveal][data-depth="2"] { --reveal-depth: 700ms; }
+[data-reveal][data-depth="3"] { --reveal-depth: 1050ms; }
+[data-reveal][data-depth="4"] { --reveal-depth: 1400ms; }
+[data-reveal]:nth-child(2) { --reveal-nth: 120ms; }
+[data-reveal]:nth-child(3) { --reveal-nth: 240ms; }
+[data-reveal]:nth-child(4) { --reveal-nth: 360ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    animation: none;
+  }
+}

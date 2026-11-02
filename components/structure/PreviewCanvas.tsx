@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type KeyboardEvent } from "react";
+import { useMemo, type KeyboardEvent, type MouseEvent } from "react";
 import { buildPreview, type PreviewBox } from "@/core/preview/preview";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,9 @@ function childrenLayout(box: PreviewBox): string {
 
 const spanClass = (span: PreviewBox["span"]) => (span === null ? "" : span === "full" ? COL_SPAN_FULL : COL_SPAN[span]);
 
-function BoxView({ box, selectedId, onSelect }: { box: PreviewBox; selectedId: string | null; onSelect: (id: string) => void }) {
+type BoxProps = { box: PreviewBox; selectedId: string | null; onSelect: (id: string) => void; readOnly?: boolean; depth?: number };
+
+function BoxView({ box, selectedId, onSelect, readOnly = false, depth = 0 }: BoxProps) {
   const selected = box.id === selectedId;
   const choose = () => onSelect(box.id);
   const onKeyDown = (e: KeyboardEvent) => {
@@ -34,18 +36,23 @@ function BoxView({ box, selectedId, onSelect }: { box: PreviewBox; selectedId: s
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-pressed={selected}
-      aria-label={`${box.name}${caption ? `, ${caption}` : ""}${box.assumed ? ", AI 가정" : ""}${mark ? `, ${mark.label}` : ""}`}
-      onClick={(e) => {
-        e.stopPropagation(); // 가장 안쪽 상자만 선택된다
-        choose();
-      }}
-      onKeyDown={onKeyDown}
+      // 읽기 전용(홈 랜딩 예시): 선택·키 조작 없이 그리기만 하고, 차례로 나타나는 CSS 애니메이션(globals.css의 data-reveal)만 붙인다
+      {...(readOnly
+        ? { "data-reveal": "", "data-depth": depth }
+        : {
+            role: "button",
+            tabIndex: 0,
+            "aria-pressed": selected,
+            "aria-label": `${box.name}${caption ? `, ${caption}` : ""}${box.assumed ? ", AI 가정" : ""}${mark ? `, ${mark.label}` : ""}`,
+            onClick: (e: MouseEvent) => {
+              e.stopPropagation(); // 가장 안쪽 상자만 선택된다
+              choose();
+            },
+            onKeyDown,
+          })}
       className={cn(
-        "flex min-w-0 cursor-pointer flex-col gap-2 rounded-lg border bg-card p-2 outline-none",
-        "focus-visible:ring-3 focus-visible:ring-ring/50",
+        "flex min-w-0 flex-col gap-2 rounded-lg border bg-card p-2 outline-none",
+        !readOnly && "cursor-pointer focus-visible:ring-3 focus-visible:ring-ring/50",
         mark ? mark.border : box.assumed ? ASSUMED_BORDER : "border-border", // 위반 색 실선이 AI 가정 점선보다 우선한다
         selected && "ring-2 ring-primary",
         spanClass(box.span),
@@ -61,7 +68,7 @@ function BoxView({ box, selectedId, onSelect }: { box: PreviewBox; selectedId: s
       {box.children.length > 0 && (
         <div className={childrenLayout(box)}>
           {box.children.map((c) => (
-            <BoxView key={c.id} box={c} selectedId={selectedId} onSelect={onSelect} />
+            <BoxView key={c.id} box={c} selectedId={selectedId} onSelect={onSelect} readOnly={readOnly} depth={depth + 1} />
           ))}
         </div>
       )}
@@ -69,7 +76,8 @@ function BoxView({ box, selectedId, onSelect }: { box: PreviewBox; selectedId: s
   );
 }
 
-export default function PreviewCanvas() {
+/** readOnly: 선택·미리보기 크기 전환·훅 목록 없이 상자만 그린다(홈 랜딩의 예시용) */
+export default function PreviewCanvas({ readOnly = false }: { readOnly?: boolean }) {
   const blueprint = useStructureStore((s) => s.blueprint);
   const viewport = useStructureStore((s) => s.viewport);
   const selectedId = useStructureStore((s) => s.selectedNodeId);
@@ -78,6 +86,14 @@ export default function PreviewCanvas() {
 
   const preview = useMemo(() => (blueprint ? buildPreview(blueprint.nodes, viewport) : null), [blueprint, viewport]); // 선택만 바뀔 때는 다시 계산하지 않는다
   if (!preview) return <p className="text-sm text-foreground-tertiary">화면 구조를 그릴 수 없는 설계도입니다.</p>;
+
+  if (readOnly) {
+    return (
+      <div className="rounded-lg bg-section p-3">
+        <BoxView box={preview.root} selectedId={null} onSelect={() => {}} readOnly />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">

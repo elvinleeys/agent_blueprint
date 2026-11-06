@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractComponents, extractFromFile } from "./extract";
+import { extractComponents, extractFromFile } from "./parse";
 
 const run = (content: string, path = "components/Sample.tsx") => extractFromFile({ path, content });
 

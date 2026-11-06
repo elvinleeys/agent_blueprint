@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import type { AnalyzedComponent, ExtractedProp, PartialFile, SourceFile } from "./types";
 
-const PASCAL = /^[A-Z][A-Za-z0-9]*$/;
+export const PASCAL = /^[A-Z][A-Za-z0-9]*$/;
 const WRAPPERS = new Set(["forwardRef", "memo"]);
 const MAX_IMPORT_DEPTH = 8;
 
@@ -31,7 +31,7 @@ type Collected = {
 const nameText = (n: ts.PropertyName): string | null =>
   ts.isIdentifier(n) || ts.isStringLiteral(n) || ts.isNumericLiteral(n) ? n.text : null;
 
-const hasJsx = (node: ts.Node): boolean => {
+export const hasJsx = (node: ts.Node): boolean => {
   if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node)) return true;
   return ts.forEachChild(node, (c) => (hasJsx(c) ? true : undefined)) ?? false;
 };
@@ -269,10 +269,10 @@ function propsTypeNode(fn: FnLike, typeArgs?: readonly ts.TypeNode[]) {
   return typeArgs && typeArgs.length >= 2 ? typeArgs[1] : typeArgs?.length === 1 ? typeArgs[0] : undefined;
 }
 
-type FnLike = ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration;
+export type FnLike = ts.ArrowFunction | ts.FunctionExpression | ts.FunctionDeclaration;
 
 /** forwardRef(...)·memo(...)를 겹쳐 감싼 것을 벗겨 안쪽 함수와 타입 인자를 돌려준다 */
-function unwrap(expr: ts.Expression): { fn: FnLike; typeArgs?: readonly ts.TypeNode[] } | null {
+export function unwrap(expr: ts.Expression): { fn: FnLike; typeArgs?: readonly ts.TypeNode[] } | null {
   let typeArgs: readonly ts.TypeNode[] | undefined;
   let cur: ts.Expression = expr;
   while (ts.isParenthesizedExpression(cur)) cur = cur.expression;
@@ -286,8 +286,8 @@ function unwrap(expr: ts.Expression): { fn: FnLike; typeArgs?: readonly ts.TypeN
   return ts.isArrowFunction(cur) || ts.isFunctionExpression(cur) ? { fn: cur, typeArgs } : null;
 }
 
-const baseName = (path: string) => (path.split("/").pop() ?? "").replace(/\.[^.]+$/, "");
-const toPascal = (s: string) => s.replace(/(^|[-_.\s]+)([a-zA-Z0-9])/g, (_m, _s, c: string) => c.toUpperCase());
+export const baseName = (path: string) => (path.split("/").pop() ?? "").replace(/\.[^.]+$/, "");
+export const toPascal = (s: string) => s.replace(/(^|[-_.\s]+)([a-zA-Z0-9])/g, (_m, _s, c: string) => c.toUpperCase());
 
 function build(project: Project, ctx: FileCtx, name: string, fn: FnLike, typeArgs: readonly ts.TypeNode[] | undefined, exported: boolean): AnalyzedComponent | null {
   if (!fn.body || !hasJsx(fn.body)) return null;
@@ -311,7 +311,7 @@ function build(project: Project, ctx: FileCtx, name: string, fn: FnLike, typeArg
 
 export type FileAnalysis = { components: AnalyzedComponent[]; syntaxErrors: PartialFile["errors"] };
 
-const isExported = (st: ts.Statement) => !!ts.getModifiers(st as ts.HasModifiers)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword || m.kind === ts.SyntaxKind.DefaultKeyword);
+export const isExported = (st: ts.Statement) => !!ts.getModifiers(st as ts.HasModifiers)?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword || m.kind === ts.SyntaxKind.DefaultKeyword);
 
 /** 문법 오류 목록: 파서가 보고하는 구문 진단만 얻기 위해 transpileModule(타입 검사 없음)을 쓴다 */
 function syntaxErrorsOf(file: SourceFile, sf: ts.SourceFile): PartialFile["errors"] {

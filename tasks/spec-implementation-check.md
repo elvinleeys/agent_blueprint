@@ -199,7 +199,7 @@ React 훅 사용 규칙처럼 ESLint가 이미 잡는 것은 만들지 않는다
 | 4a | 기준 판 조회 + 핸들러 + API | 핸들러 테스트(가짜 DB) | feat: 구현 검사 API |
 | 4b | 화면(탭, 업로드, 결과, 확인 필요 행동) + 수정 지시서 | 3000번에서 직접 확인 | feat: 구현 검사 화면·수정 지시서 |
 | 5 | AI 제안(가짜 클라이언트 테스트) | 스키마 실패 시 1·2번만 나오는지 | feat: 구현 검사 AI 제안 |
-| 끝 | `docs/pr/implementation-check.md`, CLAUDE.md·data-model.md 갱신 | tsc·test·lint·build | docs: PR 설명 |
+| 끝 | PR 전 정리 커밋: 옛 경로 다시 내보내기 파일(`core/cleanup/extract.ts`·`filter-files.ts`·`types.ts`의 재내보내기)의 import를 `code-model`로 바꾸고 파일 삭제 → `docs/pr/implementation-check.md`, CLAUDE.md·data-model.md 갱신 | tsc·test·lint·build | docs: PR 설명 |
 
 위험: ① `core/cleanup` 분리가 가장 넓게 퍼짐(2a를 이동 전용 커밋으로 격리). ② 렌더링 관계는 정적 분석이라 `React.lazy`·동적 컴포넌트·`export … from` 재내보내기는 놓침 → "확인 필요"가 아닌 "읽지 못함" 요약으로 표시(정리 기능의 한계와 같음). ③ **CSS·CSS Modules는 배치·토큰을 코드로 판정하지 않고 노드마다 확인 필요 1건으로 보낸다**(CSS 파일을 읽지 않음). → `docs/pr/implementation-check.md`의 "알려진 한계"에 반드시 적는다(사용자 요청). ④ Tailwind 클래스가 `cn()`·`clsx` 조건식·변수로 만들어지면 문자열 리터럴만 읽음.
 

@@ -104,7 +104,7 @@ docs/pr/implementation-check.md
 | layout.responsive | 코드(tailwind) / 확인 | 접두 클래스와 대조 |
 | placement.span | 코드(tailwind) / 확인 | `col-span-N`·`col-span-full` |
 | style.scope | 안 함 | 스택 규칙이 정하는 값(어댑터가 정의), 코드 판정 근거 없음 |
-| style.properties(value) | 코드(tailwind)·확인 | 토큰 값을 쓰기로 한 속성이 임의값(`[#333]`)·인라인 style로 쓰이면 IC-10(경고). 값이 토큰과 같은지는 대응표로 비교 가능한 것만 판정, 못 비교하면 **확인** |
+| style.properties(value) | 코드(tailwind)·확인 | 토큰 값을 쓰기로 한 속성이 임의값(`[#333]`)이면 IC-10(경고). 프로젝트 토큰에 대응하지 않는 Tailwind 기본 색·간격 클래스(`text-gray-700`·`bg-blue-500`·`p-3`)는 통과시키지 않고 **확인**. 값이 토큰과 같은지는 대응표로 비교 가능한 것만 판정, 못 비교하면 **확인** |
 | style.properties(isToken) | 안 함 | 판정 근거는 value 쪽(위 행) |
 | style.ownsOuterSpacing | 코드 | false인데 노드 최상위 요소에 `m-*`·`mt-*` 등 바깥 margin(가운데 정렬 `mx-auto` 제외, 구조 검사 R-06과 같은 기준)이 있으면 IC-11 |
 | style.classPattern | 안 함 | BEM 등 명명 규칙은 CSS 파일을 읽어야 해서 1차 제외. (PostCSS 없이 불가) |

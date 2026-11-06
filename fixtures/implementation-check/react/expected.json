@@ -194,6 +194,37 @@
     "stack-mismatch": {
       "certain": [],
       "needsReview": []
+    },
+    "review-IC-10-default-class": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-10",
+          "kind": "style",
+          "node": "PriceTag"
+        }
+      ]
+    },
+    "review-IC-08-child-hook": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-08",
+          "kind": "fetch",
+          "node": "ProductDetailPage",
+          "via": "useProduct"
+        }
+      ]
+    },
+    "review-ICR-01-no-router": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "ICR-01",
+          "kind": "router",
+          "node": "ProductDetailPage"
+        }
+      ]
     }
   }
 }

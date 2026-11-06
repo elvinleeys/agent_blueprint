@@ -295,6 +295,16 @@
           "node": "ReviewSummary"
         }
       ]
+    },
+    "review-IC-10-default-class": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-10",
+          "kind": "style",
+          "node": "PriceTag"
+        }
+      ]
     }
   }
 }

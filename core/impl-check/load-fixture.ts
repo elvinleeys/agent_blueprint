@@ -7,7 +7,7 @@ import type { SourceFile } from "../cleanup/types";
 export const FIXTURE_ROOT = join(process.cwd(), "fixtures", "implementation-check");
 
 export type ExpectedCertain = { rule: string; severity: "error" | "warning" | "info"; node: string };
-export type ExpectedReview = { rule: string; kind: "pair" | "state" | "prop" | "style"; node: string; design?: string; candidate?: string };
+export type ExpectedReview = { rule: string; kind: "pair" | "state" | "prop" | "style" | "fetch" | "router"; node: string; design?: string; candidate?: string; via?: string };
 export type ExpectedCase = { blueprint?: string; certain: ExpectedCertain[]; needsReview: ExpectedReview[] };
 export type Expected = { bundle: string; blueprint: string; cases: Record<string, ExpectedCase> };
 

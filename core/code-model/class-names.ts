@@ -44,7 +44,10 @@ function read(expr: ts.Expression, info: ClassInfo, conditional: boolean) {
     return read(expr.whenFalse, info, true);
   }
   if (ts.isArrayLiteralExpression(expr)) {
-    for (const e of expr.elements) ts.isSpreadElement(e) ? (info.dynamic = true) : read(e, info, conditional);
+    for (const e of expr.elements) {
+      if (ts.isSpreadElement(e)) info.dynamic = true;
+      else read(e, info, conditional);
+    }
     return;
   }
   if (ts.isObjectLiteralExpression(expr)) {
@@ -56,7 +59,10 @@ function read(expr: ts.Expression, info: ClassInfo, conditional: boolean) {
     return;
   }
   if (ts.isCallExpression(expr) && ts.isIdentifier(expr.expression) && CLASS_HELPERS.has(expr.expression.text)) {
-    for (const a of expr.arguments) ts.isSpreadElement(a) ? (info.dynamic = true) : read(a, info, conditional);
+    for (const a of expr.arguments) {
+      if (ts.isSpreadElement(a)) info.dynamic = true;
+      else read(a, info, conditional);
+    }
     return;
   }
   info.dynamic = true;

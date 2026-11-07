@@ -267,7 +267,7 @@ React 훅 사용 규칙처럼 ESLint(코드 문법·습관을 검사하는 도�
 | ✅ 2b | code-model 확장(use client, useState, 훅 호출, import 관계(@/ 포함), 렌더링 관계, 이벤트 props, 조회 호출, className·style) | 단위 테스트 | feat: 코드 모델 읽기 항목 확장 |
 | ✅ 2c | code-model 보완(§4-1): tsconfig·jsconfig `paths` 읽기(업로드 거르기에 두 파일 추가), 서버 통신 READ/WRITE/UNKNOWN, 클래스 ALWAYS/CONDITIONAL/DYNAMIC/ABSENT, 라우터별 화면 주소 정규화(React Router 중첩 합치기·Next 그룹·동적 세그먼트), 읽지 못한 코드의 영향 범위(lazy 경로 유무), `readCodeModel` 기능별 설정(디자인 시스템 정리는 지금 결과 그대로인 설정). 시험 데이터를 먼저 추가하고 기대 결과 표 승인 후 구현 | 단위 테스트 + 시험 데이터의 `facts` 일치 + 기존 정리 결과·`demo-cleanup` 동일 | feat: 코드 모델 보완 |
 | ✅ 3a | 대응시키기·비슷한 이름(match·similarity, §6-1): 확실/후보/같은 이름 여러 곳/읽지 못한 코드, 근거 기록, 순서 불변. 유사도 기준값·단어 쪼개기를 `core/similarity/`로 공용화(구조 검사·정리·구현 검사가 함께 씀). tsconfig를 못 읽는 경우는 해석 못 함으로 표시 | 시험 데이터 `facts.pairs` 일치 + 파일 순서를 섞어도 같은 결과 + 변이 실험(대소문자 단계 제거, 후보에도 세부 검사 허용) + 구조 검사·정리 회귀 동일 | feat: 설계-코드 대응 |
-| 3b | 공통·스택 어댑터 규칙 + run | correct 0건·wrong 기대대로·renamed 확인 필요만 | feat: 구현 검사 규칙 |
+| ✅ 3b | 공통·스택 어댑터 규칙 + run | correct 0건·wrong 기대대로·renamed 확인 필요만 | feat: 구현 검사 규칙 |
 | 3c | 변이 실험 | 결과를 PR에 기록 | test: 변이 실험 |
 | 4a | 기준 판 조회 + 핸들러 + API. 서버가 코드를 다시 거를 때 `allowConfigFiles`로 `tsconfig.json`·`jsconfig.json`을 받고, 읽은 설정을 분석기(`readCodeModel`)에 전달한다(§4-1 "tsconfig 지원 범위"). 요청에 사용자가 확정한 짝(`confirmed`)을 받으면 짝짓기를 그 짝을 미리 확정한 상태로 처음부터 다시 돌린다(§6-1 "사용자가 짝을 확정한 뒤 다시 판정") | 핸들러 테스트(가짜 DB), 설정 파일이 든 요청과 없는 요청, 확정한 짝이 든 요청(진 노드가 후보 제거만으로 "코드에 없음"이 되지 않는지) | feat: 구현 검사 API |
 | 4b | 화면(탭, 업로드, 결과, 확인 필요 행동) + 수정 지시서. 업로드가 `tsconfig.json`·`jsconfig.json`을 함께 올리고(`allowConfigFiles`), 결과에 "설정 파일 N개 읽음 / 못 따라간 설정 N개(해석 못 함 import 영향)"를 보인다. 사용자 별칭 입력칸은 만들지 않는다. "같은 것으로 짝짓기"는 짝을 확정하면 4a의 `confirmed`로 다시 판정한 결과를 보이고, 후보 항목에 "다른 노드의 1순위이기도 함" 표시(`contestedBy`)를 보인다 | 3000번에서 직접 확인 | feat: 구현 검사 화면·수정 지시서 |

@@ -7,8 +7,19 @@ import type { SourceFile } from "../cleanup/types";
 export const FIXTURE_ROOT = join(process.cwd(), "fixtures", "implementation-check");
 
 export type ExpectedCertain = { rule: string; severity: "error" | "warning" | "info"; node: string };
-export type ExpectedReview = { rule: string; kind: "pair" | "state" | "prop" | "style" | "fetch" | "router"; node: string; design?: string; candidate?: string; via?: string };
-export type ExpectedCase = { blueprint?: string; certain: ExpectedCertain[]; needsReview: ExpectedReview[] };
+export type ExpectedReview = { rule: string; kind: "pair" | "state" | "prop" | "style" | "fetch" | "router" | "import" | "unreadable" | "fetch-kind"; node: string; design?: string; candidate?: string; via?: string };
+/** 판정과 별개로 분석기가 읽어야 하는 값(코드 모델 단위 시험용). 없는 키는 검사하지 않는다 */
+export type ExpectedFacts = {
+  /** 노드 이름 → 서버 통신 유형 */
+  fetch?: Record<string, "READ" | "WRITE" | "UNKNOWN">;
+  /** 노드 이름 → 클래스 → 분류 */
+  classes?: Record<string, Record<string, "ALWAYS" | "CONDITIONAL" | "DYNAMIC" | "ABSENT">>;
+  /** 공통 형식으로 바꾼 화면 주소(/products/:id) */
+  routes?: string[];
+  /** import 문자열 → 해석된 파일(못 풀면 null) */
+  imports?: Record<string, string | null>;
+};
+export type ExpectedCase = { blueprint?: string; certain: ExpectedCertain[]; needsReview: ExpectedReview[]; facts?: ExpectedFacts };
 export type Expected = { bundle: string; blueprint: string; cases: Record<string, ExpectedCase> };
 
 const walk = (dir: string, base = dir): string[] =>

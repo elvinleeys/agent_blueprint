@@ -62,6 +62,25 @@ docs/pr/implementation-check.md
 기존 어댑터 파일은 수정하지 않고 `impl-*` 파일을 추가한다(CLAUDE.md: "새 스택 지원은 어댑터 추가").
 `core/`는 React·Next import 금지 유지.
 
+## 4-1. 판정 원칙 (모든 규칙이 따른다)
+
+- **분석기가 실제로 확인한 근거 안에서만 판정한다.** 일치 = 설계대로 된 근거를 확인함 / 불일치 = 설계와 다른 근거를 확인함 / 확인 필요 = 근거가 부족함.
+- 판정마다 **근거(파일, 위치, 읽은 값)** 를 함께 기록한다.
+- 결과 화면에 "설계 항목 N개 중 일치 M개"를 보여 준다.
+- §5 설계 대조표에서 **검사 안 함**으로 분류한 항목은 하나씩 확인 필요로 띄우지 않고 "검사 범위 밖" 요약으로만 보여 준다.
+- AI 제안은 확인 필요 항목과 책임(responsibilities)에만 붙는다.
+- **읽지 못한 코드는 관련된 판정에만 영향을 준다.** 경로가 적힌 `lazy(() => import("./X"))`는 그 파일과 관련된 판정만, 경로를 알 수 없는 `import(변수)`는 "코드에 없음" 판정(IC-01 등)만 확인 필요로 보내고 다른 판정은 그대로 둔다.
+- 해석하지 못한 import(`resolved: null`)는 그 import와 관련된 존재·관계 판정만 확인 필요로 보낸다.
+
+세부 분류(코드 모델이 기록하는 값):
+
+| 대상 | 분류 | 판정 |
+| --- | --- | --- |
+| 경로 별칭 | 업로드한 `tsconfig.json`·`jsconfig.json`의 `paths`(주석 허용 형식, `extends`를 따라가지 못하면 기록)를 먼저 읽고, 설정이 없으면 기본 규칙(`@/` → `src/` 또는 프로젝트 루트). 사용자 별칭 입력칸은 만들지 않음 | 풀리면 일치 근거, 못 풀면 `resolved: null` |
+| 서버 통신 | READ(조회) / WRITE(변경) / UNKNOWN(판별 불가). fetch: method 없음=READ, POST·PUT·PATCH·DELETE=WRITE, method가 변수=UNKNOWN. axios·ky 등은 메서드 이름, useQuery·useSWR=READ, useMutation=WRITE, supabase는 select=READ·insert/update/delete/upsert=WRITE | 설계의 `dataFetch`와는 READ+WRITE를 합쳐 비교하고 유형은 결과에 함께 보임. UNKNOWN만 있으면 확인 필요 |
+| 클래스 | 요소마다 ALWAYS / CONDITIONAL / DYNAMIC / ABSENT | 설계 클래스가 ALWAYS면 일치, ABSENT면 불일치, CONDITIONAL·DYNAMIC이면 확인 필요. 같은 요소에 DYNAMIC이 하나라도 있으면 ABSENT로 확정하지 않음. 조건부 클래스는 인터랙션·예외 상태 설계와 비교할 수 있도록 정보로 보존 |
+| 화면 주소 | 라우터별 해석기가 공통 형식(`/products/:id`)으로 바꿔 비교. React Router: 객체 설정·`<Route>` 모두 부모 경로를 합침. Next.js App Router: `(그룹)` 폴더는 주소에서 빼고 `[id]`·`[...slug]`·`[[...slug]]`를 공통 형식으로. 그 밖의 라우터는 "읽지 못함" | 같으면 일치 |
+
 ## 5. 설계 대조표 (스키마 모든 필드 → 판정 방식)
 
 범례: **코드** = 확실(코드가 판정) · **확인** = 확인 필요(후보만) · **AI** = AI 제안(2번·책임에만) · **안 함** = 검사 안 함(이유)
@@ -193,6 +212,7 @@ React 훅 사용 규칙처럼 ESLint가 이미 잡는 것은 만들지 않는다
 | 1 | `fixtures/implementation-check/` 시험 데이터 + expected.md(기대 결과 표) | 표 승인, 시험 코드가 tsc로 컴파일되는지 | test: 구현 검사 시험 데이터 |
 | 2a | `core/code-model` 분리(이동·재내보내기만, 동작 변경 없음) | 기존 테스트 전부 통과 + `demo-cleanup` 결과 동일 | refactor: 코드 분석기를 code-model로 분리 |
 | 2b | code-model 확장(use client, useState, 훅 호출, import 관계(@/ 포함), 렌더링 관계, 이벤트 props, 조회 호출, className·style) | 단위 테스트 | feat: 코드 모델 읽기 항목 확장 |
+| 2c | code-model 보완(§4-1): tsconfig·jsconfig `paths` 읽기(업로드 거르기에 두 파일 추가), 서버 통신 READ/WRITE/UNKNOWN, 클래스 ALWAYS/CONDITIONAL/DYNAMIC/ABSENT, 라우터별 화면 주소 정규화(React Router 중첩 합치기·Next 그룹·동적 세그먼트), 읽지 못한 코드의 영향 범위(lazy 경로 유무), `readCodeModel` 기능별 설정(디자인 시스템 정리는 지금 결과 그대로인 설정). 시험 데이터를 먼저 추가하고 기대 결과 표 승인 후 구현 | 단위 테스트 + 시험 데이터의 `facts` 일치 + 기존 정리 결과·`demo-cleanup` 동일 | feat: 코드 모델 보완 |
 | 3a | 대응시키기·비슷한 이름(match·similarity) | 시험 데이터 | feat: 설계-코드 대응 |
 | 3b | 공통·스택 어댑터 규칙 + run | correct 0건·wrong 기대대로·renamed 확인 필요만 | feat: 구현 검사 규칙 |
 | 3c | 변이 실험 | 결과를 PR에 기록 | test: 변이 실험 |
@@ -201,7 +221,7 @@ React 훅 사용 규칙처럼 ESLint가 이미 잡는 것은 만들지 않는다
 | 5 | AI 제안(가짜 클라이언트 테스트) | 스키마 실패 시 1·2번만 나오는지 | feat: 구현 검사 AI 제안 |
 | 끝 | PR 전 정리 커밋: 옛 경로 다시 내보내기 파일(`core/cleanup/extract.ts`·`filter-files.ts`·`types.ts`의 재내보내기)의 import를 `code-model`로 바꾸고 파일 삭제 → `docs/pr/implementation-check.md`, CLAUDE.md·data-model.md 갱신 | tsc·test·lint·build | docs: PR 설명 |
 
-위험: ① `core/cleanup` 분리가 가장 넓게 퍼짐(2a를 이동 전용 커밋으로 격리). ② 렌더링 관계는 정적 분석이라 `React.lazy`·동적 컴포넌트·`export … from` 재내보내기는 놓침 → "확인 필요"가 아닌 "읽지 못함" 요약으로 표시(정리 기능의 한계와 같음). ③ **CSS·CSS Modules는 배치·토큰을 코드로 판정하지 않고 노드마다 확인 필요 1건으로 보낸다**(CSS 파일을 읽지 않음). → `docs/pr/implementation-check.md`의 "알려진 한계"에 반드시 적는다(사용자 요청). ④ Tailwind 클래스가 `cn()`·`clsx` 조건식·변수로 만들어지면 문자열 리터럴만 읽음.
+위험: ① `core/cleanup` 분리가 가장 넓게 퍼짐(2a를 이동 전용 커밋으로 격리). ② 렌더링 관계는 정적 분석이라 `React.lazy`·동적 컴포넌트·`export … from` 재내보내기는 놓침 → "확인 필요"가 아닌 "읽지 못함" 요약으로 표시(정리 기능의 한계와 같음). (고도화 목록: 디자인 시스템 정리와 구현 검사의 import 해석·props 읽기 기준 통일. 새 폴더는 만들지 않고 `core/impl-check`를 그대로 쓴다.) ③ **CSS·CSS Modules는 배치·토큰을 코드로 판정하지 않고 노드마다 확인 필요 1건으로 보낸다**(CSS 파일을 읽지 않음). → `docs/pr/implementation-check.md`의 "알려진 한계"에 반드시 적는다(사용자 요청). ④ Tailwind 클래스가 `cn()`·`clsx` 조건식·변수로 만들어지면 문자열 리터럴만 읽음.
 
 ## 11. 질문 (승인 시 같이 답해 주세요. 기본값 = 제 추천)
 

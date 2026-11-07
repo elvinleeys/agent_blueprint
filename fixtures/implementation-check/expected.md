@@ -23,6 +23,8 @@
 - IC-08: 조회 담당 컴포넌트에 직접 조회가 없어도, 그 컴포넌트가 호출하는 훅 파일 안에 조회가 있으면 경고 없이 **확인 필요**(종류 fetch) 1건. 내용에 "조회가 `useProduct` 훅 안에서 일어남"처럼 훅 이름을 적는다(`via`). 코드에만 있는 훅은 IC-02로 따로 알리지 않는다(한 사건은 한 건).
 - ICR-01: React 묶음에서 라우터 설정 파일(`createBrowserRouter`·`<Route path>`)을 찾지 못하면 경고가 아니라 **확인 필요**(종류 router) 1건. 설정은 있는데 route와 연결이 없을 때만 확실(경고).
 - 확인 필요의 `rule`은 그 항목이 확정되면 걸렸을 규칙: 컴포넌트 짝(IC-01), 상태(IC-05), props(IC-06), 훅 안 조회(IC-08), CSS 판정 불가(IC-09, 노드마다 1건), 기본 클래스(IC-10), 라우터 못 찾음(ICR-01).
+- 판정 원칙(스펙 §4-1): 근거를 확인한 것만 일치·불일치로 판정하고, 근거가 부족하면 확인 필요. 아래 사례의 `facts`(expected.json)는 판정과 별개로 분석기가 읽어야 하는 값이다: 서버 통신 유형(READ·WRITE·UNKNOWN), 클래스 분류(ALWAYS·CONDITIONAL·DYNAMIC·ABSENT), 공통 형식 화면 주소, import 해석 결과. `correct`·`wrong-IC-09`에도 기준값으로 적어 두었다(correct: 페이지 READ·`useCart` WRITE·`flex-col` ALWAYS·`/products/:id`, wrong-IC-09: `flex-col` ABSENT).
+- 확인 필요 종류 `import`(해석 못 한 별칭)·`unreadable`(읽지 못한 코드)·`fetch-kind`(UNKNOWN뿐)가 새로 생겼다.
 - `review-*` 사례는 확실 0건·확인 필요 1건이 기대다(이름이 `wrong-`으로 시작하지 않음).
 
 ## next 묶음: Next.js + Tailwind + FSD (경로 별칭 `@/` → `src/`)
@@ -55,6 +57,11 @@
 | renamed | 없음 | IC-01 · pair · ProductGallery → ItemImages<br>IC-05 · state · useCart → count<br>IC-06 · prop · PriceTag → discount | 이름만 바꿔 구현(ProductGallery→ItemImages, 상태 cartCount→count, prop discountRate→discount) |
 | stack-mismatch | 없음 | 없음 | 스택에 맞지 않는 규칙이 걸리지 않아야 함 |
 | review-IC-10-default-class | 없음 | IC-10 · style · PriceTag | `text-primary` 대신 `text-gray-700`(기본 색 클래스) |
+| alias-tsconfig | 없음 | 없음 | 업로드한 `tsconfig.json`(주석 포함)의 `~/*`·`@/*` → `src/*`를 읽어 `~/` import를 해석 → 일치 |
+| alias-unknown | 없음 | IC-04 · import · ProductGallery (via `~/entities/product/ui/ProductGallery`) | tsconfig 없이 알 수 없는 별칭: 그 import와 관련된 부모-자식 판정만 확인 필요, 나머지는 일치 |
+| fetch-write-only | 없음 | 없음 | `useCart`가 PUT만 보냄: 서버 통신 일치, 유형 WRITE(페이지는 READ) |
+| fetch-method-unknown | 없음 | IC-08 · fetch-kind · useCart | `fetch(url, { method })`의 method가 변수: UNKNOWN뿐이라 확인 필요 |
+| class-conditional | 없음 | IC-09 · style · ProductInfo | `flex-col`이 삼항 안에만 있음: CONDITIONAL → 확인 필요 |
 | css-modules | 없음 | IC-09 · style · ProductDetailPage<br>IC-09 · style · ProductGallery<br>IC-09 · style · ProductInfo<br>IC-09 · style · PriceTag<br>IC-09 · style · OptionSelector<br>IC-09 · style · AddToCartButton<br>IC-09 · style · ReviewSummary | 설계도 스타일이 CSS Modules인 변형. 배치·토큰은 코드로 판정하지 않고 스타일·배치를 가진 노드마다 확인 필요 1건(노드 8개 중 훅 `useCart`는 style·layout이 없어 제외 → 7건) |
 
 ## react 묶음: React + Tailwind + type-based (경로 별칭 `@/` → `src/`)
@@ -81,5 +88,10 @@
 | review-IC-10-default-class | 없음 | IC-10 · style · PriceTag | `text-primary` 대신 `text-gray-700`(기본 색 클래스) |
 | review-IC-08-child-hook | 없음 | IC-08 · fetch · ProductDetailPage (via useProduct) | 페이지가 직접 조회하지 않고 `useProduct` 훅 안에서 조회 |
 | review-ICR-01-no-router | 없음 | ICR-01 · router · ProductDetailPage | `router.tsx` 삭제: 라우터 설정을 못 찾음 |
+| fetch-write-only | 없음 | 없음 | `useCart`가 PUT만 보냄: 서버 통신 일치, 유형 WRITE(페이지는 READ) |
+| class-conditional | 없음 | IC-09 · style · ProductInfo | `flex-col`이 삼항 안에만 있음: CONDITIONAL → 확인 필요 |
+| nested-route | 없음 | 없음 | `/products` 아래 `:id` 자식 라우트: 부모 경로를 합쳐 `/products/:id` → 일치 |
+| lazy-with-path | 없음 | IC-04 · unreadable · ProductGallery (via `@/components/ProductGallery`) | `lazy(() => import("@/components/ProductGallery"))`: 경로가 적혀 있어 그 파일과 관련된 판정만 확인 필요 |
+| dynamic-import-variable | 없음 | IC-01 · unreadable · ReviewSummary | `import(변수)`로 경로를 알 수 없음 + ReviewSummary 파일 없음: "코드에 없음" 판정(IC-01)만 확인 필요(경고 아님), 다른 판정은 그대로 |
 | renamed | 없음 | IC-01 · pair · ProductGallery → ItemImages<br>IC-05 · state · useCart → count<br>IC-06 · prop · PriceTag → discount | 이름만 바꿔 구현(ProductGallery→ItemImages, 상태 cartCount→count, prop discountRate→discount) |
 | stack-mismatch | 없음 | 없음 | 스택에 맞지 않는 규칙이 걸리지 않아야 함 |

@@ -4,7 +4,21 @@
   "cases": {
     "correct": {
       "certain": [],
-      "needsReview": []
+      "needsReview": [],
+      "facts": {
+        "fetch": {
+          "ProductDetailPage": "READ",
+          "useCart": "WRITE"
+        },
+        "classes": {
+          "ProductInfo": {
+            "flex-col": "ALWAYS"
+          }
+        },
+        "routes": [
+          "/products/:id"
+        ]
+      }
     },
     "wrong-IC-01": {
       "certain": [
@@ -124,7 +138,14 @@
           "node": "ProductInfo"
         }
       ],
-      "needsReview": []
+      "needsReview": [],
+      "facts": {
+        "classes": {
+          "ProductInfo": {
+            "flex-col": "ABSENT"
+          }
+        }
+      }
     },
     "wrong-IC-10": {
       "certain": [
@@ -223,6 +244,63 @@
           "rule": "ICR-01",
           "kind": "router",
           "node": "ProductDetailPage"
+        }
+      ]
+    },
+    "fetch-write-only": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "fetch": {
+          "ProductDetailPage": "READ",
+          "useCart": "WRITE"
+        }
+      }
+    },
+    "class-conditional": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-09",
+          "kind": "style",
+          "node": "ProductInfo"
+        }
+      ],
+      "facts": {
+        "classes": {
+          "ProductInfo": {
+            "flex-col": "CONDITIONAL"
+          }
+        }
+      }
+    },
+    "nested-route": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "routes": [
+          "/products/:id"
+        ]
+      }
+    },
+    "lazy-with-path": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-04",
+          "kind": "unreadable",
+          "node": "ProductGallery",
+          "via": "@/components/ProductGallery"
+        }
+      ]
+    },
+    "dynamic-import-variable": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-01",
+          "kind": "unreadable",
+          "node": "ReviewSummary"
         }
       ]
     }

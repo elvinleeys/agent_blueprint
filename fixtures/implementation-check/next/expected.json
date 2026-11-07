@@ -4,7 +4,21 @@
   "cases": {
     "correct": {
       "certain": [],
-      "needsReview": []
+      "needsReview": [],
+      "facts": {
+        "fetch": {
+          "ProductDetailPage": "READ",
+          "useCart": "WRITE"
+        },
+        "classes": {
+          "ProductInfo": {
+            "flex-col": "ALWAYS"
+          }
+        },
+        "routes": [
+          "/products/:id"
+        ]
+      }
     },
     "wrong-IC-01": {
       "certain": [
@@ -124,7 +138,14 @@
           "node": "ProductInfo"
         }
       ],
-      "needsReview": []
+      "needsReview": [],
+      "facts": {
+        "classes": {
+          "ProductInfo": {
+            "flex-col": "ABSENT"
+          }
+        }
+      }
     },
     "wrong-IC-10": {
       "certain": [
@@ -305,6 +326,73 @@
           "node": "PriceTag"
         }
       ]
+    },
+    "fetch-write-only": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "fetch": {
+          "ProductDetailPage": "READ",
+          "useCart": "WRITE"
+        }
+      }
+    },
+    "class-conditional": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-09",
+          "kind": "style",
+          "node": "ProductInfo"
+        }
+      ],
+      "facts": {
+        "classes": {
+          "ProductInfo": {
+            "flex-col": "CONDITIONAL"
+          }
+        }
+      }
+    },
+    "alias-tsconfig": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "imports": {
+          "~/entities/product/ui/ProductGallery": "src/entities/product/ui/ProductGallery.tsx"
+        }
+      }
+    },
+    "alias-unknown": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-04",
+          "kind": "import",
+          "node": "ProductGallery",
+          "via": "~/entities/product/ui/ProductGallery"
+        }
+      ],
+      "facts": {
+        "imports": {
+          "~/entities/product/ui/ProductGallery": null
+        }
+      }
+    },
+    "fetch-method-unknown": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-08",
+          "kind": "fetch-kind",
+          "node": "useCart"
+        }
+      ],
+      "facts": {
+        "fetch": {
+          "useCart": "UNKNOWN"
+        }
+      }
     }
   }
 }

@@ -230,3 +230,14 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 - A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
+
+## 실수에서 배운 규칙
+
+이 프로젝트에서 실제로 있었던 실수와 그 뒤 정한 규칙이다. 새 실수가 생기면 한 줄씩 더한다.
+
+- **문서와 실제가 다름**: 스펙·CLAUDE.md에 적힌 경로·이름·동작이 실제 파일과 다르면 어느 쪽이 맞다고 말없이 판단하지 않는다. 어긋난 곳을 사용자에게 알리고 어느 쪽에 맞출지 묻는다.
+- **문서끼리 다름**: 같은 내용이 두 문서에서 다르게 적혀 있으면(예: CLAUDE.md의 "main에 직접 커밋해도 된다"와 구현 검사 스펙의 "main 직접 커밋 안 함") 한쪽을 골라 따르지 않고 알린다. 규칙은 한 곳에만 적고, 다른 곳에서는 그 위치를 가리킨다.
+- **heredoc 반복**: 셸 heredoc(`<<`)로 파일을 쓰지 않는다. 한글·따옴표·역슬래시가 깨져 컴파일 오류가 났고(2026-10-29), 규칙을 적은 직후에도 어겨서 훅(`.claude/hooks/block-heredoc.mjs`)으로 막았다. 출력이 없는 명령이어도 쓰지 않는다.
+- **기대값을 바꿔 통과시킴**: 테스트를 통과시키려고 기대값(`expected.*`, 테스트의 조건)을 바꾸지 않는다. 바꿔야 하면 무엇을 왜 바꾸는지 먼저 보고하고 승인받는다. 틀린 쪽이 코드면 코드를 고친다(약한 테스트가 아무것도 검증하지 못한 채 통과한 적이 있다, 2026-10-30).
+- **node 전체 종료**: `taskkill /IM node.exe`로 node 프로세스를 전부 종료하지 않는다(사용자의 개발 서버가 꺼진다, 2026-10-30). 직접 띄운 포트의 PID만 종료한다.
+- **다른 포트로 서버를 띄움**: 로그인이 필요한 화면은 사용자가 띄운 3000번에서만 확인한다. 다른 포트는 Supabase Redirect URLs에 없어서 로그인 뒤 배포 주소(Vercel)로 넘어간다(`docs/deploy-checklist.md` 3절·5절).

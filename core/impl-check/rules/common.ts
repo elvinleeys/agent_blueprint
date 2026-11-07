@@ -4,6 +4,7 @@ import { at, findingId, type Ctx, type Located } from "../context";
 import { dirMatches } from "../match";
 import type { Finding } from "../result";
 import { byCodePoint, isNameSimilar, nameScore } from "../similarity";
+import { EXTERNAL_STATE_HOOKS } from "../state-hooks";
 
 // 공통 규칙 IC-03~IC-08, IC-12(스택과 무관). 확실한 짝이 있는 노드에만 쓴다. IC-01·IC-02(짝 없음·코드에만 있음)는 run.ts가 짝짓기 결과로 낸다.
 // 판정은 분석기가 확인한 근거 안에서만 한다: 근거가 부족하면 확인 필요(review), 설계와 다른 근거를 확인하면 불일치(mismatch).
@@ -122,13 +123,29 @@ function states(ctx: Ctx, node: ComponentNode, { unit }: Located, movedIn: Set<s
   const missingNames = design.filter((s) => !unit.state.includes(s));
   const free = unit.state.filter((c) => !design.includes(c) && !movedIn.has(`${unit.path}#${unit.name}#${c}`));
   const remaining: string[] = [];
+  const designUnit = (u: Located) => ctx.pairing.pairs.some((p) => p.unit.path === u.unit.path && p.unit.name === u.unit.name);
+  const undecided = (u: Located) => ctx.pairing.reviews.some((r) => r.candidates.some((c) => c.unit.path === u.unit.path && c.unit.name === u.unit.name));
+  const hooksOf = (u: UnitFact) => u.hooks.flatMap((h) => (h.path ? [ctx.unit(h.path, h.name)] : [])).filter((x): x is Located => !!x && x.unit.kind === "hook");
+  const direct = hooksOf(unit);
+  // 컴포넌트나 그것이 직접 부르는 설계에 없는 훅이 Context·상태 관리 라이브러리 훅을 쓰는가
+  const externalUse = [unit, ...direct.filter((h) => !designUnit(h)).map((h) => h.unit)].flatMap((u) => u.hooks.map((h) => h.name)).filter((n) => EXTERNAL_STATE_HOOKS.has(n));
   for (const s of missingNames) {
     const other = ctx.allUnits().find((u) => u.unit !== unit && u.unit.state.includes(s));
     const key = `state:${s}`;
-    // 이 코드가 직접 부르는 훅 안에 상태가 있으면 그 상태는 이 코드의 상태로 본다(상태를 훅으로 뽑아낸 구현)
-    const viaHook = other && unit.hooks.some((h) => h.name === other.unit.name && h.path === other.unit.path);
-    if (other && viaHook) {
-      ctx.mark(node.id, key, "match", [`${at(other.unit.path, other.unit.line)} ${unit.name}가 부르는 훅 ${other.unit.name} 안에 상태 ${s}이(가) 있음`]);
+    // "상태가 있다"로 보는 조건(셋 다): ① 설계도에 없는 훅 ② 이 컴포넌트가 직접 부름(한 단계) ③ 그 훅 안에서 useState·useReducer로 선언됨
+    const hook = direct.find((h) => !designUnit(h) && !undecided(h) && h.unit.state.includes(s));
+    // 훅이 다시 다른 훅을 불러 그 안에 상태가 있으면 이 컴포넌트의 상태인지 확정하지 않는다
+    const nested = direct.filter((h) => !designUnit(h)).flatMap((h) => hooksOf(h.unit).map((inner) => ({ outer: h, inner }))).find((x) => x.inner.unit.state.includes(s));
+    if (hook) {
+      ctx.mark(node.id, key, "match", [`${at(hook.unit.path, hook.unit.line)} 상태 ${s}은(는) 훅 ${hook.unit.name} 안에서 useState·useReducer로 선언됨 · ${at(unit.path, unit.line)} ${unit.name}가 직접 호출함`]);
+    } else if (nested || (other && undecided(other))) {
+      const where = nested ? nested.inner : other!;
+      const ev = nested
+        ? [`${at(nested.inner.unit.path, nested.inner.unit.line)} 상태 ${s}은(는) 훅 ${nested.inner.unit.name} 안에 있음 · 훅 ${nested.outer.unit.name}이(가) 그 훅을 다시 부르고 ${unit.name}가 ${nested.outer.unit.name}을(를) 호출함(두 단계)`]
+        : [`${at(where.unit.path, where.unit.line)} 상태 ${s}은(는) ${where.unit.name} 안에 있음 · 그 코드는 설계 노드와 짝이 아직 확정되지 않음`];
+      const f = review("IC-05", node, key, "state", `상태 ${s}이(가) ${where.unit.name} 안에 있어 ${node.name}의 상태인지 확인이 필요합니다.`, ev, [itemId(node, key)], { design: s });
+      ctx.add(f);
+      ctx.mark(node.id, key, "review", ev, f.id);
     } else if (other) {
       const ev = [`${at(other.unit.path, other.unit.line)} ${other.unit.name}에 상태 ${s}이(가) 있음`];
       const f = certain("IC-05", node, key, "warning", `상태 ${s}은(는) ${node.name}에 있어야 하는데 ${other.unit.name}에 있습니다(위치 다름).`, ev, [itemId(node, key)]);
@@ -147,6 +164,14 @@ function states(ctx: Ctx, node: ComponentNode, { unit }: Located, movedIn: Set<s
   for (const d of r.missing) {
     const key = `state:${d}`;
     const ev = [`${at(unit.path, unit.line)} ${unit.name}의 상태: ${unit.state.join(", ") || "없음"}`];
+    if (externalUse.length) {
+      // Context·상태 관리 라이브러리 값일 수 있어 없다고 확정하지 않는다
+      const evx = [...ev, `${[...new Set(externalUse)].join(", ")}를 사용함(Context·상태 관리 라이브러리 값일 수 있음)`];
+      const f = review("IC-05", node, key, "state", `상태 ${d}이(가) 코드에 보이지 않지만 ${[...new Set(externalUse)].join(", ")}를 쓰고 있어 Context·상태 관리 값인지 확인이 필요합니다.`, evx, [itemId(node, key)], { design: d });
+      ctx.add(f);
+      ctx.mark(node.id, key, "review", evx, f.id);
+      continue;
+    }
     const f = certain("IC-05", node, key, "warning", `상태 ${d}이(가) ${node.name}에 없습니다(누락).`, ev, [itemId(node, key)]);
     ctx.add(f);
     ctx.mark(node.id, key, "mismatch", ev, f.id);

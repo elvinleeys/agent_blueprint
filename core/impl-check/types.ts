@@ -30,7 +30,14 @@ export type UnitRef = {
 /** 확실한 짝. 이후 검사(props·상태·이벤트·서버 통신·위치)는 이 짝에 대해서만 한다 */
 export type CertainPair = { nodeId: string; nodeName: string; unit: UnitRef; evidence: Evidence[] };
 
-export type CandidateEntry = { unit: UnitRef; evidence: Evidence[]; /** 후보 정렬에 쓴 이름 유사도(0~1) */ score: number };
+export type CandidateEntry = {
+  unit: UnitRef;
+  evidence: Evidence[];
+  /** 후보 정렬에 쓴 이름 유사도(0~1) */
+  score: number;
+  /** 이 코드가 다른 노드(이름)의 1순위 후보이기도 하다. 점수가 가장 높은 노드가 우선권을 갖지만 이 노드의 후보 목록에서도 지우지 않고, 사용자가 두 노드의 후보 관계를 알 수 있게 표시한다 */
+  contestedBy?: string[];
+};
 
 /**
  * 짝 확인 필요 한 건

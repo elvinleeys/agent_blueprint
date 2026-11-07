@@ -201,6 +201,7 @@ export function matchBlueprint(bp: Blueprint, model: CodeModel): Pairing {
     primary.set(e.node.id, e);
     taken.add(e.unit.key);
   }
+  const holderOf = new Map([...primary.values()].map((e) => [e.unit.key, e.node.name]));
   const candidateKeys = new Set<string>();
   for (const node of nodes) {
     const mine = edges.filter((e) => e.node.id === node.id).sort((a, b) => bestFirst(a, b) || byCodePoint(a.unit.fact.path, b.unit.fact.path) || byCodePoint(a.unit.fact.name, b.unit.fact.name));
@@ -212,7 +213,10 @@ export function matchBlueprint(bp: Blueprint, model: CodeModel): Pairing {
       nodeId: node.id,
       nodeName: node.name,
       reason: "candidate",
-      candidates: list.map((e) => ({ unit: refOf(e.unit.fact), evidence: e.evidence, score: e.nameJ })),
+      candidates: list.map((e) => {
+        const holder = holderOf.get(e.unit.key);
+        return { unit: refOf(e.unit.fact), evidence: e.evidence, score: e.nameJ, ...(holder && holder !== node.name ? { contestedBy: [holder] } : {}) };
+      }),
       evidence: list[0].evidence,
     });
     done.add(node.id);

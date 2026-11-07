@@ -189,6 +189,9 @@ describe("후보: 근거와 선택 순서", () => {
     expect(rA.candidates[0].score).toBeCloseTo(2 / 3);
     expect(rB.candidates[0].score).toBe(0.5);
     expect(unitStr(rA.candidates[0].unit)).toBe(unitStr(rB.candidates[0].unit));
+    // 진 노드의 후보에는 그 코드가 다른 노드의 1순위이기도 하다는 사실을 표시한다(이긴 노드에는 표시가 없다)
+    expect(rA.candidates[0].contestedBy).toBeUndefined();
+    expect(rB.candidates[0].contestedBy).toEqual(["ProductCard"]);
   });
 
   it("점수가 같으면 노드 이름 순, 코드 경로 순으로 1순위를 정한다", () => {
@@ -196,6 +199,9 @@ describe("후보: 근거와 선택 순서", () => {
     const g = describePairing(r.bp, r.p);
     expect(g.ItemCardOne.candidates).toEqual(["ItemCardGrid@a/ItemCardGrid.tsx", "ItemCardList@b/ItemCardList.tsx"]);
     expect(g.ItemCardTwo.candidates).toEqual(["ItemCardList@b/ItemCardList.tsx", "ItemCardGrid@a/ItemCardGrid.tsx"]);
+    const mark = (node: string) => r.p.reviews.find((x) => x.nodeName === node)!.candidates.map((c) => c.contestedBy ?? null);
+    expect(mark("ItemCardOne")).toEqual([null, ["ItemCardTwo"]]); // Grid는 자기 1순위, List는 Two의 1순위
+    expect(mark("ItemCardTwo")).toEqual([null, ["ItemCardOne"]]); // List는 자기 1순위, Grid는 One의 1순위
   });
 
   it("후보는 근거(종류·점수·설명)를 가진다", () => {

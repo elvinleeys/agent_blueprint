@@ -17,7 +17,66 @@
         },
         "routes": [
           "/products/:id"
-        ]
+        ],
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/components/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/components/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/components/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/components/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/components/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/hooks/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/components/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
       }
     },
     "wrong-IC-01": {
@@ -210,7 +269,68 @@
           "design": "discountRate",
           "candidate": "discount"
         }
-      ]
+      ],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "candidate",
+            "unit": "ItemImages@src/components/ItemImages.tsx",
+            "basis": [
+              "location"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/components/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/components/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/components/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/components/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/hooks/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/components/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
+      }
     },
     "stack-mismatch": {
       "certain": [],
@@ -292,7 +412,68 @@
           "node": "ProductGallery",
           "via": "@/components/ProductGallery"
         }
-      ]
+      ],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/components/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/components/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/components/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/components/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/components/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/hooks/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/components/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
+      }
     },
     "dynamic-import-variable": {
       "certain": [],
@@ -302,7 +483,68 @@
           "kind": "unreadable",
           "node": "ReviewSummary"
         }
-      ]
+      ],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/components/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/components/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/components/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/components/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/components/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/hooks/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "unreadable",
+            "unit": null,
+            "basis": [
+              "unknown-target"
+            ]
+          }
+        },
+        "extraUnits": []
+      }
     }
   }
 }

@@ -17,7 +17,66 @@
         },
         "routes": [
           "/products/:id"
-        ]
+        ],
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/entities/product/ui/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/features/add-to-cart/model/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
       }
     },
     "wrong-IC-01": {
@@ -270,7 +329,68 @@
           "design": "discountRate",
           "candidate": "discount"
         }
-      ]
+      ],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "candidate",
+            "unit": "ItemImages@src/entities/product/ui/ItemImages.tsx",
+            "basis": [
+              "location"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/features/add-to-cart/model/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
+      }
     },
     "stack-mismatch": {
       "certain": [],
@@ -376,7 +496,66 @@
       "facts": {
         "imports": {
           "~/entities/product/ui/ProductGallery": null
-        }
+        },
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/entities/product/ui/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/features/add-to-cart/model/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
       }
     },
     "fetch-method-unknown": {
@@ -393,6 +572,482 @@
           "useCart": "UNKNOWN"
         }
       }
+    },
+    "dup-name-location": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/entities/product/ui/ProductGallery.tsx",
+            "basis": [
+              "same-name-location"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/features/add-to-cart/model/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": [
+          "ProductGallery@src/shared/ui/ProductGallery.tsx"
+        ]
+      },
+      "pairingOnly": true
+    },
+    "dup-name-ambiguous": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "ambiguous",
+            "unit": null,
+            "basis": [
+              "same-name"
+            ],
+            "candidates": [
+              "ProductGallery@src/features/gallery/ui/ProductGallery.tsx",
+              "ProductGallery@src/shared/ui/ProductGallery.tsx"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/features/add-to-cart/model/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
+      },
+      "pairingOnly": true
+    },
+    "default-anon": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "candidate",
+            "unit": "ProductGallery@src/entities/product/ui/ProductGallery.tsx",
+            "basis": [
+              "file-name",
+              "location"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/features/add-to-cart/model/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
+      },
+      "pairingOnly": true
+    },
+    "page-route": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "candidate",
+            "unit": "Page@app/products/[id]/page.tsx",
+            "basis": [
+              "route"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/entities/product/ui/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/features/add-to-cart/model/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
+      },
+      "pairingOnly": true
+    },
+    "hook-renamed": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/entities/product/ui/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "candidate",
+            "unit": "useCartState@src/features/add-to-cart/model/useCartState.ts",
+            "basis": [
+              "name-similarity",
+              "location"
+            ],
+            "score": 0.5
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
+      },
+      "pairingOnly": true
+    },
+    "inline-unexported": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ],
+            "exported": false
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/features/add-to-cart/model/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
+      },
+      "pairingOnly": true
+    },
+    "lazy-missing-named": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/product-detail/ui/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "unreadable",
+            "unit": null,
+            "basis": [
+              "path-name-unread"
+            ],
+            "candidates": [
+              "ProductGallery@src/shared/ui/ProductGallery.tsx"
+            ],
+            "via": "./ProductGallery"
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/widgets/product-info/ui/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/entities/product/ui/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/features/select-option/ui/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/features/add-to-cart/ui/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/features/add-to-cart/model/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/entities/review/ui/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": []
+      },
+      "pairingOnly": true
     }
   }
 }

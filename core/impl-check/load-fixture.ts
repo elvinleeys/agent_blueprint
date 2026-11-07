@@ -18,8 +18,22 @@ export type ExpectedFacts = {
   routes?: string[];
   /** import 문자열 → 해석된 파일(못 풀면 null) */
   imports?: Record<string, string | null>;
+  /** 설계 노드 이름 → 짝짓기 기대 결과(3a). 적은 키만 검사한다 */
+  pairs?: Record<string, ExpectedPair>;
+  /** 코드에만 있는 내보낸 컴포넌트·훅("이름@파일") */
+  extraUnits?: string[];
 };
-export type ExpectedCase = { blueprint?: string; certain: ExpectedCertain[]; needsReview: ExpectedReview[]; facts?: ExpectedFacts };
+
+/**
+ * 짝짓기 기대 결과.
+ * - state: certain(확실 짝) / candidate(후보 하나, 짝 확인 필요) / ambiguous(같은 이름 여러 개를 특정하지 못함) / unreadable(읽지 못한 코드 때문에 확정하지 않음) / missing(짝 없음, 코드에 없음)
+ * - unit: 짝 또는 1순위 후보 "이름@파일", 없으면 null. candidates: 후보 목록(순서대로)
+ * - basis: 근거 종류 exact · case · same-name-location · name-similarity · location · route · file-name · same-name · path-name-unread · unknown-target
+ */
+export type ExpectedPair = { state: "certain" | "candidate" | "ambiguous" | "unreadable" | "missing"; unit?: string | null; basis?: string[]; exported?: boolean; candidates?: string[]; via?: string; score?: number };
+
+/** pairingOnly: 3a 짝짓기 사례. 3b의 확실·확인 필요 기대(certain·needsReview)는 정하지 않았다(비어 있음) */
+export type ExpectedCase = { blueprint?: string; certain: ExpectedCertain[]; needsReview: ExpectedReview[]; facts?: ExpectedFacts; pairingOnly?: boolean };
 export type Expected = { bundle: string; blueprint: string; cases: Record<string, ExpectedCase> };
 
 const walk = (dir: string, base = dir): string[] =>

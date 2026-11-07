@@ -1,23 +1,38 @@
+import type { AliasMode } from "./options";
+import { dirOf, joinPath } from "./path-utils";
+import { configFor, type PathConfigs } from "./tsconfig";
+
 /**
- * import 경로를 올린 파일로 바꾼다(순수 문자열 계산, 파일 시스템·tsconfig를 읽지 않음).
+ * import 경로를 올린 파일로 바꾼다(순수 문자열 계산, 파일 시스템을 읽지 않음).
  *
- * - 상대 경로(`./`, `../`): 가져오는 파일의 폴더 기준.
- * - `@/` 별칭: tsconfig를 올리지 않으므로 가장 흔한 설정(`"@/*": ["./src/*"]` 또는 `["./*"]`)만 따른다.
- *   프로젝트 루트 = 가져오는 파일 경로에서 처음 나오는 `src/` 폴더의 앞부분(경로에 `src/`가 없거나 맨 앞이면 빈 접두사).
- *   `@/x`는 `<루트>src/x`를 먼저, 없으면 `<루트>x`를 찾는다. 올린 폴더 이름이 앞에 붙어 있어도(`my-app/src/…`) 루트가 따라온다.
- * - 그 밖의 패키지 import(`react`, `next/link`, `@scope/pkg`)는 null. 다른 별칭(`~/`, `#/`)도 null이며 호출한 쪽이 "읽지 못함"으로 센다.
+ * 풀이 순서:
+ * 1. 상대 경로(`./`, `../`): 가져오는 파일의 폴더 기준.
+ * 2. 업로드한 tsconfig.json·jsconfig.json이 있고 `paths`를 정의했으면 그것만 따른다(가장 가까운 위쪽 폴더의 설정).
+ *    `paths`에 없으면 `baseUrl` 기준으로 찾는다. 그래도 못 풀면 못 푼 것이다(기본 규칙으로 몰래 대신하지 않는다).
+ * 3. `paths`를 정의한 설정이 없으면 기본 규칙: `@/x`는 `<루트>src/x`를 먼저, 없으면 `<루트>x`.
+ *    프로젝트 루트 = 가져오는 파일 경로에서 처음 나오는 `src/` 폴더의 앞부분(경로에 `src/`가 없거나 맨 앞이면 빈 접두사).
+ * 4. 그 밖의 패키지 import(`react`, `next/link`, `@scope/pkg`)는 null이고 kind는 "package".
+ *    `@/`·`~/`·`#/`로 시작하는데 못 푼 것은 kind "alias"에 resolved null이다. 호출한 쪽이 관련 판정만 "확인 필요"로 보낸다.
  */
 const EXTS = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
 
-const normalize = (segments: string[]): string => {
-  const out: string[] = [];
-  for (const seg of segments) {
-    if (seg === "." || seg === "") continue;
-    if (seg === "..") out.pop();
-    else out.push(seg);
-  }
-  return out.join("/");
+export type ImportKind = "relative" | "alias" | "package";
+export type Resolution = {
+  resolved: string | null;
+  kind: ImportKind;
+  /** 무엇으로 풀었는지: 상대 경로 / 올린 설정 파일(tsconfig·jsconfig) / 기본 규칙. 못 풀었으면 null */
+  by: "relative" | "tsconfig" | "default" | null;
+  /** tsconfig로 풀거나 풀려고 시도한 설정 파일 */
+  config?: string;
 };
+
+/** 별칭처럼 보이는 시작 글자(패키지와 구별하기 위한 것) */
+const ALIAS_LIKE = /^(@|~|#)\//;
+
+export const isAliasImport = (spec: string) => spec.startsWith("@/");
+export const isRelativeImport = (spec: string) => spec.startsWith(".");
+
+const findFile = (paths: ReadonlySet<string>, base: string): string | null => EXTS.map((e) => `${base}${e}`).find((p) => paths.has(p)) ?? null;
 
 /** 가져오는 파일의 프로젝트 루트 접두사(끝 `/` 포함 또는 빈 문자열) */
 export function projectRootOf(fromPath: string): string {
@@ -26,21 +41,62 @@ export function projectRootOf(fromPath: string): string {
   return i > 0 ? `${parts.slice(0, i).join("/")}/` : "";
 }
 
-export const isAliasImport = (spec: string) => spec.startsWith("@/");
-export const isRelativeImport = (spec: string) => spec.startsWith(".");
-
-/** 올린 파일 경로 집합에서 import를 찾는다. 못 찾으면 null */
+/** 기본 규칙만으로 푼다(설정 파일을 보지 않음). 상대 경로와 `@/`만 푼다. 못 풀면 null */
 export function resolveModule(paths: ReadonlySet<string>, fromPath: string, spec: string): string | null {
-  let bases: string[];
-  if (isRelativeImport(spec)) bases = [normalize([...fromPath.split("/").slice(0, -1), ...spec.split("/")])];
-  else if (isAliasImport(spec)) {
-    const root = projectRootOf(fromPath);
-    const rest = spec.slice(2);
-    bases = [`${root}src/${rest}`, `${root}${rest}`];
-  } else return null;
-  for (const base of bases) {
-    const hit = EXTS.map((e) => `${base}${e}`).find((p) => paths.has(p));
-    if (hit) return hit;
-  }
-  return null;
+  if (isRelativeImport(spec)) return findFile(paths, joinPath(dirOf(fromPath), spec));
+  if (!isAliasImport(spec)) return null;
+  const root = projectRootOf(fromPath);
+  const rest = spec.slice(2);
+  return findFile(paths, `${root}src/${rest}`) ?? findFile(paths, `${root}${rest}`);
 }
+
+/** tsconfig `paths`의 패턴(`@/*`, `~lib`)과 import 글자를 맞춰 보고, 가장 긴 접두사 패턴의 대상 후보들을 돌려준다 */
+function matchPaths(spec: string, patterns: { pattern: string; targets: string[] }[]): string[] | null {
+  let best: { len: number; targets: string[] } | null = null;
+  for (const { pattern, targets } of patterns) {
+    const star = pattern.indexOf("*");
+    if (star < 0) {
+      if (spec === pattern && (!best || pattern.length >= best.len)) best = { len: pattern.length, targets };
+      continue;
+    }
+    const prefix = pattern.slice(0, star);
+    const suffix = pattern.slice(star + 1);
+    if (spec.length >= prefix.length + suffix.length && spec.startsWith(prefix) && spec.endsWith(suffix) && (!best || prefix.length > best.len)) {
+      const middle = spec.slice(prefix.length, spec.length - suffix.length);
+      best = { len: prefix.length, targets: targets.map((t) => t.replace("*", middle)) };
+    }
+  }
+  return best ? best.targets : null;
+}
+
+/** 파일 집합과 별칭 설정을 묶어 import 해석기를 만든다. 모드는 기능별 설정(options.ts)이 정한다 */
+export function createImportResolver(paths: ReadonlySet<string>, mode: AliasMode, configs: PathConfigs | null) {
+  return (from: string, spec: string): Resolution => {
+    if (isRelativeImport(spec)) {
+      const resolved = findFile(paths, joinPath(dirOf(from), spec));
+      return { resolved, kind: "relative", by: resolved ? "relative" : null };
+    }
+    const aliasLike = ALIAS_LIKE.test(spec);
+    if (mode === "off") return { resolved: null, kind: aliasLike ? "alias" : "package", by: null };
+
+    const cfg = mode === "tsconfig" && configs ? configFor(configs, from) : null;
+    if (cfg && (cfg.paths.length || cfg.baseUrl !== null)) {
+      const targets = matchPaths(spec, cfg.paths);
+      if (targets) {
+        const resolved = targets.map((t) => findFile(paths, joinPath(cfg.pathsBase, t))).find((p) => p) ?? null;
+        return { resolved, kind: "alias", by: resolved ? "tsconfig" : null, config: cfg.configPath };
+      }
+      const viaBase = cfg.baseUrl !== null ? findFile(paths, joinPath(cfg.baseUrl, spec)) : null;
+      if (viaBase) return { resolved: viaBase, kind: "alias", by: "tsconfig", config: cfg.configPath };
+      // paths를 정의한 설정은 믿는다: 거기에 없는 별칭을 기본 규칙으로 몰래 풀지 않는다
+      if (cfg.paths.length) return { resolved: null, kind: aliasLike ? "alias" : "package", by: null, config: cfg.configPath };
+    }
+    if (isAliasImport(spec)) {
+      const resolved = resolveModule(paths, from, spec);
+      return { resolved, kind: "alias", by: resolved ? "default" : null };
+    }
+    return { resolved: null, kind: aliasLike ? "alias" : "package", by: null };
+  };
+}
+
+export type ImportResolver = ReturnType<typeof createImportResolver>;

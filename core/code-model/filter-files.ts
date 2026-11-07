@@ -10,9 +10,16 @@ export type FilterResult<T extends FileEntry> = { accepted: T[]; rejected: { ent
 
 const NORMALIZE = (p: string) => p.replace(/\\/g, "/");
 
-function reasonToReject(path: string): RejectReason | null {
+/** 경로 별칭 설정 파일(tsconfig.json·jsconfig.json). 구현 검사가 paths를 읽으려고 올릴 때만 받는다 */
+export const CONFIG_FILE = /(^|\/)(tsconfig|jsconfig)\.json$/;
+
+/** allowConfigFiles: true면 tsconfig.json·jsconfig.json도 남긴다(기본 false: 디자인 시스템 정리는 .ts·.tsx만) */
+export type FilterOptions = { allowConfigFiles?: boolean };
+
+function reasonToReject(path: string, options: FilterOptions): RejectReason | null {
   const p = NORMALIZE(path);
   if (p.split("/").slice(0, -1).some((seg) => EXCLUDED_DIRS.includes(seg))) return "excluded-dir";
+  if (options.allowConfigFiles && CONFIG_FILE.test(p)) return null;
   if (!/\.tsx?$/.test(p)) return "not-source";
   if (/\.d\.ts$/.test(p)) return "declaration";
   if (/\.(test|spec|stories)\.tsx?$/.test(p)) return "test-or-story";
@@ -20,11 +27,11 @@ function reasonToReject(path: string): RejectReason | null {
 }
 
 /** .tsx(컴포넌트)와 .ts(타입을 찾는 데만 쓰임)를 남기고 나머지를 거른다. 거른 이유를 함께 돌려준다 */
-export function filterFiles<T extends FileEntry>(entries: T[]): FilterResult<T> {
+export function filterFiles<T extends FileEntry>(entries: T[], options: FilterOptions = {}): FilterResult<T> {
   const accepted: T[] = [];
   const rejected: FilterResult<T>["rejected"] = [];
   for (const entry of entries) {
-    const reason = reasonToReject(entry.path);
+    const reason = reasonToReject(entry.path, options);
     if (reason) rejected.push({ entry, reason });
     else accepted.push(entry);
   }

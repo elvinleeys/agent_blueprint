@@ -83,7 +83,11 @@ export function P() { return <div />; }`,
       ["react", null, false, false],
       ["./w", "src/pages/w.ts", false, true],
     ]);
-    expect(f.unreadable.map((u) => u.reason).sort()).toEqual(["dynamic-import", "lazy", "reexport"]);
+    // lazy 안쪽의 import("./l")는 lazy 한 건으로 합친다(한 사건은 한 건)
+    expect(f.unreadable.map((u) => [u.reason, u.target, u.resolved])).toEqual([
+      ["reexport", "./w", "src/pages/w.ts"],
+      ["lazy", "./l", null],
+    ]);
   });
 
   it("컴포넌트: 상태·훅 호출·렌더링 관계·이벤트 props·요소", () => {
@@ -129,7 +133,7 @@ export function Info({ onPick, onClose, label }: Props) {
   it("훅: use로 시작하는 함수는 JSX가 없어도 단위로 읽고 안의 조회 호출을 담는다", () => {
     const u = one("src/useP.ts", `export function useP() { const [p, setP] = useState(0); useEffect(() => { fetch("/a"); }, []); return p; }`).units[0];
     expect(u).toMatchObject({ name: "useP", kind: "hook", state: ["p"] });
-    expect(u.fetchCalls).toEqual([{ callee: "fetch", line: 1 }]);
+    expect(u.fetchCalls).toEqual([{ callee: "fetch", kind: "READ", line: 1 }]);
   });
 
   it("조회 호출 목록: fetch·axios·supabase·조회 훅·use(promise). 비슷하지만 아닌 것은 걸리지 않는다", () => {

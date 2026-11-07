@@ -34,7 +34,8 @@ model: sonnet
    - `core/` 아래 파일의 React·Next·브라우저 전용 import
    - `app/` 아래의 `page.tsx`·`route.ts`·`layout.tsx`가 아닌 파일(`globals.css`·`fonts/`는 정상)
 8. **비밀값·서버 전용 코드 노출**: 클라이언트 컴포넌트(`"use client"` 또는 `components/` 아래)에서 `SUPABASE_SERVICE_ROLE_KEY`·OpenAI 키 참조, `NEXT_PUBLIC_`이 비밀 값에 붙은 것, `.env.local`이 `git ls-files`에 있는 것, 바뀐 파일의 `sk-` 같은 키 모양 문자열을 본다.
-9. **브랜치 상태**: `git status`와 `git log <기준>..HEAD`로 본다. 커밋에 넣지 말아야 할 파일(`docs/prompts.md`, `.env*`, `.claude/logs/`)이 커밋·스테이징됐는지(`docs/prompts.md`는 미추적이면 정상), 커밋 메시지 접두사(`feat:`·`fix:`·`chore:`·`docs:` 외 `refactor:`·`test:`도 이 저장소에서 쓰임)가 맞는지, 설계도 스키마(`core/schema/`) 변경이 다른 변경과 한 커밋에 섞였는지 본다.
+9. **기대 결과 보존(필수)**: 단계마다 `git diff <기준> -- 'fixtures/**/expected.*'`(커밋 전 변경은 `git diff HEAD`와 미추적 파일 포함)를 보고 **기존 값이 바뀌었는지** 확인한다. 닫는 괄호·쉼표만 바뀐 줄(`]`→`],`)은 구조 변화라 값 변경이 아니다. 기존 사례의 `certain`·`needsReview`·기존 `facts` 값이 삭제·수정됐으면 ❌로 보고하고 어떤 사례의 무엇이 바뀌었는지 적는다. 새 사례·새 키 추가는 "신규 추가"로 따로 적는다(바뀐 것과 추가를 섞어 쓰지 않는다). 호출한 쪽이 사용자 승인을 명시한 변경만 "승인 있음"으로 적는다. 확인하지 못했으면 통과로 적지 말고 "확인 못함"으로 적는다.
+10. **브랜치 상태**: `git status`와 `git log <기준>..HEAD`로 본다. 커밋에 넣지 말아야 할 파일(`docs/prompts.md`, `.env*`, `.claude/logs/`)이 커밋·스테이징됐는지(`docs/prompts.md`는 미추적이면 정상), 커밋 메시지 접두사(`feat:`·`fix:`·`chore:`·`docs:` 외 `refactor:`·`test:`도 이 저장소에서 쓰임)가 맞는지, 설계도 스키마(`core/schema/`) 변경이 다른 변경과 한 커밋에 섞였는지 본다.
 
 ## 보고 형식
 **모두 통과**하면 아래처럼 짧게:

@@ -2,6 +2,10 @@
   "permissions": {
     "deny": [
       "Read(.env.local)"
+    ],
+    "ask": [
+      "Edit(/fixtures/**/expected.*)",
+      "Write(/fixtures/**/expected.*)"
     ]
   },
   "hooks": {

@@ -1,11 +1,13 @@
+import { common, jaccard, words } from "../similarity/name-similarity";
+import { NAME_JACCARD_MIN, PROPS_JACCARD_MIN } from "../similarity/thresholds";
 import type { AnalyzedComponent, OfficialComponent } from "./types";
 
-/** 판정 기준값. 실제 코드로 돌려 본 뒤 조정하기 쉽게 여기에만 둔다 */
+/** 판정 기준값. 실제 코드로 돌려 본 뒤 조정하기 쉽게 여기에만 둔다(이름·props 유사도 기준은 core/similarity/thresholds.ts의 공용 값) */
 export const COMPARE_CONFIG = {
-  /** C-02: 이름 단어(PascalCase 분리) Jaccard 최소값 */
-  NAME_JACCARD_MIN: 0.5,
-  /** C-02: props 이름 Jaccard 최소값(양쪽 props가 1개 이상일 때만 비교) */
-  PROPS_JACCARD_MIN: 0.5,
+  /** C-02: 이름 단어(PascalCase 분리) Jaccard 최소값(공용 기준값) */
+  NAME_JACCARD_MIN,
+  /** C-02: props 이름 Jaccard 최소값(양쪽 props가 1개 이상일 때만 비교, 공용 기준값) */
+  PROPS_JACCARD_MIN,
   /** C-02: 같은 라이브러리 컴포넌트를 상속한 쌍이 후보가 되려면 겹쳐야 하는 이름 단어 수 */
   LIB_INHERIT_NAME_WORDS_MIN: 1,
   /** C-03: props가 이 개수를 넘으면 나누기 후보 */
@@ -41,15 +43,6 @@ export type CompareInput = {
   analyzed: AnalyzedComponent[];
   /** 공식 목록을 디자인 시스템으로 올린 파일에서 만들었는가. true일 때만 C-05(같은 이름의 별도 구현)를 건다 */
   officialFromFiles?: boolean;
-};
-
-const words = (name: string) => new Set((name.match(/[A-Z]+(?![a-z])|[A-Z]?[a-z0-9]+/g) ?? []).map((w) => w.toLowerCase()));
-
-const common = <T>(a: Set<T>, b: Set<T>) => [...a].filter((x) => b.has(x));
-const jaccard = <T>(a: Set<T>, b: Set<T>) => {
-  const inter = common(a, b).length;
-  const union = a.size + b.size - inter;
-  return union === 0 ? 0 : inter / union;
 };
 
 type Node = { ref: CompRef; words: Set<string>; props: Set<string>; inherits: Set<string>; inheritsComponents: Set<string> };

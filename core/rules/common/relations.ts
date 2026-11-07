@@ -1,3 +1,4 @@
+import { NAME_JACCARD_MIN } from "../../similarity/thresholds";
 import { groupConnected, isAncestorOrDescendant, nodeMap } from "../helpers";
 import type { Rule, Violation } from "../types";
 import type { ComponentNode } from "../../schema/blueprint";
@@ -62,7 +63,7 @@ export const r03: Rule = (bp) => {
 };
 
 // ---- R-05 재사용 후보 ----
-export const R05_NAME_JACCARD = 0.5;
+export const R05_NAME_JACCARD = NAME_JACCARD_MIN; // 공용 기준값(core/similarity/thresholds.ts)
 export const R05_TEXT_DICE = 0.4;
 
 const words = (name: string) => new Set((name.match(/[A-Z][a-z0-9]*|[a-z0-9]+/g) ?? []).map((w) => w.toLowerCase()));

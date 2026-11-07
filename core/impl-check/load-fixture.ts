@@ -22,6 +22,8 @@ export type ExpectedFacts = {
   pairs?: Record<string, ExpectedPair>;
   /** 코드에만 있는 내보낸 컴포넌트·훅("이름@파일") */
   extraUnits?: string[];
+  /** 3b 집계 기대: 설계 준수(전체·일치·불일치·확인 필요), 금지 규칙(위반·확인 불가), 설계에 없는 발견 수 */
+  summary?: { design: { total: number; match: number; mismatch: number; review: number }; ban: { violated: number; unknown: number }; outsideDesign: number };
 };
 
 /**
@@ -32,8 +34,7 @@ export type ExpectedFacts = {
  */
 export type ExpectedPair = { state: "certain" | "candidate" | "ambiguous" | "unreadable" | "missing"; unit?: string | null; basis?: string[]; exported?: boolean; candidates?: string[]; via?: string; score?: number };
 
-/** pairingOnly: 3a 짝짓기 사례. 3b의 확실·확인 필요 기대(certain·needsReview)는 정하지 않았다(비어 있음) */
-export type ExpectedCase = { blueprint?: string; certain: ExpectedCertain[]; needsReview: ExpectedReview[]; facts?: ExpectedFacts; pairingOnly?: boolean };
+export type ExpectedCase = { blueprint?: string; certain: ExpectedCertain[]; needsReview: ExpectedReview[]; facts?: ExpectedFacts };
 export type Expected = { bundle: string; blueprint: string; cases: Record<string, ExpectedCase> };
 
 const walk = (dir: string, base = dir): string[] =>

@@ -44,11 +44,11 @@ describe.each(["next", "react"])("구현 검사 시험 데이터: %s 묶음", (b
     expect(loadCode(bundle, name).length).toBeGreaterThan(0);
   });
 
-  it("틀린 사례마다 확실 1건만 기대한다(바른 코드·이름만 바꾼 코드·스택 불일치는 확실 0건)", () => {
+  it("`wrong-*` 사례는 확실 1건만 기대한다. 그 밖의 사례는 expected.json에 적은 기대 결과와 비교한다(바른 코드·이름만 바꾼 코드·스택 불일치는 확실 0건)", () => {
     for (const [name, c] of Object.entries(expected.cases)) {
       if (name.startsWith("wrong-")) expect(c.certain, name).toHaveLength(1);
-      else expect(c.certain, name).toHaveLength(0);
     }
+    for (const name of ["correct", "renamed", "stack-mismatch"]) expect(expected.cases[name].certain, name).toHaveLength(0);
     expect(expected.cases.correct.needsReview).toHaveLength(0);
     expect(expected.cases["stack-mismatch"].needsReview).toHaveLength(0);
     expect(expected.cases.renamed.needsReview.map((r) => r.kind).sort()).toEqual(["pair", "prop", "state"]);

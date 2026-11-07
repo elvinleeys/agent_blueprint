@@ -76,6 +76,7 @@ docs/pr/implementation-check.md
 - AI 제안은 확인 필요 항목과 책임(responsibilities)에만 붙는다.
 - **읽지 못한 코드는 관련된 판정에만 영향을 준다.** 경로가 적힌 `lazy(() => import("./X"))`는 그 파일과 관련된 판정만, 경로를 알 수 없는 `import(변수)`는 "코드에 없음" 판정(IC-01 등)만 확인 필요로 보내고 다른 판정은 그대로 둔다.
 - 해석하지 못한 import(`resolved: null`)는 그 import와 관련된 존재·관계 판정만 확인 필요로 보낸다.
+- **후보 짝(짝 확인 필요) 노드의 영향 범위**: 자식이 있는 노드가 후보 짝이면 그 노드의 항목은 전부 확인 필요이고, **직계 자식의 부모-자식 항목만** 확인 필요가 된다(부모의 결과 카드 한 장에 묶인다). 자식의 다른 항목(존재·위치·props 등)과 손자 노드는 영향받지 않는다. 일반 규칙이라 모든 노드에 같게 적용한다.
 
 ### tsconfig 지원 범위 (경로 별칭을 읽는 규칙)
 
@@ -134,7 +135,7 @@ docs/pr/implementation-check.md
 | location.dir | 코드 | 코드 파일의 폴더 접미사가 `dir`과 일치하는지(IC-03). Next+FSD는 `src/` 접두를 허용 |
 | kind | AI | `container/presentational` 구분은 코드로 확신 불가. `page`·`hook`은 이름·라우팅으로 이미 대응에 쓰임. 책임 확인 때 AI에 맥락으로만 보냄 |
 | responsibilities | AI | 코드가 책임을 수행하는지는 AI만 판단(제안). 코드 판정 없음 |
-| state[].name | 코드+확인 | 컴포넌트 안 `useState` 구조분해 이름과 비교(IC-05 위치·누락). 비슷한 이름이면 **확인**(§6). 훅 노드의 state는 훅 함수 안 useState |
+| state[].name | 코드+확인 | 컴포넌트 안 `useState` 구조분해 이름과 비교(IC-05 위치·누락). 비슷한 이름이면 **확인**(§6). 훅 노드의 state는 훅 함수 안 useState. **훅 안의 상태**: 설계도에 없는 훅이고, 컴포넌트가 직접 부르는 한 단계이며, `useState`·`useReducer`로 선언된 경우에만 "상태가 있다"(일치)로 본다. 근거에 "어느 훅 안에서 선언, 어느 컴포넌트가 호출"을 적는다. 훅이 다시 다른 훅을 부르거나(두 단계), 컴포넌트나 그 훅이 Context·상태 관리 라이브러리 훅(`useContext`·`useStore`·`useSelector`·`useAtom`·`useRecoilState` 등, 목록은 `state-hooks.ts` 한 곳)을 쓰면 없다고 확정하지 않고 **확인**으로 보낸다. 그 훅이 설계 노드이거나 컴포넌트가 부르지 않는 다른 코드에 있으면 지금처럼 위치 다름 경고 |
 | state[].description | 안 함 | 자유 설명문 |
 | props[].name | 코드+확인 | 컴포넌트 props 이름과 비교. 누락·설계에 없음 IC-06(경고). 비슷한 이름이면 한 건 **확인** |
 | props[].type | 안 함 | 타입 호환은 tsc 영역. 문자열 비교는 오탐이 많다. (질문 Q4) |
@@ -174,7 +175,7 @@ docs/pr/implementation-check.md
 | ICN-03 | Next | client 파일이 설계상 server 컴포넌트를 직접 import | 오류 |
 | ICN-04 | Next, route 있음 | `app/<route>/page.tsx`가 없거나 페이지를 import해 내보내기만 하지 않음(로직·JSX 직접 작성) | 경고 |
 | ICR-01 | React, route 있음 | 라우터 설정(`createBrowserRouter`·`<Route path>`)에 route와 페이지가 연결되지 않음. 설정 파일을 못 찾으면 **확인** | 경고 |
-| ICF-01 | FSD | 실제 import가 계층 방향(위 계층 import 금지)·같은 계층 다른 슬라이스 import(공용 `shared` 제외 아님: pages·widgets·features·entities 사이)를 어김 | 오류 |
+| ICF-01 | FSD | 실제 import가 계층 방향(위 계층 import 금지)을 어기거나, 같은 계층의 다른 슬라이스를 가져옴. 계층 방향 검사는 모든 계층에 적용하므로 `shared`가 위 계층을 가져와도 위반이다. 같은 계층 다른 슬라이스 검사는 슬라이스가 있는 pages·widgets·features·entities 사이에만 한다(`shared`는 슬라이스가 없고 어느 계층에서나 가져올 수 있다). 타입만 가져오는 import는 제외 | 오류 |
 
 공통 ID: IC-01 설계에만 있음, IC-02 코드에만 있음, IC-03 위치 다름, IC-04 부모-자식 다름, IC-05 상태 위치·누락, IC-06 props 누락·설계에 없음, IC-07 이벤트 누락, IC-08 조회 담당 불일치, IC-09 배치 다름(Tailwind), IC-10 토큰 대신 직접 값, IC-11 바깥 margin, IC-12 인라인 style. 훅 누락(설계 훅 노드가 부모에서 호출되지 않음)은 IC-04의 훅 변형이며 메시지에서 "훅 사용 누락"으로 구분한다.
 React 훅 사용 규칙처럼 ESLint(코드 문법·습관을 검사하는 도구)가 이미 잡는 것은 만들지 않는다.

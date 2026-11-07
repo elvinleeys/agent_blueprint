@@ -229,11 +229,11 @@ React 훅 사용 규칙처럼 ESLint(코드 문법·습관을 검사하는 도�
 
 | 단계 | 내용 | 검증 | 커밋 |
 | --- | --- | --- | --- |
-| 0 | 이 문서 | 사용자 승인 | docs: 구현 검사 스펙 |
-| 1 | `fixtures/implementation-check/` 시험 데이터 + expected.md(기대 결과 표) | 표 승인, 시험 코드가 tsc로 컴파일되는지 | test: 구현 검사 시험 데이터 |
-| 2a | `core/code-model` 분리(이동·재내보내기만, 동작 변경 없음) | 기존 테스트 전부 통과 + `demo-cleanup` 결과 동일 | refactor: 코드 분석기를 code-model로 분리 |
-| 2b | code-model 확장(use client, useState, 훅 호출, import 관계(@/ 포함), 렌더링 관계, 이벤트 props, 조회 호출, className·style) | 단위 테스트 | feat: 코드 모델 읽기 항목 확장 |
-| 2c | code-model 보완(§4-1): tsconfig·jsconfig `paths` 읽기(업로드 거르기에 두 파일 추가), 서버 통신 READ/WRITE/UNKNOWN, 클래스 ALWAYS/CONDITIONAL/DYNAMIC/ABSENT, 라우터별 화면 주소 정규화(React Router 중첩 합치기·Next 그룹·동적 세그먼트), 읽지 못한 코드의 영향 범위(lazy 경로 유무), `readCodeModel` 기능별 설정(디자인 시스템 정리는 지금 결과 그대로인 설정). 시험 데이터를 먼저 추가하고 기대 결과 표 승인 후 구현 | 단위 테스트 + 시험 데이터의 `facts` 일치 + 기존 정리 결과·`demo-cleanup` 동일 | feat: 코드 모델 보완 |
+| ✅ 0 | 이 문서 | 사용자 승인 | docs: 구현 검사 스펙 |
+| ✅ 1 | `fixtures/implementation-check/` 시험 데이터 + expected.md(기대 결과 표) | 표 승인, 시험 코드가 tsc로 컴파일되는지 | test: 구현 검사 시험 데이터 |
+| ✅ 2a | `core/code-model` 분리(이동·재내보내기만, 동작 변경 없음) | 기존 테스트 전부 통과 + `demo-cleanup` 결과 동일 | refactor: 코드 분석기를 code-model로 분리 |
+| ✅ 2b | code-model 확장(use client, useState, 훅 호출, import 관계(@/ 포함), 렌더링 관계, 이벤트 props, 조회 호출, className·style) | 단위 테스트 | feat: 코드 모델 읽기 항목 확장 |
+| ✅ 2c | code-model 보완(§4-1): tsconfig·jsconfig `paths` 읽기(업로드 거르기에 두 파일 추가), 서버 통신 READ/WRITE/UNKNOWN, 클래스 ALWAYS/CONDITIONAL/DYNAMIC/ABSENT, 라우터별 화면 주소 정규화(React Router 중첩 합치기·Next 그룹·동적 세그먼트), 읽지 못한 코드의 영향 범위(lazy 경로 유무), `readCodeModel` 기능별 설정(디자인 시스템 정리는 지금 결과 그대로인 설정). 시험 데이터를 먼저 추가하고 기대 결과 표 승인 후 구현 | 단위 테스트 + 시험 데이터의 `facts` 일치 + 기존 정리 결과·`demo-cleanup` 동일 | feat: 코드 모델 보완 |
 | 3a | 대응시키기·비슷한 이름(match·similarity) | 시험 데이터 | feat: 설계-코드 대응 |
 | 3b | 공통·스택 어댑터 규칙 + run | correct 0건·wrong 기대대로·renamed 확인 필요만 | feat: 구현 검사 규칙 |
 | 3c | 변이 실험 | 결과를 PR에 기록 | test: 변이 실험 |

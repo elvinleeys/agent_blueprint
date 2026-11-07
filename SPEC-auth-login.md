@@ -1,9 +1,12 @@
 # Spec: GitHub 로그인 (F-015, S-08 로그인 · S-09 계정 최소 버전)
 
+> **이 문서는**: GitHub 계정으로 로그인·로그아웃하고, 로그인하지 않은 사람이 `/projects`·`/account`에 가면 로그인 화면으로 보내는 기능의 설명서다. 작업 순서는 `tasks/plan-auth-login.md`에 있다. (`F-015`는 기능 번호, `S-08`·`S-09`는 화면 번호다.)
+> **목록에 들어 있는 것**: 목표, 조사 결과(Next 16의 `proxy`, Cache Components, 환경변수 이름), 가정 9개(로그인 방식·이동 규칙 등 틀리면 알려 달라는 것), 설계(파일 역할·이동 판단·흐름·오류 처리), 성공 기준, 위험, 남은 질문.
+
 단일 기능이라 capability map은 만들지 않는다. 구현은 승인 후 시작한다. 작업 순서는 `tasks/plan-auth-login.md` 참조.
 근거: `CLAUDE.md`(인증·Supabase 규칙), `SPEC-draft-route.md`(서버 클라이언트·`getClaims()` 결정), Next.js 16.4.3 로컬 문서(`node_modules/next/dist/docs/01-app/`의 `proxy.md`, `authentication-with-cache-components.md`).
 
-## Objective
+## Objective (목표)
 GitHub OAuth(Supabase Auth)로 로그인·로그아웃하고, 비로그인 사용자가 `/projects`·`/account`에 접근하면 `/login`으로 보낸다. 로그인 후에는 원래 가려던 화면으로 돌아온다. 계정 화면은 이메일·GitHub 이름·로그아웃 버튼만 둔다. 이 작업이 끝나면 `/api/draft`를 로그인 상태에서 호출해 401이 풀리는 것을 브라우저에서 확인할 수 있다.
 
 ## 조사 결과
@@ -18,6 +21,8 @@ GitHub OAuth(Supabase Auth)로 로그인·로그아웃하고, 비로그인 사�
 - 요청 시점 데이터(`cookies()`, `searchParams`)를 읽는 컴포넌트는 **`<Suspense>` 경계 안**에 있어야 한다. 밖에서 읽으면 빌드 오류다(`authentication-with-cache-components.md`). `/login`(`searchParams`로 `next`·`error`를 읽음)과 `/account`(세션을 읽음) 모두 이 규칙을 따른다.
 
 ### 환경변수 이름 점검 (값은 읽지 않음)
+아래 표는 환경변수 이름이 세 곳(`.env.example`, `CLAUDE.md`, 코드)에서 같은지 비교한 것이다.
+
 | 위치 | 이름 |
 | --- | --- |
 | `.env.example` | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY` |
@@ -26,8 +31,8 @@ GitHub OAuth(Supabase Auth)로 로그인·로그아웃하고, 비로그인 사�
 - 위 세 곳은 서로 일치한다.
 - **`.env.local`은 이 세션의 권한 규칙(`Read(.env.local)` 거부)이 읽는 명령을 막아 확인하지 못했다.** 규칙을 우회하지 않았다. 사용자가 직접 `! cut -d= -f1 .env.local`을 실행하면 이름만 출력된다(값은 나오지 않음). 위 이름 중 `NEXT_PUBLIC_SUPABASE_URL`·`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`가 있는지 확인해 주세요. 옛 이름 `NEXT_PUBLIC_SUPABASE_ANON_KEY`가 남아 있으면 바꿔야 한다.
 
-## Assumptions (틀리면 알려주세요)
-1. 로그인 방식은 Supabase의 **PKCE 흐름**(기본값): 브라우저에서 `signInWithOAuth` → GitHub → Supabase → `/auth/callback?code=...` → 서버에서 `exchangeCodeForSession`.
+## Assumptions 가정 (틀리면 알려주세요)
+1. 로그인 방식은 Supabase의 **PKCE 흐름**(로그인 코드를 안전하게 주고받는 표준 방식, 기본값): 브라우저에서 `signInWithOAuth` → GitHub → Supabase → `/auth/callback?code=...` → 서버에서 `exchangeCodeForSession`.
 2. 로그인 후 `next`가 없거나 안전하지 않으면 **`/projects`**로 보낸다(S-02 목록).
 3. 보호 대상 화면은 `/projects`와 그 하위, `/account`와 그 하위. `/`, `/login`, `/auth/*`는 공개. `/api/*`는 Proxy가 리다이렉트하지 않고 각 라우트가 401을 낸다(CLAUDE.md "모든 API 라우트는 세션 확인 후 401").
 4. 로그인 상태에서 `/login`에 오면 안전한 `next`(없으면 `/projects`)로 보낸다.
@@ -84,10 +89,10 @@ decideRedirect(a: { pathname: string; search: string; isAuthed: boolean }): stri
 - `signInWithOAuth` 실패(네트워크 등) → 버튼 아래 문구, 버튼은 다시 누를 수 있다.
 - 콜백에서 던져진 예외도 `/login?error=auth`로 수렴시킨다.
 
-## Tech Stack
+## Tech Stack (쓰는 기술)
 Next.js 16.4.3 App Router(Cache Components), TypeScript, Tailwind, `@supabase/ssr` 0.12.7, `@supabase/supabase-js` 2.118, Vitest 5.
 
-## Commands
+## Commands (자주 쓰는 명령어)
 ```
 npx vitest run core lib
 npx tsc --noEmit
@@ -96,7 +101,7 @@ npm run build
 npm run dev      # 로컬 수동 확인: http://localhost:3000/projects → /login
 ```
 
-## Code Style
+## Code Style (코드 작성 규칙)
 ```ts
 // core/auth/redirect.ts — 순수 함수, 한국어 주석은 이유만
 const UNSAFE = /[\x00-\x1f\x7f\\]/;
@@ -110,17 +115,17 @@ export function safeNextPath(next: unknown, fallback = "/projects"): string {
 }
 ```
 
-## Testing Strategy
+## Testing Strategy (테스트 방법)
 - **단위 테스트(`core/auth/redirect.test.ts`)**: 위 표의 모든 차단 입력, 정상 경로(쿼리·해시 유지), `fallback` 지정, `isProtectedPath`(`/projects`, `/projects/1`, `/account`는 보호, `/projectsx`·`/`·`/login`은 비보호), `decideRedirect`(비로그인+보호→`/login?next=...`가 인코딩되어 있고 다시 `safeNextPath`를 통과, 로그인+`/login`→안전한 next, 로그인+보호→null, 비로그인+공개→null).
 - 콜백 라우트 테스트(mock): code 없음 → `/login?error=auth`, 교환 실패 → 같은 곳, 성공 → `next` 경로, 성공 + `next=//evil.com` → `/projects`. 외부 주소로 나가지 않는 것을 `Location` 헤더로 확인.
 - Proxy·로그인 화면·계정 화면은 자동 테스트 없이 `npm run build` + 로컬 수동 확인(아래 Success Criteria). 실제 GitHub 로그인은 사용자가 브라우저에서 확인한다.
 
-## Boundaries
+## Boundaries (항상 / 먼저 물어봄 / 하지 않음)
 - Always: 서버에서 사용자 확인은 `getClaims()`, 리다이렉트 목적지는 `safeNextPath`를 거친다, 브라우저에는 `NEXT_PUBLIC_` 값만 쓴다, 에러 원문은 서버 로그만
 - Ask first: 새 의존성, `proxy.ts` 외의 전역 설정 변경, 로그인 방식 변경(이메일·다른 OAuth 추가), `/api/*`까지 Proxy에서 막는 것
 - Never: `SUPABASE_SERVICE_ROLE_KEY`를 이 작업에서 사용, `getSession()`으로 로그인 판단, `next`를 검증 없이 리다이렉트, `.env.local` 읽기·커밋, DB 표·RLS(다음 작업), 인라인 스타일, `app/`에 라우팅 외 로직
 
-## Success Criteria
+## Success Criteria (성공 기준)
 1. 단위·콜백 테스트가 통과하고 `tsc`·`eslint`·`npm run build`가 통과한다(`/login`, `/account`가 Suspense 규칙 위반 없이 빌드됨).
 2. 비로그인으로 `/projects`·`/account` 접근 시 `/login?next=...`로 이동하고, 로그인 후 원래 주소로 돌아온다.
 3. `next=//evil.com`, `next=https://evil.com`을 붙여도 로그인 후 `/projects`로 간다(외부로 나가지 않음).
@@ -145,7 +150,7 @@ const r2 = await fetch("/api/draft", { method: "POST", body: f });
 console.log(r2.status, await r2.json());
 ```
 
-## Risks
+## Risks (위험)
 | 위험 | 대응 |
 | --- | --- |
 | Supabase 대시보드 설정 누락(GitHub provider 비활성, Redirect URLs에 `http://localhost:3000/auth/callback`·배포 주소 없음)이면 로그인이 코드와 무관하게 실패 | `docs/auth-login.md`에 단계별 체크리스트. GitHub OAuth App의 Callback URL은 `https://<프로젝트>.supabase.co/auth/v1/callback`(앱 주소가 아님) |
@@ -154,7 +159,7 @@ console.log(r2.status, await r2.json());
 | 로컬 문서의 Proxy 안내(렌더와 분리 호출) 때문에 Proxy만 믿으면 우회 가능 | `/account`는 렌더에서 재확인, API는 자체 401 |
 | 사용자 단위 호출 제한 없음(비용) | 이전 스펙 Risks와 동일, 범위 밖 |
 
-## Open Questions
+## Open Questions (남은 질문)
 1. **Supabase 대시보드에서 GitHub provider와 GitHub OAuth App은 이미 만드셨나요?** 아직이면 `docs/auth-login.md`의 절차를 따라 사용자가 설정해야 합니다(코드로 할 수 없음).
 2. **기본 복귀 화면을 `/projects`로 해도 되나요?** (현재 홈 `/`는 공개 S-01)
 3. **로그아웃 방식**: 브라우저 `signOut()` 후 이동(제안)으로 충분한가요, 서버 액션이 필요하신가요?

@@ -1,12 +1,15 @@
 # Spec: 구조 설계 흐름 화면 (프로젝트 목록 → 작업공간 → AI 초안 → 트리 보기)
 
+> **이 문서는**: 로그인한 사용자가 프로젝트 목록을 보고, 작업공간에서 AI 초안을 만들고, 그 초안을 화면 미리보기와 컴포넌트 트리로 보는 화면 흐름의 설명서다. 작업 순서는 `tasks/plan-structure-ui.md`에 있다.
+> **목록에 들어 있는 것**: 작업을 나눈 단계 이름(`A0`·`A`·`P`·`D`·`S`·`B`), 가정 9개, 단계별 설명, 몽타주(원티드 디자인 시스템) 기준값 대조표, 미리보기 변환표, 폴더 구조, 테스트 전략, 경계, 성공 기준 `0`~`7`, 결정 사항, 남은 질문.
+
 단일 기능(화면 1겹)이라 capability map은 만들지 않는다. 구현은 승인 후 시작한다. 작업 순서는 `tasks/plan-structure-ui.md` 참조.
 근거: `CLAUDE.md`, `SPEC-projects-api.md`·`docs/projects-api.md`(API 계약), `SPEC-draft-route.md`, `SPEC-auth-login.md`, `.claude/skills/define-schema/data-model.md`, Next.js 16.4.3 로컬 문서(`cacheComponents: true`).
 
-## Objective
+## Objective (목표)
 로그인한 사용자가 (1) `/projects`에서 내 프로젝트를 보고 새 프로젝트(이름, 프레임워크·스타일·디렉토리 구조)를 만들고, (2) `/projects/[id]` 작업공간에서 화면 스펙 7개 항목 또는 이미지로 AI 초안을 만들고, (3) 초안을 컴포넌트 트리로 본다. 작업공간에 다시 들어오면 최신 판이 바로 보인다.
 
-진행 순서와 확인 시점(각 단계 끝에 vitest·tsc·eslint·build 결과 보고, 작업 단위 커밋, 사용자 확인 후 다음 단계). 실제 OpenAI 호출은 하지 않는다(B 이후 사용자가 브라우저에서 1회 확인).
+진행 순서와 확인 시점(각 단계 끝에 vitest·tsc·eslint·build 결과 보고, 작업 단위 커밋, 사용자 확인 후 다음 단계). 실제 OpenAI 호출은 하지 않는다(B 이후 사용자가 브라우저에서 1회 확인). 아래 목록은 작업 단계 이름의 뜻이다. (vitest는 테스트, tsc는 타입 검사, eslint는 코드 점검, build는 빌드 확인이다.)
 - **A0·A**: 끝(사용자 확인 완료). 아래 P부터 새로 시작.
 - **A0**: API 404 통일(설계도 불러오기·판 목록).
 - **A**: `/projects` 목록·생성 폼, `/projects/[id]` 작업공간 틀(탭 4개), 설정 탭의 이름 수정(`PATCH /api/projects/[id]` 추가).
@@ -19,14 +22,14 @@
 
 제외: 노드 편집·드래그, 검사 규칙과 결과 표시, 디자인 시스템 정리, 지시서 탭, 판 목록·판 선택 화면, 프로젝트 스택 수정·삭제, 저장하지 않은 수정 확인창(노드 편집 때 추가), AI가 만드는 중인 노드의 부분 표시, 다크 모드, 자체 가입(이메일) 로그인, 몽타주 값 외의 세부 디자인 다듬기.
 
-## 현재 코드에서 확인한 것
+## 현재 코드에서 확인한 것 (조사 결과)
 - `app/projects/page.tsx`는 "Login Page" 문구가 든 임시 파일, `app/projects/[id]/`는 빈 폴더. `components/`엔 `auth/`만, `store/`는 비어 있음.
 - `core/schema/tree.ts`(`buildTree`)는 **아직 없다**(data-model 6절에만 정의). 이번에 만든다.
 - `@xyflow/react`, `dagre`, `zustand`는 설치돼 있고 사용처는 없음. 컴포넌트 테스트 도구(jsdom 등)는 없다.
 - `/api/draft` 응답(단계 S 반영 후): 시작 전 오류는 상태 코드 + `{ error: { code, message, retryable, fields? } }`, 통과하면 NDJSON 스트림이고 마지막 줄이 `{ type: "done", blueprint, meta: { attempts, elapsedMs, normalized, saved } }` 또는 `{ type: "error", status, error, blueprint? }`(저장 실패는 `blueprint` 포함). 형식은 `SPEC-draft-route.md`·`docs/projects-api.md`.
 - `getProject`(lib/db)는 있다. 현재 `GET .../blueprint`·`GET .../revisions`는 프로젝트 소유를 확인하지 않는다.
 
-## Assumptions (틀리면 알려주세요)
+## Assumptions (가정: 틀리면 알려주세요)
 1. 목록·작업공간 **첫 화면 데이터는 서버 컴포넌트가 `lib/db`를 직접 호출**해 읽는다(`listProjects`, `getProject`, `loadBlueprint`). 없는·남의 프로젝트는 `notFound()`. 쓰기(생성·초안)는 클라이언트가 `fetch`로 기존 API를 호출한다. `GET` API 404 통일은 별도 개선이며 이 화면이 의존하지는 않는다.
 2. `cacheComponents: true`라서 로그인·params를 읽는 부분은 `<Suspense>` 안에 둔다(`/account` 패턴).
 3. 탭은 URL이 아니라 **클라이언트 상태**다. 프로젝트 설정·구조 설계만 활성, 디자인 시스템 정리·지시서는 비활성("준비 중"). **프로젝트 설정** 탭은 이름만 수정할 수 있고(`PATCH`), 스택 3가지는 읽기 전용이며 "스택을 바꾸려면 새 프로젝트를 만드세요" 안내를 붙인다.
@@ -45,6 +48,8 @@
 ## 단계 A — 목록·생성·작업공간 틀
 
 ### 화면
+아래 표는 이 단계에서 만드는 화면 두 개와 각 화면의 내용을 정리한 것이다.
+
 | 경로 | 내용 |
 | --- | --- |
 | `/projects` | 헤더(앱 이름, 계정 링크, 로그아웃은 기존 `LogoutButton`). "새 프로젝트" 폼과 프로젝트 카드 목록(이름, 스택 요약, 수정일). 비어 있으면 안내 문구. 카드 클릭 → `/projects/[id]` |
@@ -97,6 +102,8 @@
 
 
 ### D0 대조 결과 (2026-10-30, montage-web `d2d49a5`)
+아래 표는 요청한 디자인 값과 몽타주 공식 토큰(디자인 값을 이름 붙여 모아 둔 것)을 하나씩 비교한 결과다.
+
 | 항목 | 요청 값 | 공식 토큰(`packages/theme`) | 판정 |
 | --- | --- | --- | --- |
 | 대표 색 / 호버 / 누름 | #0066FF / #005EEB / #0054D1 | blue 50 / 45 / 40 = 같은 값 (`surface.brand.primary·strong·heavy`) | 일치 |
@@ -136,6 +143,8 @@
 "단계 알림"만 스트리밍한다. AI가 만드는 중인 노드의 부분 결과는 보내지 않고, **검증을 통과한 설계도만** `done`에 담는다. 시간 기준(텍스트만 45초, 이미지 포함 60초)과 재시도 조건(`남은 시간 ≥ max(첫 시도 시간, 15초)`), 자동 보정, OpenAI SDK 재시도 끔은 그대로다.
 
 ### 스트림 전 / 후 오류
+아래 표는 응답이 시작되기 전과 후에 오류를 각각 어떻게 알리는지 정리한 것이다. (스트림은 결과를 한 번에 주지 않고 조금씩 나눠 보내는 응답 방식이다.)
+
 | 시점 | 방식 |
 | --- | --- |
 | 시작 전에 알 수 있음: 401, 400(입력), 413(이미지 합계), 404(projectId), 503(projectId 조회 실패) | **지금처럼 상태 코드 + JSON 오류 본문**(`Content-Type: application/json`) |
@@ -214,6 +223,8 @@
 - 한계(알려진): 정확한 픽셀·색은 아니다(구조 판단용). 누락·잘못된 `placement`는 상자를 줄바꿈 순서로 두고 노드 카드에 "배치 정보 없음" 경고 표시. 중첩이 깊은 설계도(최대 200노드 가정)는 상자를 최소 높이로 줄이고 스크롤한다.
 
 #### 미리보기 변환표 (`data-model.md` 기준 확정안)
+아래 표는 설계도의 어떤 값을 미리보기에서 어떻게 그리는지 규칙별로 정리한 것이다.
+
 입력은 검증을 통과한 `Blueprint`(평면 `nodes`)이며 출력은 계산 결과다(저장하지 않는다). 색·간격은 구조 판단용이고 픽셀 정확도는 목표가 아니다.
 
 | 대상 | 규칙 |
@@ -242,10 +253,10 @@
 ### 자동 보정 내역
 - `meta.normalized`가 비어 있지 않으면 트리 위/옆에 "자동으로 고친 항목" 접이식 목록(노드 id → 이름, `path`, `detail`). 새 초안 생성 때만 표시(저장된 판을 다시 불러온 경우 내역은 DB에 없으므로 안 보임, 이것은 의도). 노드 이름은 설계도에서 id로 찾아 표시하고, 못 찾으면 id 그대로.
 
-## Tech Stack
+## Tech Stack (기술 스택)
 Next.js 16.4.3(App Router, `cacheComponents`), React 19.3, TypeScript, Tailwind 4, `@xyflow/react` 12, `dagre` 0.8, Zustand 5, Zod 4, vitest 5. **새 의존성(사용자 승인 완료): shadcn/ui 부품 설치로 따라오는 것들**(Radix UI, `class-variance-authority`, `clsx`, `tailwind-merge`, 아이콘 라이브러리 등, D 단계에서 호환성 확인 후 설치). 그 외 없음.
 
-## Commands
+## Commands (명령어)
 ```
 npm run dev
 npm run build
@@ -254,7 +265,7 @@ npx vitest run
 npx tsc --noEmit
 ```
 
-## Project Structure (추가·변경 파일)
+## Project Structure (폴더 구조: 추가·변경 파일)
 ```
 app/projects/page.tsx                    # 목록 (라우팅 + Suspense만, 본문은 components)
 app/projects/[id]/page.tsx               # 작업공간 진입 (params, notFound)
@@ -281,7 +292,7 @@ lib/client/draft-stream.ts (+ test)      # B: NDJSON 읽기
 ```
 CLAUDE.md 폴더 구조 표에 `components/projects·workspace·structure`, `lib/client`, `core/image`, `core/schema/tree.ts`, `store/structure-store.ts`를 반영한다.
 
-## Code Style
+## Code Style (코드 모양)
 기존 규칙 그대로: 컴포넌트 PascalCase, 스토어·훅 camelCase, `core/`는 React·브라우저 API 금지, 인라인 스타일·`!important`·대괄호 임의값 금지(Tailwind 기본 토큰만). 단계 D 이후 색·모서리·간격은 몽타주 기준 CSS 변수에 연결된 의미 이름 클래스(`bg-primary`, `text-foreground`, `border-border`, `rounded-xl` 등)만 쓰고 색상값을 직접 쓰지 않는다. A 단계까지 쓴 `slate`·`indigo`는 D에서 교체한다. `app/` 안엔 라우팅 파일만.
 ```tsx
 // components/projects/ProjectList.tsx
@@ -298,18 +309,18 @@ export function ProjectList({ projects }: { projects: Project[] }) {
 ```
 디자인은 과한 장식 없이 몽타주 기준값을 따른다. 폰트 Pretendard, 레이아웃 `max-w-5xl` 중앙 정렬(작업공간 3열은 더 넓게).
 
-## Testing Strategy
+## Testing Strategy (테스트 전략)
 - vitest(자동): `decideRedirect`(`/login`→`/`, 로그인 상태의 `/`, `next` 안전 검사), `core/preview`(flex·grid·order·placement·반응형 전환·그려지지 않는 노드 분리), `buildTree`(order 정렬, 루트 1개, 자식 포함), dagre 좌표 변환 함수, `fit-size`(축소 비율, 1,200 이하 유지, 합계 4MB 판정, 품질 단계), `draft-request`(FormData 필드·imageMeta 순서, 오류 본문·네트워크 오류·타임아웃 해석), A0 핸들러 404/200-null.
 - 컴포넌트 단위 테스트 도구가 없어 **새 도구는 추가하지 않는다**. UI는 `npm run build`·`tsc`·`eslint`와 **로컬에서 직접 확인**으로 검증한다(아래 체크리스트). 실제 OpenAI 호출(1회 약 $0.01~0.02)은 사용자가 직접 실행.
 - 수동 체크리스트(P·D): 비로그인 `/` 소개와 버튼 / 로그인 후 `/`·`/login` 이동 / 헤더 이름·사진·첫 글자 / 메뉴·로그아웃 / 색상값 직접 사용 검색(`grep` 으로 `#` 색상 코드 없음) / 모바일 폭.
 - 수동 체크리스트(B): 입력 없음 → 버튼 비활성 / 개요만 입력 → 활성 / 이미지만 → 안내 문구 / 큰 이미지 3장 → 합계 4MB 이하·`imageMeta` 전송 / 생성 중 단계·경과 / 서버를 잠시 막아 실패 → 상태 코드·fields·입력 보존·다시 시도 / 성공 → 트리 / 새로고침 → 최신 판 / 판 없는 프로젝트 → 안내 / 미리보기 상자 클릭 → 트리·정보 패널 동기화 / 데스크톱·모바일 전환 / 훅 목록 분리.
 
-## Boundaries
-- Always: `core/`에 React·브라우저 API를 넣지 않기, 클라이언트에 service role·OpenAI 키를 참조하지 않기, 사용자 입력·이미지를 DB·로그에 남기지 않기(이미지는 요청 후 폐기), 서버 응답 오류 본문을 그대로 노출하기보다 `error.message` 사용, 단계마다 `vitest`·`tsc`·`eslint`·`build` 통과 후 보고.
-- Ask first: 새 의존성(shadcn/ui 관련은 이 스펙 승인으로 허용, 그 외), 위에 적은 것 외의 API 계약·DB·마이그레이션 변경, 탭을 URL 라우트로 바꾸기.
-- Never: 실제 OpenAI 호출(테스트·확인 모두 mock), 노드 편집·검사 규칙·지시서 기능을 슬쩍 넣기, 인라인 스타일·임의값 사용, `app/` 아래에 컴포넌트 파일 두기, 동작 확인 전 커밋.
+## Boundaries (경계: 항상 / 먼저 물어봄 / 하지 않음)
+- Always(항상): `core/`에 React·브라우저 API를 넣지 않기, 클라이언트에 service role·OpenAI 키를 참조하지 않기, 사용자 입력·이미지를 DB·로그에 남기지 않기(이미지는 요청 후 폐기), 서버 응답 오류 본문을 그대로 노출하기보다 `error.message` 사용, 단계마다 `vitest`·`tsc`·`eslint`·`build` 통과 후 보고.
+- Ask first(먼저 물어봄): 새 의존성(shadcn/ui 관련은 이 스펙 승인으로 허용, 그 외), 위에 적은 것 외의 API 계약·DB·마이그레이션 변경, 탭을 URL 라우트로 바꾸기.
+- Never(하지 않음): 실제 OpenAI 호출(테스트·확인 모두 mock), 노드 편집·검사 규칙·지시서 기능을 슬쩍 넣기, 인라인 스타일·임의값 사용, `app/` 아래에 컴포넌트 파일 두기, 동작 확인 전 커밋.
 
-## Success Criteria
+## Success Criteria (성공 기준)
 0. (P) 비로그인 `/`는 소개 + 로그인 버튼 1개, 로그인 상태 `/`는 `/projects`로 이동, `/login?next=…`는 `/?next=…`로 이동해 로그인 후 원래 경로로 돌아온다(외부 경로는 거부). 헤더에 GitHub 이름·사진(없으면 첫 글자)과 계정 메뉴(계정 설정·로그아웃)가 있고 로그아웃 처리 코드는 한 곳이다. (D) 색은 CSS 변수 한 곳에서 정의되고 화면 코드에 색상값이 없다. shadcn 부품 10종이 준비되고 `THIRD_PARTY_NOTICES.md`가 있다.
 1. (A0) 없는·남의 프로젝트 id로 `GET .../blueprint`·`GET .../revisions` → 404 `not_found`. 내 새 프로젝트 → 200 `{ blueprint: null }` / `{ revisions: [] }`.
 2. (A) `PATCH /api/projects/[id]`가 이름만 받아 수정하고(빈 이름 거부, 남의·없는 프로젝트 404), `/projects`에서 이름·스택을 골라 프로젝트를 만들면 작업공간으로 이동하고, 목록에 최근 수정 순으로 보인다. 4개 탭이 보이며 디자인 시스템 정리·지시서는 비활성. 설정 탭에서 이름을 바꾸면 목록·헤더에 반영되고, 빈 이름은 거부된다.
@@ -319,10 +330,10 @@ export function ProjectList({ projects }: { projects: Project[] }) {
 6. (B) 성공한 초안이 구조 미리보기(기본)와 React Flow 트리(전환)로 보이고, 미리보기 상자 클릭이 정보 패널·트리 선택과 연결되며, 데스크톱·모바일 전환과 "그려지지 않는 노드" 목록이 동작한다. 작업공간 3열 배치(왼쪽 입력은 접기 가능)와 검사 결과 자리가 있다. 작업공간 재진입 시 최신 판이 보인다. `meta.normalized`가 있으면 "자동으로 고친 항목"이 보인다.
 7. `npx vitest run`·`npx tsc --noEmit`·`npx eslint`·`npm run build` 통과.
 
-## 결정 완료 (사용자 답변)
+## 결정 완료 (사용자 답변으로 정해진 것)
 진행 순서 P → D → S → B, 홈이 소개+로그인(버튼 하나), 몽타주 기준값·shadcn/ui, 구조 미리보기를 B에 추가(트리는 단순화) / 진행 표시는 스트리밍 단계 알림 / 첫 로딩은 서버 컴포넌트 직접 읽기 / `route` 입력 선택 1칸 / 설정 탭은 이름만 수정 / 다시 생성 시 한 줄 안내(확인창 없음).
 
-## Open Questions
+## Open Questions (남은 질문)
 1. 저장 실패 알림에 `blueprint`를 함께 담는 것: "저장 실패는 오류 알림"과 "비용 든 초안은 버리지 않는다"를 함께 만족하려는 제안. 반대하시면 오류만 보내고 초안은 버려진다.
 2. Vercel 스트리밍과 함수 실행 시간 한도의 관계는 S 구현 전에 공식 문서로 확인 후 보고한다(결과에 따라 `maxDuration` 조정 가능).
 3~5. (해결) 홈은 로그인 상태에서 `next` 우선·없으면 `/projects`, 디자인 JSON은 이번에 만들지 않음(위 절), 헤더 메뉴는 D 끝에 붙임, 새 의존성은 승인됨.

@@ -1,14 +1,19 @@
 # Spec: /api/draft — AI 구조 초안 생성 (F-004)
 
+> **이 문서는**: 스펙 입력과 이미지로 AI가 컴포넌트 트리 초안을 만들어 돌려주는 서버 라우트 `/api/draft`의 설명서다. 작업 순서는 `tasks/plan-draft-route.md`에 있다. (`F-004`는 기능 번호다.)
+> **목록에 들어 있는 것**: 목표, 조사 결과(Vercel 실행 시간·요청 크기·Supabase 인증·측정 지연), 가정 7개, 설계(요청·응답 계약, 응답 스트림, 오류 매핑, 모듈별 동작), 시험 방법, 경계, 성공 기준 6개, 위험, 남은 질문 7개. (`C1`·`C2`·`C6`은 채점 사례 번호, `NX-03`·`NX-04`·`R-07`은 구조 검사 규칙 번호다.)
+
 단일 기능(스키마 검증된 초안을 만들어 주는 라우트 1개)이라 capability map은 만들지 않는다. 구현은 승인 후 시작한다. 작업 순서는 `tasks/plan-draft-route.md` 참조.
 근거 문서: `tasks/draft-test-result.md`(결정 사항·채점 사례), `CLAUDE.md`, `.claude/skills/define-schema/data-model.md`.
 
-## Objective
+## Objective (목표)
 사용자가 입력한 스펙 7개 항목(일부)·이미지(선택)·스택으로 `BlueprintSchema`를 통과하는 설계도 초안을 서버에서 만들어 반환한다. 사전 검증(test:draft)에서 쓴 호출·검증·비용 계산 로직을 `lib/ai/draft-blueprint.ts`로 옮겨 **API와 테스트 스크립트가 같은 로직**을 쓰게 한다. 검증 실패 시 오류 목록을 붙여 **1회만** 재시도한다.
 
 ## 조사 결과 (공식 문서, 2026-10-29 확인)
 
 ### Vercel 실행 시간과 `maxDuration`
+아래 표는 Vercel 함수가 한 번에 실행될 수 있는 시간의 규칙을 정리한 것이다. (`maxDuration`은 함수가 최대 몇 초까지 돌 수 있는지 정하는 설정이다.)
+
 | 항목 | 내용 |
 | --- | --- |
 | 설정 방법 | App Router 라우트 파일에서 `export const maxDuration = <초>` ([Vercel 문서](https://vercel.com/docs/functions/configuring-functions/duration), Next.js 16 로컬 문서 `route-segment-config/maxDuration.md`도 동일) |
@@ -21,6 +26,8 @@
 ### 요청 본문 크기
 - Vercel Functions의 요청·응답 본문 최대는 **4.5MB**이며, 초과하면 **413 `FUNCTION_PAYLOAD_TOO_LARGE`**를 플랫폼이 반환한다([Limits](https://vercel.com/docs/functions/limitations)).
 - 따라서 **CLAUDE.md의 "이미지 5MB × 3장"은 그대로 전송할 수 없다.** 한 장 5MB도 불가(multipart로 보내도 5MB > 4.5MB), JSON base64는 용량이 약 4/3배가 된다.
+- 아래 표는 큰 이미지를 보내는 두 가지 방법을 비교한 것이다. (multipart/form-data는 파일을 그대로 담아 보내는 요청 형식이고, base64는 파일을 글자로 바꾸는 방식이다.)
+
 | 대안 | 내용 | 평가 |
 | --- | --- | --- |
 | **A. 업로드 전 축소 (권장)** | 클라이언트가 선택한 이미지를 긴 변·품질 기준으로 줄여 **합계 4MB 이하**로 만든 뒤 `multipart/form-data`(base64 없이 바이너리)로 전송 | 추가 인프라 없음. OpenAI가 이미지를 내부적으로 축소해 처리하므로 와이어프레임 용도에는 손실이 작다고 본다(이번 테스트 이미지는 원본이 226KB였음). CLAUDE.md의 "업로드 전 클라이언트에서 검사" 규칙과 일치 |
@@ -35,7 +42,7 @@
 ### 측정된 지연 (tasks/draft-test-result.md, terra, effort low)
 text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기준).
 
-## Assumptions (틀리면 알려주세요)
+## Assumptions (가정, 틀리면 알려주세요)
 1. 모델은 `gpt-6.1-terra`, 추론 강도 `low`, 호출당 `max_output_tokens` 16000(`lib`의 옵션으로 변경 가능, 기본값만 위 값).
 2. 이 라우트는 `projectId`가 없으면 초안을 **반환만** 한다. `projectId`가 있으면 소유를 확인하고 성공한 초안을 새 판으로 저장한다(`SPEC-projects-api.md`). 응답 원문·이미지는 서버에 저장하지 않는다.
 3. 요청은 항상 `multipart/form-data`(텍스트만이어도 동일): 필드 `stack`(JSON), `spec`(JSON, 7개 텍스트 항목), `images`(0~3개 파일).
@@ -47,6 +54,8 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 ## 설계
 
 ### 요청·응답 계약
+아래 표는 라우트가 받는 요청과 돌려주는 응답의 모양을 정리한 것이다. (NDJSON은 한 줄에 JSON 하나씩 이어 보내는 형식이다.)
+
 | 구분 | 내용 |
 | --- | --- |
 | 요청 | `POST /api/draft`, `multipart/form-data`: `stack`(JSON `{framework, styling, architecture}`), `spec`(JSON, `overview`~`constraints` 선택 문자열), `images`(0~3개, png·jpeg·webp, 파일 시그니처로 확인) |
@@ -57,6 +66,8 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 
 ### 응답 스트림 (개정 2026-10-30, `SPEC-structure-ui.md` 단계 S)
 시작 전에 알 수 있는 오류(401·400·413·404·503)는 위 표처럼 **상태 코드 + JSON**(`Content-Type: application/json`)이고, 통과하면 200 `Content-Type: application/x-ndjson`(`Cache-Control: no-cache, no-transform`) 스트림이다. 줄마다 JSON 하나:
+
+아래 표는 스트림에 나오는 줄의 종류와 뜻을 정리한 것이다. (스트림은 응답을 끝까지 기다리지 않고 조금씩 받는 방식이다.)
 
 | 줄 | 의미 |
 | --- | --- |
@@ -76,6 +87,8 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 - Vercel 공식 문서(2026-10-30 확인): 스트리밍 응답에도 `maxDuration`이 적용되고(초과 시 504 강제 종료), 현재 `maxDuration = 70`은 Fluid compute 한도 안이다. 스트림이 시작된 뒤에는 HTTP 상태를 바꿀 수 없으므로, 앱 내부 마감(45·60초)이 먼저 와서 `error` 알림으로 보낸다.
 
 ### 오류 매핑
+아래 표는 어떤 상황에서 어떤 상태 코드와 `code`를 돌려주는지 정리한 것이다.
+
 | 상태 | `code` | 발생 조건 | `retryable` |
 | --- | --- | --- | --- |
 | 400 | `invalid_input` | multipart·JSON 파싱 실패, `stack`/`spec` 스키마 위반, 입력 없음, 이미지 4장 이상, 허용되지 않는 형식 | false |
@@ -139,10 +152,10 @@ text 27.2초, image 22.1초, both 35.7초(전체 응답 시간, 호출 1회 기�
 - 표에 "시도 횟수" 열 추가. `--max-cost` 보호는 "한 케이스 최악 비용 = 호출당 상한 × 2(재시도 포함)"로 계산.
 - `server-only`는 일반 Node에서 import하면 오류가 나므로 npm script를 `tsx --conditions=react-server --env-file=.env.local scripts/test-draft.ts`로 바꾼다. `--dry-run`으로 import가 되는지 API 호출 없이 확인한다.
 
-## Tech Stack
+## Tech Stack (기술 스택)
 Next.js 16.4.3 App Router, TypeScript, Zod 4, `openai` 7.45.1(Responses API), `@supabase/ssr` 0.12.7, vitest 5, tsx. **신규 의존성 제안: `server-only`**(Next 공식 권장 패턴, 현재 미설치).
 
-## Commands
+## Commands (명령어)
 ```
 npx vitest run core lib
 npx tsc --noEmit
@@ -152,7 +165,7 @@ npm run test:draft -- --dry-run   # API 호출 없이 import·요청 형태 확�
 npm run test:draft -- --modes text   # 실제 호출은 사용자가 직접 1회
 ```
 
-## Project Structure
+## Project Structure (파일 구조)
 ```
 lib/ai/draft-blueprint.ts            # 호출·검증·재시도·비용 (server-only)
 lib/ai/draft-blueprint.test.ts       # OpenAI mock 테스트
@@ -165,7 +178,7 @@ app/api/draft/route.ts               # POST 핸들러(얇게) + maxDuration
 scripts/test-draft.ts                # lib 호출로 변경
 ```
 
-## Code Style
+## Code Style (코드 스타일)
 ```ts
 // lib/ai/draft-blueprint.ts — 예외 대신 판별 가능한 결과
 export type DraftResult =
@@ -175,8 +188,8 @@ export type DraftResult =
 ```
 기존 `core/`·`scripts/`와 같은 스타일(Zod 중심, `z.infer`, 파일당 책임 1개, 한국어 주석은 이유만).
 
-## Testing Strategy
-- **OpenAI mock**(`client.responses.create`를 `vi.fn`으로 주입, `vi.mock("server-only")`, fake timers). 실제 API 호출 없음.
+## Testing Strategy (시험 방법)
+- **OpenAI mock**(`client.responses.create`를 `vi.fn`으로 주입, `vi.mock("server-only")`, fake timers). 실제 API 호출 없음. (mock은 진짜 대신 쓰는 가짜 부품이다. 아래 표는 시험할 경우와 기대 결과를 정리한 것이다.)
   | 케이스 | 기대 |
   | --- | --- |
   | 첫 시도 통과 | attempts 1, 재시도 없음 |
@@ -192,12 +205,12 @@ export type DraftResult =
 - 프롬프트·repair: 위 항목.
 - **실제 호출 확인은 사용자가 `npm run test:draft`로 직접 1회**(스펙대로).
 
-## Boundaries
-- Always: 키는 환경변수로만, OpenAI 호출은 서버에서만, 응답은 받는 즉시 검증, 처리 전 세션 확인, 사용자용 메시지만 노출·원본 에러는 서버 로그, 원문·이미지 저장 없음
-- Ask first: `core/schema/` 수정, 새 의존성(`server-only`), 업로드 방식 변경(Storage 도입), 단가·모델 변경, CLAUDE.md의 이미지 용량 규칙 수정
-- Never: 화면 코드 작성, 스키마 수정, API 키 하드코딩·로그 출력, `app/`에 라우팅 외 로직, 실제 OpenAI 호출(이번 구현 중), 이미지·응답 원문의 서버 저장
+## Boundaries (경계: 항상 / 먼저 물어봄 / 하지 않음)
+- Always(항상): 키는 환경변수로만, OpenAI 호출은 서버에서만, 응답은 받는 즉시 검증, 처리 전 세션 확인, 사용자용 메시지만 노출·원본 에러는 서버 로그, 원문·이미지 저장 없음
+- Ask first(먼저 물어봄): `core/schema/` 수정, 새 의존성(`server-only`), 업로드 방식 변경(Storage 도입), 단가·모델 변경, CLAUDE.md의 이미지 용량 규칙 수정
+- Never(하지 않음): 화면 코드 작성, 스키마 수정, API 키 하드코딩·로그 출력, `app/`에 라우팅 외 로직, 실제 OpenAI 호출(이번 구현 중), 이미지·응답 원문의 서버 저장
 
-## Success Criteria
+## Success Criteria (성공 기준)
 1. mock 테스트가 위 케이스를 모두 통과하고 `tsc`·`eslint`·`npm run build`가 통과한다.
 2. 라우트가 세션 없이는 401, 잘못된 입력은 400, 4MB 초과는 413, 검증 실패 422, 429, 502, 504를 위 매핑대로 반환한다.
 3. `scripts/test-draft.ts`가 `draftBlueprint`만 호출한다(OpenAI 호출·검증·비용 계산 코드가 한 곳에만 있음). `--dry-run`이 API 호출 없이 통과한다.
@@ -205,7 +218,9 @@ export type DraftResult =
 5. 사용자가 `test:draft`를 1회 실행해 text 모드가 통과(기록은 `tasks/draft-test-result.md`)한다.
 6. 앱 마감은 텍스트만 45초, 이미지 포함 60초이고, `maxDuration`(70초)이 그보다 길다.
 
-## Risks
+## Risks (위험)
+아래 표는 예상되는 위험과 대응을 정리한 것이다.
+
 | 위험 | 대응 |
 | --- | --- |
 | **재시도가 거의 실행되지 않을 수 있음**: 측정 지연(text 27초, both 36초)으로 계산하면 text는 첫 시도가 약 **21.7초 이하**일 때만(45 − 1.5 ≥ 2×t), image는 약 **29초 이하**일 때만(60 − 1.5 ≥ 2×t) 재시도 시간이 남는다. 즉 text 대부분은 재시도 없이 422가 된다 | 프롬프트 v2 적용 후 다시 측정하고, 재시도 실행률이 낮으면 예산(text 45→60초) 조정이나 첫 시도 단축을 검토. 재시도 생략 시에도 422에 `fields`를 담아 사용자가 수정·재시도할 수 있게 한다 |
@@ -215,7 +230,7 @@ export type DraftResult =
 | Supabase 세션 갱신(Proxy)이 없으면 만료된 토큰이 401로 보일 수 있음 | 이번 범위 밖. 로그인 흐름 구현 시 Proxy와 함께 처리 |
 | 서버 덮어쓰기(stack·source)로 모델의 의도적 변경이 무시됨 | 의도된 동작(초안 생성은 입력 스택을 그대로 따라야 함) |
 
-## Open Questions
+## Open Questions (남은 질문)
 1. **`.claude/settings.json`의 `Edit(app/**)` 거부 규칙** 때문에 제가 `app/api/draft/route.ts`를 수정할 수 없습니다(현재는 빈 파일). 이번 작업에 한해 풀어 주시겠어요, 아니면 그 파일만 직접 작성하시겠어요? (`lib`·`core`·`scripts`는 영향 없음)
 2. **`server-only` 패키지 추가**와 `test:draft` 스크립트에 `--conditions=react-server`를 붙이는 것을 승인하시나요?
 3. **이미지 전송 방식**: 대안 A(클라이언트 축소 + multipart + 합계 4MB)로 가고, CLAUDE.md의 이미지 규칙을 "장당 5MB·3장 선택, 전송 합계 4MB"로 바꿔도 되나요? (B 안 Storage는 원본 비저장 규칙과 충돌)

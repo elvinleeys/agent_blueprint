@@ -12,6 +12,11 @@
           {
             "type": "command",
             "command": "npx tsc --noEmit"
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/work-log.mjs",
+            "timeout": 10
           }
         ]
       }

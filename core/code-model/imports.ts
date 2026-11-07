@@ -1,6 +1,6 @@
 import type { AliasMode } from "./options";
 import { dirOf, joinPath } from "./path-utils";
-import { configFor, type PathConfigs } from "./tsconfig";
+import { configFor, type ConfigUncertainty, type PathAliasConfig, type PathConfigs } from "./tsconfig";
 
 /**
  * import 경로를 올린 파일로 바꾼다(순수 문자열 계산, 파일 시스템을 읽지 않음).
@@ -24,6 +24,8 @@ export type Resolution = {
   by: "relative" | "tsconfig" | "default" | null;
   /** tsconfig로 풀거나 풀려고 시도한 설정 파일 */
   config?: string;
+  /** 못 푼 이유가 설정을 다 읽지 못해서인 경우(패키지 extends를 따라가지 못함, 설정 읽기 실패). 틀린 경로로 확정하지 않고 해석 못 함으로 둔다 */
+  uncertain?: ConfigUncertainty;
 };
 
 /** 별칭처럼 보이는 시작 글자(패키지와 구별하기 위한 것) */
@@ -71,6 +73,19 @@ function matchPaths(spec: string, patterns: { pattern: string; targets: string[]
 
 /** 파일 집합과 별칭 설정을 묶어 import 해석기를 만든다. 모드는 기능별 설정(options.ts)이 정한다 */
 export function createImportResolver(paths: ReadonlySet<string>, mode: AliasMode, configs: PathConfigs | null) {
+  // 설정을 다 읽지 못한 경우에 "업로드 폴더 이름으로 시작하는 import"를 가려내기 위한 폴더 이름(설정의 baseUrl 또는 설정 폴더 바로 아래)
+  const topFolders = new Map<string, Set<string>>();
+  const folderNames = (cfg: PathAliasConfig): Set<string> => {
+    let hit = topFolders.get(cfg.configPath);
+    if (!hit) {
+      const base = cfg.baseUrl ?? dirOf(cfg.configPath);
+      const prefix = base ? `${base}/` : "";
+      hit = new Set([...paths].filter((p) => p.startsWith(prefix) && p.slice(prefix.length).includes("/")).map((p) => p.slice(prefix.length).split("/")[0]));
+      topFolders.set(cfg.configPath, hit);
+    }
+    return hit;
+  };
+
   return (from: string, spec: string): Resolution => {
     if (isRelativeImport(spec)) {
       const resolved = findFile(paths, joinPath(dirOf(from), spec));
@@ -90,6 +105,10 @@ export function createImportResolver(paths: ReadonlySet<string>, mode: AliasMode
       if (viaBase) return { resolved: viaBase, kind: "alias", by: "tsconfig", config: cfg.configPath };
       // paths를 정의한 설정은 믿는다: 거기에 없는 별칭을 기본 규칙으로 몰래 풀지 않는다
       if (cfg.paths.length) return { resolved: null, kind: aliasLike ? "alias" : "package", by: null, config: cfg.configPath };
+    }
+    // 설정을 다 읽지 못했고 자기 paths도 없으면, 따라가지 못한 쪽이 별칭·baseUrl을 정했을 수 있다: 그 설정에 기대는 import만 해석 못 함으로 둔다
+    if (cfg?.uncertain && !cfg.paths.length && (aliasLike || folderNames(cfg).has(spec.split("/")[0]))) {
+      return { resolved: null, kind: "alias", by: null, config: cfg.configPath, uncertain: cfg.uncertain };
     }
     if (isAliasImport(spec)) {
       const resolved = resolveModule(paths, from, spec);

@@ -327,3 +327,72 @@ describe("기능별 설정", () => {
     expect(model({ "tsconfig.json": "{", "A.tsx": "export function A() { return <i />; }" }).configNotes).toEqual([{ path: "tsconfig.json", reason: "invalid-json" }]);
   });
 });
+
+describe("설정을 다 읽지 못한 경우: 그 설정에 기대는 import만 해석 못 함(uncertain)", () => {
+  const set = new Set(["components/Foo.tsx", "src/components/Foo.tsx", "src/lib/y.ts", "web/src/x.ts", "web/src/a.ts"]);
+
+  it("패키지 extends(@tsconfig/next)를 따라가지 못하고 자기 paths가 없으면, 별칭 import와 업로드 폴더로 시작하는 import는 uncertain이고 기본 규칙으로 풀지 않는다", () => {
+    const cfg = readPathConfigs(src({ "tsconfig.json": `{"extends":"@tsconfig/next/tsconfig.json"}` }));
+    expect(cfg.byDir.get("")?.uncertain).toBe("extends-not-followed");
+    const r = createImportResolver(set, "tsconfig", cfg);
+    expect(r("src/a.ts", "@/lib/y")).toEqual({ resolved: null, kind: "alias", by: null, config: "tsconfig.json", uncertain: "extends-not-followed" });
+    expect(r("src/a.ts", "components/Foo")).toMatchObject({ resolved: null, uncertain: "extends-not-followed" });
+    // 영향받지 않는 import
+    expect(r("src/a.ts", "react")).toEqual({ resolved: null, kind: "package", by: null });
+    expect(r("src/a.ts", "next/link").uncertain).toBeUndefined();
+    expect(r("src/a.ts", "./lib/y")).toMatchObject({ resolved: "src/lib/y.ts", by: "relative" });
+  });
+
+  it("설정을 읽지 못해도(invalid-json) 같은 방식이다", () => {
+    const r = createImportResolver(set, "tsconfig", readPathConfigs(src({ "tsconfig.json": "{ nope" })));
+    expect(r("src/a.ts", "@/lib/y")).toMatchObject({ resolved: null, uncertain: "invalid-json" });
+  });
+
+  it("자기 paths가 있으면 그것이 권위다: 맞는 별칭은 풀리고, 없는 별칭은 uncertain이 아니라 못 푼 별칭이다", () => {
+    const cfg = readPathConfigs(src({ "tsconfig.json": `{"extends":"@tsconfig/next/tsconfig.json","compilerOptions":{"paths":{"@/*":["./src/*"]}}}` }));
+    const r = createImportResolver(set, "tsconfig", cfg);
+    expect(r("src/a.ts", "@/lib/y")).toMatchObject({ resolved: "src/lib/y.ts", by: "tsconfig" });
+    const miss = r("src/a.ts", "~/lib/y");
+    expect(miss).toMatchObject({ resolved: null, kind: "alias" });
+    expect(miss.uncertain).toBeUndefined();
+  });
+
+  it("가장 가까운 설정이 먼 설정을 가린다: 별칭이 없는 가까운 설정 아래에서는 위쪽 설정의 paths를 쓰지 않는다", () => {
+    const cfg = readPathConfigs(src({ "tsconfig.json": `{"compilerOptions":{"paths":{"@/*":["./src/lib/*"]}}}`, "web/tsconfig.json": `{"compilerOptions":{"jsx":"preserve"}}` }));
+    const r = createImportResolver(set, "tsconfig", cfg);
+    expect(r("src/a.ts", "@/y")).toMatchObject({ resolved: "src/lib/y.ts", by: "tsconfig", config: "tsconfig.json" });
+    // web/ 아래 파일은 web/tsconfig.json(paths 없음)을 따르므로 기본 규칙(@/ → web/src/)으로 푼다
+    expect(r("web/src/a.ts", "@/x")).toEqual({ resolved: "web/src/x.ts", kind: "alias", by: "default" });
+  });
+
+  it("`*`가 둘 이상인 paths 패턴은 지원하지 않는 패턴으로 기록하고 쓰지 않는다", () => {
+    const cfg = readPathConfigs(src({ "tsconfig.json": `{"compilerOptions":{"paths":{"@/*/*":["./src/*"],"~/*":["./src/*"]}}}` }));
+    expect(cfg.notes).toEqual([{ path: "tsconfig.json", reason: "unsupported-pattern", pattern: "@/*/*" }]);
+    expect(cfg.byDir.get("")?.paths.map((p) => p.pattern)).toEqual(["~/*"]);
+  });
+
+  it("readCodeModel: ImportFact에 uncertain이 실리고 같은 파일의 다른 import는 그대로다", () => {
+    const m = model({
+      "tsconfig.json": `{"extends":"@tsconfig/next/tsconfig.json"}`,
+      "src/lib/y.ts": "export const y = 1;",
+      "src/A.tsx": `import { y } from "@/lib/y";\nimport { z } from "./lib/y";\nimport React from "react";\nexport function A() { return <i />; }`,
+    });
+    const by = (s: string) => m.files.find((f) => f.path === "src/A.tsx")!.imports.find((i) => i.spec === s)!;
+    expect(by("@/lib/y")).toMatchObject({ kind: "alias", resolved: null, uncertain: "extends-not-followed" });
+    expect(by("./lib/y")).toMatchObject({ resolved: "src/lib/y.ts" });
+    expect(by("./lib/y").uncertain).toBeUndefined();
+    expect(by("react").uncertain).toBeUndefined();
+    expect(m.configNotes).toEqual([{ path: "tsconfig.json", reason: "extends-not-followed", extends: "@tsconfig/next/tsconfig.json" }]);
+  });
+});
+
+describe("컴포넌트 이름의 출처(nameSource)", () => {
+  it("코드가 붙인 이름은 declared, 이름 없는 기본 내보내기는 파일 이름에서 가져와 file", () => {
+    const f = (path: string, code: string) => one(path, { [path]: code }).units.map((u) => [u.name, u.nameSource]);
+    expect(f("A.tsx", "export function A() { return <i />; }")).toEqual([["A", "declared"]]);
+    expect(f("B.tsx", "export const B = () => <i />;")).toEqual([["B", "declared"]]);
+    expect(f("src/ProductGallery.tsx", "export default function ({ images }: { images: string[] }) { return <i>{images}</i>; }")).toEqual([["ProductGallery", "file"]]);
+    expect(f("src/ProductGallery.tsx", "export default () => <i />;")).toEqual([["ProductGallery", "file"]]);
+    expect(f("src/Card.tsx", "export default function Card() { return <i />; }")).toEqual([["Card", "declared"]]);
+  });
+});

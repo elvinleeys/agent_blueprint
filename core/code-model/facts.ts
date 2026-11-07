@@ -8,7 +8,7 @@ import { PASCAL, baseName, extractComponents, hasJsx, isExported, toPascal, unwr
 import { nextAppRouteFact } from "./route-next-app";
 import { readReactRouterRoutes } from "./route-react-router";
 import type { RouteFact } from "./routes";
-import { readPathConfigs, type ConfigNote } from "./tsconfig";
+import { readPathConfigs, type ConfigNote, type ConfigUncertainty } from "./tsconfig";
 import type { ExtractedProp, PartialFile, SourceFile } from "./types";
 
 // 구현 검사가 쓰는 "코드에서 읽은 사실". 판정은 하지 않는다(규칙은 core/impl-check). 기능별 설정은 options.ts.
@@ -26,6 +26,8 @@ export type ImportFact = {
   resolvedBy: "relative" | "tsconfig" | "default" | null;
   /** tsconfig로 풀거나 풀려고 한 설정 파일 */
   config?: string;
+  /** 해석 못 함의 이유가 설정을 다 읽지 못해서인 경우(패키지 extends를 따라가지 못함, 설정 읽기 실패). 이 import와 관련된 판정만 확인 필요로 보낸다 */
+  uncertain?: ConfigUncertainty;
   /** 가져온 이름: 이름 그대로, 기본값은 "default", 네임스페이스는 "*" */
   names: string[];
   /** `import type …`이거나 모든 이름이 `type` 표시. 런타임 import가 아니다 */
@@ -60,6 +62,8 @@ export type UnitFact = {
   path: string;
   line: number;
   exported: boolean;
+  /** 이름을 어디서 얻었는지: declared = 코드가 직접 붙인 이름(`function X`, `const X =`), file = 이름 없는 기본 내보내기라 파일 이름에서 가져온 이름 */
+  nameSource: "declared" | "file";
   /** useState·useReducer의 상태 이름(구조분해 첫 이름) */
   state: string[];
   /** 호출한 use* (React 기본 훅 포함, 이름 기준 중복 없음) */
@@ -137,13 +141,13 @@ function readImports(sf: ts.SourceFile, resolve: ImportResolver, from: string) {
         }
         if (nb.elements.length && typed === nb.elements.length) allType = true;
       }
-      imports.push({ spec, resolved: r.resolved, kind: r.kind, resolvedBy: r.by, ...(r.config ? { config: r.config } : {}), names, typeOnly: allType, reexport: false, line: lineOf(sf, st) });
+      imports.push({ spec, resolved: r.resolved, kind: r.kind, resolvedBy: r.by, ...(r.config ? { config: r.config } : {}), ...(r.uncertain ? { uncertain: r.uncertain } : {}), names, typeOnly: allType, reexport: false, line: lineOf(sf, st) });
       if (UNSUPPORTED_ROUTERS.has(spec)) unreadable.push({ line: lineOf(sf, st), reason: "router", target: spec, resolved: null });
     } else if (ts.isExportDeclaration(st) && st.moduleSpecifier && ts.isStringLiteral(st.moduleSpecifier)) {
       const spec = st.moduleSpecifier.text;
       const r = resolve(from, spec);
       const exportNames = st.exportClause && ts.isNamedExports(st.exportClause) ? st.exportClause.elements.map((e) => (e.propertyName ?? e.name).text) : ["*"];
-      imports.push({ spec, resolved: r.resolved, kind: r.kind, resolvedBy: r.by, ...(r.config ? { config: r.config } : {}), names: exportNames, typeOnly: st.isTypeOnly, reexport: true, line: lineOf(sf, st) });
+      imports.push({ spec, resolved: r.resolved, kind: r.kind, resolvedBy: r.by, ...(r.config ? { config: r.config } : {}), ...(r.uncertain ? { uncertain: r.uncertain } : {}), names: exportNames, typeOnly: st.isTypeOnly, reexport: true, line: lineOf(sf, st) });
       unreadable.push({ line: lineOf(sf, st), reason: "reexport", target: spec, resolved: r.resolved });
     }
   }
@@ -157,8 +161,8 @@ const calleeName = (call: ts.CallExpression): string | null => {
 
 const attrName = (a: ts.JsxAttributeLike) => (ts.isJsxAttribute(a) ? a.name.getText() : null);
 
-function readUnit(sf: ts.SourceFile, path: string, name: string, kind: UnitFact["kind"], fn: FnLike, exported: boolean, bindings: Map<string, Binding>, props: ExtractedProp[]): UnitFact {
-  const unit: UnitFact = { name, kind, path, line: lineOf(sf, fn), exported, state: [], hooks: [], rendered: [], props, eventProps: props.map((p) => p.name).filter((n) => /^on[A-Z]/.test(n)), fetchCalls: [], elements: [] };
+function readUnit(sf: ts.SourceFile, path: string, name: string, kind: UnitFact["kind"], fn: FnLike, exported: boolean, nameSource: UnitFact["nameSource"], bindings: Map<string, Binding>, props: ExtractedProp[]): UnitFact {
+  const unit: UnitFact = { name, kind, path, line: lineOf(sf, fn), exported, nameSource, state: [], hooks: [], rendered: [], props, eventProps: props.map((p) => p.name).filter((n) => /^on[A-Z]/.test(n)), fetchCalls: [], elements: [] };
   const hookSeen = new Set<string>();
   const renderedSeen = new Set<string>();
   const addEvent = (n: string) => /^on[A-Z]/.test(n) && !unit.eventProps.includes(n) && unit.eventProps.push(n);
@@ -269,19 +273,19 @@ function readFile(file: SourceFile, resolve: ImportResolver, propsByUnit: Map<st
   }
 
   const defaultName = toPascal(baseName(file.path));
-  const add = (name: string, fn: FnLike, exported: boolean) => {
+  const add = (name: string, fn: FnLike, exported: boolean, nameSource: UnitFact["nameSource"] = "declared") => {
     const isHook = HOOK.test(name);
     if (!isHook && !(PASCAL.test(name) && fn.body && hasJsx(fn.body))) return;
     if (units.some((u) => u.name === name)) return;
     const props = isHook ? [] : (propsByUnit.get(`${file.path}#${name}`) ?? []);
-    units.push(readUnit(sf, file.path, name, isHook ? "hook" : "component", fn, exported, bindings, props));
+    units.push(readUnit(sf, file.path, name, isHook ? "hook" : "component", fn, exported, nameSource, bindings, props));
   };
 
   for (const st of sf.statements) {
     if (ts.isFunctionDeclaration(st)) {
       const isDefault = ts.getModifiers(st)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword);
       const name = st.name?.text ?? (isDefault ? defaultName : "");
-      if (name) add(name, st, isExported(st) || exportedNames.has(name));
+      if (name) add(name, st, isExported(st) || exportedNames.has(name), st.name ? "declared" : "file");
       if (isDefault && name) defaultExport ??= name;
     } else if (ts.isVariableStatement(st)) {
       for (const d of st.declarationList.declarations) {
@@ -293,7 +297,7 @@ function readFile(file: SourceFile, resolve: ImportResolver, propsByUnit: Map<st
       const u = unwrap(st.expression);
       if (!u) continue;
       const named = ts.isFunctionExpression(u.fn) ? u.fn.name?.text : undefined;
-      add(named && PASCAL.test(named) ? named : defaultName, u.fn, true);
+      add(named && PASCAL.test(named) ? named : defaultName, u.fn, true, named && PASCAL.test(named) ? "declared" : "file");
       defaultExport ??= named && PASCAL.test(named) ? named : defaultName;
     }
   }

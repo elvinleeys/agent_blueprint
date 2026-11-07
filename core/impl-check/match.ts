@@ -22,7 +22,7 @@ const keyOf = (u: { path: string; name: string }) => `${u.path}#${u.name}`;
 const base = (path: string) => path.split("/").pop() ?? path;
 const sameKind = (n: ComponentNode, u: UnitFact) => (n.kind === "hook") === (u.kind === "hook");
 /** 코드 파일의 폴더가 설계의 location.dir로 끝나는가(폴더 이름이 앞에 붙은 업로드를 허용하는 접미사 일치) */
-const dirMatches = (path: string, dir: string) => {
+export const dirMatches = (path: string, dir: string) => {
   const d = dirOf(path);
   return d === dir || d.endsWith(`/${dir}`);
 };

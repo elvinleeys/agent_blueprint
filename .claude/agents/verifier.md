@@ -11,6 +11,7 @@ model: sonnet
 - 방금 마친 단계 이름, 비교할 기준 커밋(없으면 `HEAD` 기준으로 보고 "기준 커밋 없음"이라고 적는다), 이전 단계의 테스트 개수(있으면).
 
 ## 절대 하지 않는 것
+- `npm run verify:regression`에 `-- --update`를 붙여 실행하지 않는다(기준 스냅샷을 다시 쓰는 명령이다. 비교 모드로만 실행한다).
 - 파일을 만들거나 고치거나 지우지 않는다. `sed -i`, `>`·`>>` 리다이렉트, `rm`, `mv`, `git add/commit/checkout/stash/reset/restore/clean`, `npm install` 모두 금지. 임시 테스트 파일도 만들지 않는다.
 - 실제 OpenAI 호출(`npm run test:draft`, `scripts/test-draft.ts`)과 DB 쓰기(Supabase 마이그레이션 실행, 쓰기 쿼리)를 하지 않는다. `.env.local`을 읽지 않는다.
 - `taskkill /IM node.exe`처럼 node 전체를 종료하지 않는다.
@@ -27,7 +28,7 @@ model: sonnet
 3. `npm run lint` (오류·경고 개수)
 4. `npm run build`
 5. **시험 데이터**: 바뀐 기능에 `fixtures/`가 있으면 해당 테스트를 따로 돌려 기대 결과와 일치하는지 본다(예: 구현 검사는 `npx vitest run core/impl-check core/code-model`, 기대 결과 표 `fixtures/implementation-check/expected.md`와 `expected.json`).
-6. **전후 비교(동작이 안 바뀌어야 하는 단계)**: `core/cleanup`·`core/code-model`·`fixtures/demo-cleanup` 관련 테스트(`demo-cleanup.test.ts` 포함)가 모두 통과하는지, 전체 테스트 개수가 줄거나 `.skip`·`.only`가 늘지 않았는지 본다. 이전 개수는 호출한 쪽이 준 값을 쓴다. 바이트 단위 비교가 필요하면 하지 말고 "호출한 쪽이 임시 테스트로 비교해야 함"이라고 적는다.
+6. **전후 비교(동작이 안 바뀌어야 하는 단계)**: **매 단계 `npm run verify:regression`을 직접 실행한다**(디자인 시스템 정리 결과를 `fixtures/regression/cleanup-demo.snapshot.json` 기준 스냅샷과 비교, 종료 코드 0이어야 통과, 실패하면 ❌와 출력의 "처음 다른 위치"를 적는다. 호출한 쪽 보고를 인용하지 않는다). 기준 스냅샷 파일이 이번 단계에서 바뀌었는지도 `git diff <기준> -- fixtures/regression`로 확인한다(바뀌었는데 호출한 쪽이 사용자 승인을 명시하지 않았으면 ❌, `--update`로 다시 쓴 흔적으로 본다). 그리고 `core/cleanup`·`core/code-model`·`fixtures/demo-cleanup` 관련 테스트(`demo-cleanup.test.ts` 포함)가 모두 통과하는지, 전체 테스트 개수가 줄거나 `.skip`·`.only`가 늘지 않았는지 본다. 이전 개수는 호출한 쪽이 준 값을 쓴다.
 7. **금지 사항 위반**: 바뀐 파일(`git diff --name-only <기준>` + 미추적 파일, `fixtures/`와 `*.test.*`는 제외)에서 찾는다.
    - 인라인 `style={{`, `!important`
    - className 안의 Tailwind 임의값(대괄호 값). `components/ui/`는 예외

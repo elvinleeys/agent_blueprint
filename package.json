@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:draft": "tsx --conditions=react-server --env-file=.env.local scripts/test-draft.ts",
     "verify:regression": "tsx scripts/verify-regression.ts",
-    "verify:mutation": "tsx scripts/verify-mutation.ts"
+    "verify:mutation": "tsx scripts/verify-mutation.ts",
+    "demo:build": "tsx scripts/build-demo-code.ts",
+    "demo:sql": "tsx scripts/demo-blueprint-sql.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

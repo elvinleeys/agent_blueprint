@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // 구현 검사 시험 코드: 일부러 틀린 코드가 들어 있고 자체 별칭(@/)을 쓴다
     "fixtures/implementation-check/**",
+    // 구현 검사 화면 시연 코드(시험 데이터에서 만든 완성 코드 폴더)
+    "fixtures/demo-implementation-check/**",
   ]),
 ]);
 

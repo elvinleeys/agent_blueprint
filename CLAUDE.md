@@ -26,6 +26,7 @@ npm run build    # 빌드
 npm run lint     # 린트
 npm test         # 단위 테스트 (vitest run)
 npm run verify:regression   # 디자인 시스템 정리 결과가 기준 스냅샷(fixtures/regression/)과 같은지 확인. 결과를 의도적으로 바꾼 뒤에만 `-- --update`
+npm run verify:mutation     # 구현 검사 변이 실험(전체 약 9분. `-- --stage 3a|3b|3c|neutral` 또는 `-- --only 번호`). 실행 기준은 .claude/skills/step/SKILL.md
 ```
 
 ## 폴더 구조와 책임

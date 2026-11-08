@@ -161,3 +161,44 @@ describe("FSD 계층 방향: shared도 위 계층을 가져오면 위반(슬라�
     expect(violations(r)).toEqual([]);
   });
 });
+
+// 변이 실험(3c)에서 살아남은 변이를 잡기 위한 시험. 기대값은 사용자가 승인함.
+describe("변이 실험 보강", () => {
+  it("T1: 설계에 없는 코드가 여러 개여도 입력 파일 순서와 무관하게 경로 순서로 나온다", () => {
+    const bp = blueprint([{ id: "panel", name: "Panel", location: { dir: "components" } }], REACT);
+    const base = {
+      "src/components/Panel.tsx": comp("Panel"),
+      "src/components/Zeta.tsx": comp("Zeta"),
+      "src/components/Alpha.tsx": comp("Alpha"),
+      "src/components/Mid.tsx": comp("Mid"),
+    };
+    const entries = Object.entries(base);
+    const orders = [entries, [...entries].reverse(), [entries[2], entries[0], entries[3], entries[1]], [entries[3], entries[1], entries[2], entries[0]]];
+    for (const order of orders) {
+      const extra = checkImplementation(bp, code(Object.fromEntries(order))).pairing.extraUnits.map((u) => `${u.name}@${u.path}`);
+      expect(extra).toEqual(["Alpha@src/components/Alpha.tsx", "Mid@src/components/Mid.tsx", "Zeta@src/components/Zeta.tsx"]);
+    }
+  });
+
+  it("T2: children·className·key·ref props는 '설계에 없는 props'가 아니다", () => {
+    const bp = blueprint([{ id: "card", name: "Card", location: { dir: "components" }, props: [{ name: "title", type: "string" }] }], REACT);
+    const r = check(bp, { "src/components/Card.tsx": `export function Card(p: { title: string; children?: unknown; className?: string; key?: string; ref?: unknown }) { return <i />; }` });
+    expect(r.findings.filter((f) => f.rule === "IC-06")).toEqual([]);
+    expect(item(r, "card", "prop:title").status).toBe("match");
+    const r2 = check(bp, { "src/components/Card.tsx": `export function Card(p: { title: string; children?: unknown; bogus: number }) { return <i />; }` });
+    const f = r2.findings.filter((x) => x.rule === "IC-06");
+    expect(f).toHaveLength(1);
+    expect(f[0]).toMatchObject({ certainty: "certain", severity: "warning", node: "Card", outsideDesign: true });
+    expect(f[0].message).toMatch(/bogus/);
+  });
+
+  it("T3: 서버 통신을 맡지 않는 노드가 유형을 알 수 없는 호출을 하면 확인 필요(위반으로 확정하지 않는다)", () => {
+    const bp = blueprint([{ id: "badge", name: "Badge", location: { dir: "components" }, dataFetch: false }], REACT);
+    const r = check(bp, { "src/components/Badge.tsx": `const pick = (): string => "POST";\nexport function Badge() { const method = pick(); fetch("/api/x", { method }); return <i />; }` });
+    const f = r.findings.filter((x) => x.rule === "IC-08");
+    expect(f).toHaveLength(1);
+    expect(f[0]).toMatchObject({ certainty: "review", kind: "fetch-kind", node: "Badge" });
+    expect(item(r, "badge", "fetch").status).toBe("review");
+    expect(r.items.filter((i) => i.nodeId === "badge" && i.status === "mismatch")).toEqual([]);
+  });
+});

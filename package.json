@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:draft": "tsx --conditions=react-server --env-file=.env.local scripts/test-draft.ts"
+    "test:draft": "tsx --conditions=react-server --env-file=.env.local scripts/test-draft.ts",
+    "verify:regression": "tsx scripts/verify-regression.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -25,6 +25,7 @@ npm run dev      # 개발 서버
 npm run build    # 빌드
 npm run lint     # 린트
 npm test         # 단위 테스트 (vitest run)
+npm run verify:regression   # 디자인 시스템 정리 결과가 기준 스냅샷(fixtures/regression/)과 같은지 확인. 결과를 의도적으로 바꾼 뒤에만 `-- --update`
 ```
 
 ## 폴더 구조와 책임

@@ -21,8 +21,9 @@ const call = (body: unknown, id?: string) => handleImplementationCheckPost(post(
 type Card = { rule: string; node: string; certainty: string };
 type Body = {
   baseline: unknown;
+  pairReviews: { nodeId: string; nodeName: string; reason: string; candidates: { name: string; path: string; kind: string; exported: boolean; evidence: unknown[] }[] }[];
   result: { findings: Card[]; summary: { design: { total: number; match: number; mismatch: number; review: number } } };
-  meta: { timing: Record<string, number | boolean>; files: number; bytes: number; nodes: number; confirmedApplied: number };
+  meta: { timing: Record<string, number | boolean>; files: number; bytes: number; nodes: number; confirmedApplied: number; configs: { read: number; unsupported: number } };
   error?: { code?: string };
   code?: string;
 };
@@ -117,7 +118,7 @@ describe("검사 결과", () => {
     const body = await json(res);
     expect(body.result.findings).toEqual([]);
     expect(body.result.summary.design).toEqual({ total: 65, match: 65, mismatch: 0, review: 0 });
-    expect(Object.keys(body)).toEqual(["baseline", "result", "meta"]);
+    expect(Object.keys(body)).toEqual(["baseline", "result", "pairReviews", "meta"]); // 4b에서 pairReviews를 새로 더함(기존 baseline·result·meta는 그대로)
     expect(Object.keys(body.result).sort()).toEqual(["bans", "findings", "items", "summary"]);
   });
 
@@ -132,6 +133,48 @@ describe("검사 결과", () => {
     const b = await json(await call({ codeFiles: withExtra }));
     expect(b.result).toEqual(a.result);
     expect(b.meta.files).toBe(a.meta.files);
+  });
+});
+
+describe("4b에서 더한 값: pairReviews, meta.configs", () => {
+  it("correct 코드는 짝 확인 필요가 없어 pairReviews가 빈 목록이다", async () => {
+    expect((await json(await call({ codeFiles: files() }))).pairReviews).toEqual([]);
+  });
+
+  it("후보 코드의 이름·파일 경로·근거를 pairReviews로 낸다(결과 카드의 IC-01 pair와 nodeId로 이어진다)", async () => {
+    const body = await json(await call({ codeFiles: files("renamed") }));
+    const review = body.pairReviews.find((r) => r.nodeId === "n-gallery")!;
+    expect(review).toMatchObject({ nodeName: "ProductGallery", reason: "candidate" });
+    expect(review.candidates[0]).toMatchObject({ name: "ItemImages", path: "src/entities/product/ui/ItemImages.tsx", kind: "component", exported: true });
+    expect(review.candidates[0].evidence.length).toBeGreaterThan(0);
+    expect(body.result.findings.some((f) => f.rule === "IC-01" && f.node === "ProductGallery")).toBe(true);
+  });
+
+  it("pairReviews가 있어도 result는 같다(새 키를 더한 것일 뿐 3b 판정은 그대로)", async () => {
+    const a = await json(await call({ codeFiles: files("renamed") }));
+    expect(Object.keys(a.result).sort()).toEqual(["bans", "findings", "items", "summary"]);
+  });
+
+  it("후보를 확정하면 그 노드는 pairReviews에서 빠진다", async () => {
+    const body = await json(await call({ codeFiles: files("renamed"), confirmed: [GALLERY] }));
+    expect(body.pairReviews.some((r) => r.nodeId === "n-gallery")).toBe(false);
+  });
+
+  it("meta.configs: 올린 설정 파일 수와 따라가지 못한 설정 수", async () => {
+    const none = await json(await call({ codeFiles: files() }));
+    expect(none.meta.configs).toEqual({ read: 0, unsupported: 0 });
+    const withConfig = [...files(), { path: "tsconfig.json", content: `{ "compilerOptions": { "paths": { "@x/*": ["./src/*"] } } }` }];
+    expect((await json(await call({ codeFiles: withConfig }))).meta.configs).toEqual({ read: 1, unsupported: 0 });
+    const broken = [...files(), { path: "tsconfig.json", content: "{ not json" }];
+    expect((await json(await call({ codeFiles: broken }))).meta.configs).toEqual({ read: 0, unsupported: 1 });
+    const extendsPkg = [...files(), { path: "tsconfig.json", content: `{ "extends": "@tsconfig/next/tsconfig.json" }` }];
+    expect((await json(await call({ codeFiles: extendsPkg }))).meta.configs).toEqual({ read: 1, unsupported: 1 });
+  });
+
+  it("pairReviews에도 코드 내용(주석 표식)이 없다", async () => {
+    const marked = files("renamed").map((f) => (f.path.endsWith("ItemImages.tsx") ? { ...f, content: `// ${MARK}\n${f.content}` } : f));
+    const text = JSON.stringify(await (await call({ codeFiles: marked })).json());
+    expect(text).not.toContain(MARK);
   });
 });
 

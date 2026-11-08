@@ -252,7 +252,7 @@ React 훅 사용 규칙처럼 ESLint(코드 문법·습관을 검사하는 도�
 - 응답 200: `{ baseline, result, meta }`. `baseline` = `{ revision, source: "export"|"latest", newerRevision? }`(지시서를 가장 최근에 내보낸 판, 내보낸 적이 없으면 최신 판이고 `source`가 `latest`, 내보낸 판보다 새 판이 있으면 `newerRevision`). `result` = 3b의 `{ items, bans, findings, summary }` 그대로(`confirmed`가 없으면 3b와 완전히 같은 결과, 보냈을 때만 판정에 영향). `meta` = `{ timing: { totalMs, filterMs, dbMs, parseMs, checkMs, requestNumber, first }, files, bytes, nodes, confirmedApplied }`(`requestNumber`는 서버 인스턴스가 몇 번째로 처리했는지, `first`는 첫 요청 여부. 같은 값을 `Server-Timing` 헤더로도 낸다. 4c 성능 측정용).
 - `confirmed` 검증(하나라도 어긋나면 422 `invalid_confirmed`, 어느 항목(`confirmed[i]`)인지만 알리고 코드 내용은 담지 않음): 기준 설계도에 없는 `nodeId`, 올린 코드에 없는 `path`·`name`, 노드와 코드의 종류 불일치(훅은 훅끼리, 컴포넌트·페이지는 컴포넌트끼리), 같은 노드·같은 코드의 중복, 이미 확실한 짝이 있는 노드를 다른 코드로 확정, 다른 노드의 확실한 짝인 코드를 확정. 검증한 뒤에만 검사기에 넘기고, 검사기는 확정한 짝을 먼저 확실한 짝으로 정한 뒤 짝짓기 전체를 처음부터 다시 돌린다(§6-1).
 - 오류: 401(세션) · 404(없거나 남의 프로젝트) · 400(형식, 검사할 `.ts`·`.tsx` 없음) · 413(한도) · 422(판 없음, HTML 프로젝트, `confirmed` 오류) · 500(분석 중 예외, 메시지에 코드 없음) · 503(DB). 코드는 저장하지 않고 응답 오류·서버 로그에 코드 내용을 넣지 않는다(서버 로그는 파일 수·크기·노드 수·시간 한 줄).
-- 알려진 것(4b에서 다룸): 결과 카드(`findings`)의 후보에는 코드 파일 경로가 없어, 화면이 `confirmed`의 `path`를 만들려면 후보 목록(경로 포함)이 응답에 더 필요하다. 응답 구조를 바꾸는 일이라 4b 시작 때 제안한다.
+- 4b에서 **새 값만 추가**(기존 `baseline`·`result`·`meta`의 키와 값은 그대로): 최상위 `pairReviews` = 짝 확인 필요 노드마다 `{ nodeId, nodeName, reason, via?, candidates: [{ name, path, kind, exported, score, contestedBy?, evidence: [{ kind, detail }] }] }`(화면이 `confirmed`의 `path`를 만들고 "다른 노드의 1순위이기도 함"을 보이기 위한 것, 결과 카드의 `IC-01|노드|pair`와 `nodeId`로 연결, 코드 내용은 담지 않고 로그에도 남기지 않음). `meta.configs` = `{ read: 올린 설정 파일 중 읽은 수, unsupported: 끝까지 따라가지 못한 설정 수(읽지 못함·패키지 extends·지원하지 않는 패턴) }`. `confirmed`가 없으면 `result`는 3b와 완전히 같다.
 
 ## 9. 경계
 

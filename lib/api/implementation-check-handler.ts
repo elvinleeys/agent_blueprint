@@ -78,15 +78,34 @@ export async function handleImplementationCheckPost(request: Request, ctx: IdCon
       const fields = wrong.map((w) => ({ path: `confirmed[${w.index}]`, message: CONFIRMED_PROBLEM_TEXT[w.reason] }));
       return respond(httpError(422, "invalid_confirmed", "확정한 짝이 올바르지 않습니다.", false, fields));
     }
-    const { pairing: _pairing, ...result } = checkImplementation(bp, model, confirmed);
-    void _pairing;
+    const { pairing, ...result } = checkImplementation(bp, model, confirmed);
+    // 화면이 "같은 것으로 짝짓기"에서 confirmed의 path를 만들 수 있도록 짝 확인 필요 노드의 후보(이름·파일 경로·근거)를 따로 낸다. 코드 내용은 담지 않는다
+    const pairReviews = pairing.reviews.map((r) => ({
+      nodeId: r.nodeId,
+      nodeName: r.nodeName,
+      reason: r.reason,
+      ...(r.via ? { via: r.via } : {}),
+      candidates: r.candidates.map((c) => ({
+        name: c.unit.name,
+        path: c.unit.path,
+        kind: c.unit.kind,
+        exported: c.unit.exported,
+        score: c.score,
+        ...(c.contestedBy ? { contestedBy: c.contestedBy } : {}),
+        evidence: c.evidence.map((e) => ({ kind: e.kind, detail: e.detail })),
+      })),
+    }));
+    // 올린 설정 파일 중 읽은 수와, 끝까지 따라가지 못한 설정(읽지 못함·extends·지원하지 않는 패턴) 수
+    const uploadedConfigs = files.filter((f) => CONFIG_FILE.test(f.path)).length;
+    const unreadConfigs = new Set(model.configNotes.filter((n) => n.reason === "invalid-json").map((n) => n.path)).size;
+    const configs = { read: uploadedConfigs - unreadConfigs, unsupported: model.configNotes.length };
     const t4 = performance.now();
 
     const timing = { totalMs: ms(t0, t4), filterMs: ms(t0, t1), dbMs: ms(t1, t2), parseMs: ms(t2, t3), checkMs: ms(t3, t4), requestNumber: sequence, first: sequence === 1 };
     const bytes = files.reduce((n, f) => n + byteLength(f.content), 0);
     console.info("[implementation-check]", JSON.stringify({ files: files.length, bytes, nodes: bp.nodes.length, confirmed: confirmed.length, ...timing }));
     return Response.json(
-      { baseline, result, meta: { timing, files: files.length, bytes, nodes: bp.nodes.length, confirmedApplied: confirmed.length } },
+      { baseline, result, pairReviews, meta: { timing, files: files.length, bytes, nodes: bp.nodes.length, confirmedApplied: confirmed.length, configs } },
       { headers: { "Server-Timing": `total;dur=${timing.totalMs}, filter;dur=${timing.filterMs}, db;dur=${timing.dbMs}, parse;dur=${timing.parseMs}, check;dur=${timing.checkMs}` } },
     );
   } catch (e) {

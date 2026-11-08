@@ -50,6 +50,15 @@ export const MUTATIONS: Mutation[] = [
   m("A11", "3a", "짝: 코드에만 있음", MATCH, `!reviewCandidateKeys.has(u.key) && `, ``, "짝 확인 필요의 후보 코드를 '설계에 없는 컴포넌트'로도 보고함"),
   m("A12", "3a", "짝: 이름 유사도 기준값", "core/similarity/thresholds.ts", `export const NAME_JACCARD_MIN = 0.5;`, `export const NAME_JACCARD_MIN = 0.9;`, "이름 유사도 기준을 올려 비슷한 이름을 후보로 못 찾음"),
 
+  // 4a: 사용자가 확정한 짝(confirmed)을 반영한 재판정과 입력 검증
+  m("A13", "3a", "확정한 짝: 반영", MATCH, `for (const c of confirmed) {`, `for (const c of [] as ConfirmedPair[]) {`, "사용자가 확정한 짝을 무시하고 확정하기 전과 같은 판정을 냄"),
+  m("A14", "3a", "확정한 짝: 읽지 못한 경로", MATCH, `if (reviews.has(node.id) || confirmedIds.has(node.id) || ambiguous`, `if (reviews.has(node.id) || ambiguous`, "사용자가 확정한 짝도 경로에 이름이 보이는 읽지 못한 파일 때문에 다시 확인 필요로 낮춤"),
+  m("A15", "3a", "확정한 짝: 검증(이미 확실한 짝)", "core/impl-check/confirmed.ts", "!== key) return add(\"already-certain-node\")", "=== key) return add(\"already-certain-node\")", "이미 확실한 짝이 있는 노드를 다른 코드로 확정하는 것을 허용하고 같은 코드로 확정하는 것을 거부"),
+  m("A16", "3a", "확정한 짝: 검증(종류)", "core/impl-check/confirmed.ts", `    if (!sameKind(node, unit)) return add("kind-mismatch");\n`, ``, "훅 노드를 컴포넌트 코드로(또는 반대로) 확정하는 것을 허용"),
+  m("A17", "3a", "확정한 짝: 검증(같은 코드 중복)", "core/impl-check/confirmed.ts", `    if (seenCode.has(key)) return add("duplicate-code");\n`, ``, "같은 코드를 여러 노드에 확정하는 것을 허용"),
+  m("A18", "3a", "확정한 짝: 검증(남의 확실한 짝)", "core/impl-check/confirmed.ts", `    if (owner && owner !== node.id) return add("code-taken");\n`, ``, "다른 노드의 확실한 짝인 코드를 확정하는 것을 허용"),
+  m("A19", "3a", "확정한 짝: 검증(노드 존재)", "core/impl-check/confirmed.ts", `    if (!node) return add("unknown-node");\n`, ``, "기준 설계도에 없는 nodeId를 허용"),
+
   // ── 3b: 구현 규칙과 결과 집계 ──
   m("B01", "3b", "IC-03 위치", COMMON, `const ok = dirMatches(unit.path, node.location.dir);`, `const ok = !dirMatches(unit.path, node.location.dir);`, "위치가 맞으면 경고, 틀리면 일치"),
   m("B02", "3b", "IC-07 이벤트", COMMON, `const has = unit.eventProps.includes(e) || attrs.has(e);`, `const has = unit.eventProps.includes(e) && attrs.has(e);`, "이벤트가 props와 JSX 속성 둘 다에 있어야 일치로 봄"),

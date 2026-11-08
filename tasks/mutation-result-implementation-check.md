@@ -2,24 +2,31 @@
 
 `npm run verify:mutation`이 만든다(원본 소스는 건드리지 않고 임시 복사본에서 변이를 적용). 손으로 고치지 않는다.
 
-요약: 코드 변이 51개 중 잡힘 50, 동등 변이 1, 살아남음·적용 실패 0 · 중립 변이 6개 중 결과가 달라진 것 0
+요약: 코드 변이 58개 중 잡힘 57, 동등 변이 1, 살아남음·적용 실패 0 · 중립 변이 6개 중 결과가 달라진 것 0
 
 ## 3a: 설계 노드와 코드의 짝짓기 판정
 
 | 번호 | 규칙 | 잘못된 판정 | 결과 | 실패한 테스트 수 | 처음 실패한 테스트 |
 | --- | --- | --- | --- | --- | --- |
 | A01 | 짝: 대소문자 단계 | 대소문자만 다른 이름을 확실한 짝으로 보지 않음 | 잡힘 | 1 | core/impl-check/match.test.ts › 확실: 이름이 정확히 같거나 대소문자만 다르고 종류가 같다 대소문자만 다르면 확실(근거 case) |
-| A02 | 짝: 후보는 검사하지 않음 | 후보(짝 확인 필요)를 확실한 짝처럼 이후 검사에 씀 | 잡힘 | 9 | core/impl-check/match.test.ts › 후보: 근거와 선택 순서 후보·같은 이름 여러 개·읽지 못한 코드·없음은 이후 검사를 하지 않는다(checkable false), 확실만 true |
+| A02 | 짝: 후보는 검사하지 않음 | 후보(짝 확인 필요)를 확실한 짝처럼 이후 검사에 씀 | 잡힘 | 11 | core/impl-check/confirmed.test.ts › 확정한 짝을 반영해 다시 판정 확정 전에는 짝 확인 필요(후보 ItemImages) 한 건 |
 | A03 | 짝: 같은 이름은 위치로 특정 | 같은 이름이 여러 개일 때 위치로 특정하지 않고 전부 확인 필요로 보냄 | 잡힘 | 4 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): next 묶음 dup-name-location |
 | A04 | 짝: 같은 이름은 위치로 특정 | 위치가 같은 코드가 여러 개여도 첫 번째로 확정 | 잡힘 | 1 | core/impl-check/match.test.ts › 같은 이름이 여러 곳: 위치로 특정하고, 못 하면 확인 필요 위치가 맞는 것이 둘 이상이어도 특정하지 못한다(자동으로 첫 번째를 고르지 않는다) |
 | A05 | 짝: 이름 없는 기본 내보내기 | 이름 없는 기본 내보내기를 파일 이름만으로 확실한 짝이라 확정 | 잡힘 | 5 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): next 묶음 default-anon |
-| A06 | 짝: 종류(컴포넌트·훅) | 컴포넌트와 훅을 이름만 같으면 같은 것으로 짝지음 | 잡힘 | 1 | core/impl-check/match.test.ts › 확실: 이름이 정확히 같거나 대소문자만 다르고 종류가 같다 종류가 다르면 짝지어지지 않는다(훅 노드 ↔ 컴포넌트, 컴포넌트 노드 ↔ 훅) |
-| A07 | 짝: 읽지 못한 경로 | 경로에 노드 이름이 보이는 읽지 못한 파일이 있어도 확실한 짝을 그대로 둠 | 잡힘 | 4 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): next 묶음 lazy-missing-named |
+| A06 | 짝: 종류(컴포넌트·훅) | 컴포넌트와 훅을 이름만 같으면 같은 것으로 짝지음 | 잡힘 | 2 | core/impl-check/confirmed.test.ts › 확정한 짝 검증(validateConfirmed) 훅 노드는 컴포넌트 코드로, 컴포넌트 노드는 훅 코드로 확정할 수 없다(kind-mismatch) |
+| A07 | 짝: 읽지 못한 경로 | 경로에 노드 이름이 보이는 읽지 못한 파일이 있어도 확실한 짝을 그대로 둠 | 잡힘 | 5 | core/impl-check/confirmed.test.ts › 읽지 못한 경로가 있어도 사용자가 확정한 짝은 낮추지 않는다 확정하지 않으면 경로에 Gallery가 보이는 읽지 못한 파일 때문에 짝 확인 필요 |
 | A08 | 짝: 같은 입력이면 같은 결과 | 코드 단위를 입력 파일 순서대로 처리해, 파일 순서를 섞으면 결과가 달라짐 | 잡힘 | 1 | core/impl-check/rules.test.ts › 변이 실험 보강 T1: 설계에 없는 코드가 여러 개여도 입력 파일 순서와 무관하게 경로 순서로 나온다 |
 | A09 | 짝: 후보 표시 | 한 코드를 두 노드가 후보로 다툴 때 진 노드에 다툰 상대를 알리지 않음 | 잡힘 | 2 | core/impl-check/match.test.ts › 후보: 근거와 선택 순서 한 코드가 두 노드의 1순위면 점수가 높은 노드가 가지고, 다른 노드의 후보 목록에도 남는다 |
 | A10 | 짝: 화면 주소 근거 | 화면 주소가 일치해도 후보 근거로 쓰지 않음 | 잡힘 | 4 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): next 묶음 page-route |
 | A11 | 짝: 코드에만 있음 | 짝 확인 필요의 후보 코드를 '설계에 없는 컴포넌트'로도 보고함 | 잡힘 | 7 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): next 묶음 dup-name-ambiguous |
-| A12 | 짝: 이름 유사도 기준값 | 이름 유사도 기준을 올려 비슷한 이름을 후보로 못 찾음 | 잡힘 | 6 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): next 묶음 hook-renamed |
+| A12 | 짝: 이름 유사도 기준값 | 이름 유사도 기준을 올려 비슷한 이름을 후보로 못 찾음 | 잡힘 | 8 | core/impl-check/confirmed.test.ts › 진 노드는 후보를 지우는 것만으로 '코드에 없음'이 되지 않는다 확정 전: 두 노드 모두 짝 확인 필요이고 View는 두 노드가 다툰다 |
+| A13 | 확정한 짝: 반영 | 사용자가 확정한 짝을 무시하고 확정하기 전과 같은 판정을 냄 | 잡힘 | 6 | core/impl-check/confirmed.test.ts › 확정한 짝을 반영해 다시 판정 확정 뒤에는 그 노드가 확실한 짝이 되고 근거에 사용자 확정이 적힌다 |
+| A14 | 확정한 짝: 읽지 못한 경로 | 사용자가 확정한 짝도 경로에 이름이 보이는 읽지 못한 파일 때문에 다시 확인 필요로 낮춤 | 잡힘 | 1 | core/impl-check/confirmed.test.ts › 읽지 못한 경로가 있어도 사용자가 확정한 짝은 낮추지 않는다 확정하면 그 짝이 그대로 확실한 짝이다 |
+| A15 | 확정한 짝: 검증(이미 확실한 짝) | 이미 확실한 짝이 있는 노드를 다른 코드로 확정하는 것을 허용하고 같은 코드로 확정하는 것을 거부 | 잡힘 | 1 | core/impl-check/confirmed.test.ts › 확정한 짝 검증(validateConfirmed) 이미 확실한 짝이 있는 노드를 다른 코드로 확정하면 already-certain-node, 같은 코드로 확정하는 것은 허용 |
+| A16 | 확정한 짝: 검증(종류) | 훅 노드를 컴포넌트 코드로(또는 반대로) 확정하는 것을 허용 | 잡힘 | 1 | core/impl-check/confirmed.test.ts › 확정한 짝 검증(validateConfirmed) 훅 노드는 컴포넌트 코드로, 컴포넌트 노드는 훅 코드로 확정할 수 없다(kind-mismatch) |
+| A17 | 확정한 짝: 검증(같은 코드 중복) | 같은 코드를 여러 노드에 확정하는 것을 허용 | 잡힘 | 1 | core/impl-check/confirmed.test.ts › 확정한 짝 검증(validateConfirmed) 같은 코드를 여러 노드에 확정하면 duplicate-code |
+| A18 | 확정한 짝: 검증(남의 확실한 짝) | 다른 노드의 확실한 짝인 코드를 확정하는 것을 허용 | 잡힘 | 1 | core/impl-check/confirmed.test.ts › 확정한 짝 검증(validateConfirmed) 다른 노드의 확실한 짝인 코드를 확정하면 code-taken |
+| A19 | 확정한 짝: 검증(노드 존재) | 기준 설계도에 없는 nodeId를 허용 | 잡힘 | 2 | core/impl-check/confirmed.test.ts › 확정한 짝 검증(validateConfirmed) nodeId가 기준 설계도에 없으면 unknown-node |
 
 ## 3b: 구현 규칙 및 결과 집계 판정
 
@@ -33,7 +40,7 @@
 | B06 | IC-11 바깥 여백 | mx-auto(가운데 정렬)도 바깥 여백 위반으로 봄 | 잡힘 | 1 | core/impl-check/run.test.ts › Tailwind 규칙: 클래스는 항상·조건부·읽지 못함·없음으로 나눠 판정한다 바깥 여백(금지 규칙): margin이 항상 있으면 위반, 조건부·읽지 못함이면 확인 불가, 없으면 준수 |
 | B07 | IC-12 인라인 style | style이 없는 요소를 위반으로, 있는 요소를 준수로 봄 | 잡힘 | 132 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
 | B08 | ICN-02 server에 use client | server 컴포넌트에 "use client"가 없을 때 위반으로 봄 | 잡힘 | 78 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
-| B09 | ICN-04 page.tsx | page.tsx가 화면을 직접 그리면 일치, 재내보내기만 하면 경고 | 잡힘 | 150 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
+| B09 | ICN-04 page.tsx | page.tsx가 화면을 직접 그리면 일치, 재내보내기만 하면 경고 | 잡힘 | 151 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
 | B10 | ICR-01 라우터 연결 | 화면 주소가 다른 컴포넌트에 연결돼 있으면 일치로 봄 | 잡힘 | 50 | core/impl-check/run.test.ts › 구현 검사: react 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
 | B11 | IC-02 코드에만 있음 | page.tsx 안의 컴포넌트도 '설계에 없는 컴포넌트'로 보고함 | 잡힘 | 2 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 wrong-ICN-04: 확실·확인 필요 카드 |
 | B12 | 집계: 일치 수 | 확인 필요 항목을 일치로 셈 | 잡힘 | 36 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 renamed: 설계 준수 일치 M/N과 금지 규칙 집계 |
@@ -62,7 +69,7 @@
 | E01 | 근거 원칙: import 해석 | 경로를 풀지 못한 import가 있는데 부모-자식 관계를 불일치로 확정 | 잡힘 | 3 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 alias-unknown: 확실·확인 필요 카드 |
 | E02a | 근거 원칙: 서버 통신 유형 | 유형을 알 수 없는(UNKNOWN) 서버 통신을 조회 담당의 근거(일치)로 확정 | 잡힘 | 2 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 fetch-method-unknown: 확실·확인 필요 카드 |
 | E02b | 근거 원칙: 서버 통신 유형 | 유형을 알 수 없는(UNKNOWN) 서버 통신을 '조회 안 맡는 노드의 위반'으로 확정 | 잡힘 | 1 | core/impl-check/rules.test.ts › 변이 실험 보강 T3: 서버 통신을 맡지 않는 노드가 유형을 알 수 없는 호출을 하면 확인 필요(위반으로 확정하지 않는다) |
-| E03a | 근거 원칙: 조건부 클래스 | 조건부로만 붙는 클래스를 항상 있다고 확정 | 잡힘 | 8 | core/code-model/facts-2c.test.ts › 클래스 분류: ALWAYS · CONDITIONAL · DYNAMIC · ABSENT 항상 > 조건부 > (못 읽은 부분이 있으면) DYNAMIC > ABSENT |
+| E03a | 근거 원칙: 조건부 클래스 | 조건부로만 붙는 클래스를 항상 있다고 확정 | 잡힘 | 8 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 class-conditional: 확실·확인 필요 카드 |
 | E03b | 근거 원칙: 조건부 클래스 | 조건부로만 붙는 클래스를 없다고 확정 | 잡힘 | 7 | core/code-model/facts-2c.test.ts › 클래스 분류: ALWAYS · CONDITIONAL · DYNAMIC · ABSENT 항상 > 조건부 > (못 읽은 부분이 있으면) DYNAMIC > ABSENT |
 | E03c | 근거 원칙: 읽지 못한 클래스 | 읽지 못한 클래스 값(DYNAMIC)을 없다고(ABSENT) 확정 | 잡힘 | 3 | core/code-model/facts-2c.test.ts › 클래스 분류: ALWAYS · CONDITIONAL · DYNAMIC · ABSENT 항상 > 조건부 > (못 읽은 부분이 있으면) DYNAMIC > ABSENT |
 | E04 | 근거 원칙: 알 수 없는 import 경로 | 경로를 알 수 없는 변수 import가 있는데도 짝 없는 노드를 코드에 없다고 확정 | 잡힘 | 4 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): react 묶음 dynamic-import-variable |

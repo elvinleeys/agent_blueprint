@@ -11,7 +11,7 @@ import { matchBlueprint } from "./match";
 import { commonRules } from "./rules/common";
 import { OUT_OF_SCOPE, type BanItem, type BanStatus, type DesignItem, type Finding, type ImplCheckResult, type ItemStatus } from "./result";
 import { byCodePoint } from "./similarity";
-import type { Pairing } from "./types";
+import type { ConfirmedPair, Pairing } from "./types";
 
 // 구현 검사 실행: 짝짓기 → (짝 없는·짝 확인 필요 노드의 항목 정하기) → 공통 규칙 → 스택 어댑터 규칙 → 집계.
 // 모든 판정은 분석기가 확인한 근거 안에서만 한다. AI를 부르지 않고 같은 입력이면 같은 결과·같은 id를 낸다.
@@ -94,8 +94,8 @@ function extras(ctx: Ctx, pairing: Pairing) {
 const worst = (list: { status: ItemStatus }[]): ItemStatus => (list.some((c) => c.status === "mismatch") ? "mismatch" : list.some((c) => c.status === "review") ? "review" : "match");
 const worstBan = (list: { status: BanStatus }[]): BanStatus => (list.some((c) => c.status === "violated") ? "violated" : list.some((c) => c.status === "unknown") ? "unknown" : "ok");
 
-export function checkImplementation(bp: Blueprint, model: CodeModel): ImplCheckResult & { pairing: Pairing } {
-  const pairing = matchBlueprint(bp, model);
+export function checkImplementation(bp: Blueprint, model: CodeModel, confirmed: ConfirmedPair[] = []): ImplCheckResult & { pairing: Pairing } {
+  const pairing = matchBlueprint(bp, model, confirmed);
   const ctx = new Ctx(bp, model, pairing);
 
   nodeLevel(ctx, pairing);

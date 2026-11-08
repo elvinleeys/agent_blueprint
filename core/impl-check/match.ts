@@ -3,7 +3,7 @@ import { dirOf } from "../code-model/path-utils";
 import { normalizeRoute } from "../code-model/routes";
 import type { Blueprint, ComponentNode } from "../schema/blueprint";
 import { byCodePoint, isNameSimilar, isPropsSimilar, nameScore, propsScore, sharesWord } from "./similarity";
-import type { CandidateEntry, CertainPair, Evidence, PairReview, Pairing, UnitRef } from "./types";
+import type { CandidateEntry, CertainPair, ConfirmedPair, Evidence, PairReview, Pairing, UnitRef } from "./types";
 
 // 설계 노드 ↔ 코드 컴포넌트·훅 짝짓기. 규칙은 스펙 tasks/spec-implementation-check.md §6-1.
 // - 확실: 이름이 정확히 같거나 대소문자만 다르고 종류(컴포넌트·훅)가 같음. 같은 이름이 여러 개면 파일 위치로 특정, 못 하면 확인 필요
@@ -20,7 +20,7 @@ const EXT = /\.(tsx?|jsx?)$/;
 const refOf = (u: UnitFact): UnitRef => ({ name: u.name, path: u.path, kind: u.kind, exported: u.exported, nameSource: u.nameSource });
 const keyOf = (u: { path: string; name: string }) => `${u.path}#${u.name}`;
 const base = (path: string) => path.split("/").pop() ?? path;
-const sameKind = (n: ComponentNode, u: UnitFact) => (n.kind === "hook") === (u.kind === "hook");
+export const sameKind = (n: ComponentNode, u: UnitFact) => (n.kind === "hook") === (u.kind === "hook");
 /** 코드 파일의 폴더가 설계의 location.dir로 끝나는가(폴더 이름이 앞에 붙은 업로드를 허용하는 접미사 일치) */
 export const dirMatches = (path: string, dir: string) => {
   const d = dirOf(path);
@@ -62,7 +62,11 @@ function aliasTargetUploaded(spec: string, uploaded: string[]): boolean {
   return uploaded.some((p) => [`${rest}.ts`, `${rest}.tsx`, `${rest}/index.ts`, `${rest}/index.tsx`].some((s) => p === s || p.endsWith(`/${s}`)));
 }
 
-export function matchBlueprint(bp: Blueprint, model: CodeModel): Pairing {
+/**
+ * confirmed: 사용자가 같은 것으로 확정한 짝. 먼저 확실한 짝으로 정해 두고 나머지 짝짓기를 처음부터 다시 돌린다(§6-1).
+ * 없으면 없을 때와 완전히 같은 결과다. 입력 검증은 호출하는 쪽(`validateConfirmed`)이 하고, 여기서는 맞지 않는 항목을 건너뛴다.
+ */
+export function matchBlueprint(bp: Blueprint, model: CodeModel, confirmed: ConfirmedPair[] = []): Pairing {
   const nodes = [...bp.nodes].sort((a, b) => byCodePoint(a.name, b.name) || byCodePoint(a.id, b.id));
   const files = [...model.files].sort((a, b) => byCodePoint(a.path, b.path));
   const units: Unit[] = files
@@ -77,6 +81,18 @@ export function matchBlueprint(bp: Blueprint, model: CodeModel): Pairing {
   const pairs = new Map<string, CertainPair>();
   const reviews = new Map<string, PairReview>();
   const ambiguous: { node: ComponentNode; cands: Unit[] }[] = [];
+
+  // ── 0. 사용자가 확정한 짝: 먼저 확실한 짝으로 정한다(다른 노드가 그 코드를 가져가지 못하고, 읽지 못한 경로 때문에 낮추지도 않는다) ──
+  const confirmedIds = new Set<string>();
+  for (const c of confirmed) {
+    const node = nodes.find((n) => n.id === c.nodeId);
+    const unit = unitByKey.get(`${c.path}#${c.name}`);
+    if (!node || !unit || done.has(node.id) || claimed.has(unit.key) || !sameKind(node, unit.fact)) continue;
+    pairs.set(node.id, { nodeId: node.id, nodeName: node.name, unit: refOf(unit.fact), evidence: [{ kind: "user-confirmed", detail: `사용자가 ${node.name}의 짝으로 확정함(${unit.fact.name})` }] });
+    claimed.add(unit.key);
+    done.add(node.id);
+    confirmedIds.add(node.id);
+  }
 
   // ── 1. 확실한 짝: 이름이 정확히 같음 → 대소문자만 다름. 같은 이름이 여러 개면 위치로 특정 ──
   const tier = (kind: "exact" | "case", same: (n: ComponentNode, u: UnitFact) => boolean) => {
@@ -112,7 +128,7 @@ export function matchBlueprint(bp: Blueprint, model: CodeModel): Pairing {
   // ── 2. 읽지 못한 경로에 노드 이름이 보이면 확실한 짝도 낮춘다 ──
   const unread = unreadablePaths(model);
   for (const node of nodes) {
-    if (reviews.has(node.id) || ambiguous.some((a) => a.node.id === node.id)) continue;
+    if (reviews.has(node.id) || confirmedIds.has(node.id) || ambiguous.some((a) => a.node.id === node.id)) continue;
     const hit = unread.find((t) => pathShowsName(t.spec, node.name) && !aliasTargetUploaded(t.spec, uploadedPaths));
     if (!hit) continue;
     const pair = pairs.get(node.id);

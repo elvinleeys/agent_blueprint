@@ -11,8 +11,12 @@
  * - file-name: 이름 없는 기본 내보내기를 파일 이름으로 판단(코드가 직접 붙인 이름이 아님)
  * - path-name-unread: 경로에 노드 이름이 보이는데 그 파일을 읽지 못함
  * - unknown-target: 경로를 알 수 없는 import(변수)가 있어 "코드에 없음"을 확정하지 못함
+ * - user-confirmed: 사용자가 이 노드의 짝으로 확정함(요청의 confirmed)
  */
-export type EvidenceKind = "exact" | "case" | "same-name-location" | "same-name" | "name-similarity" | "location" | "route" | "file-name" | "path-name-unread" | "unknown-target";
+export type EvidenceKind = "exact" | "case" | "same-name-location" | "same-name" | "name-similarity" | "location" | "route" | "file-name" | "path-name-unread" | "unknown-target" | "user-confirmed";
+
+/** 사용자가 확정한 짝: 설계 노드의 고유 id(nodeId)와 코드 단위(파일 경로 path, 컴포넌트·훅 이름 name) */
+export type ConfirmedPair = { nodeId: string; path: string; name: string };
 
 /** 근거 하나: 종류, 점수(있으면), 사람이 읽는 설명 */
 export type Evidence = { kind: EvidenceKind; score?: number; detail: string };

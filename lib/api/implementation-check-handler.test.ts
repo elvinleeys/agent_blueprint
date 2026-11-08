@@ -52,6 +52,16 @@ describe("POST /api/projects/[id]/implementation-check: 접근", () => {
     expect(loadLatestExportedRevision).not.toHaveBeenCalled();
   });
 
+  it("로그인하지 않은 요청은 본문(코드)을 읽거나 거르거나 분석하기 전에 401로 끝난다", async () => {
+    vi.mocked(requireSession).mockResolvedValueOnce({ ok: false, response: new Response("{}", { status: 401 }) });
+    const req = post({ codeFiles: files() });
+    expect((await handleImplementationCheckPost(req, ctx())).status).toBe(401);
+    expect(req.bodyUsed).toBe(false); // 본문을 읽지도 않았다
+    expect(info).not.toHaveBeenCalled();
+    expect(getProject).not.toHaveBeenCalled();
+    expect(loadBlueprint).not.toHaveBeenCalled();
+  });
+
   it("uuid가 아니면 400, 남의·없는 프로젝트는 404이고 기준 판을 읽지 않는다", async () => {
     expect((await call({ codeFiles: files() }, "x")).status).toBe(400);
     vi.mocked(getProject).mockResolvedValue({ ok: false, kind: "not_found", message: "x" });

@@ -47,9 +47,12 @@ export default function ResultView({
           <AlertDescription>올린 파일이 바뀌었습니다. 아래 결과는 이전 파일 기준이니 &ldquo;다시 검사하기&rdquo;를 눌러 주세요.</AlertDescription>
         </Alert>
       )}
+      {/* 결과가 길어도 집계는 스크롤 위쪽에 고정해 항상 보이게 한다 */}
+      <p className="sticky top-0 z-10 border-b border-border bg-background py-2 text-sm font-medium text-foreground">
+        {designSummaryText(data.result.summary)}
+      </p>
       <div className="flex flex-col gap-1 text-sm text-foreground-secondary">
         <p className="break-words">{baselineText(data.baseline)}</p>
-        <p className="font-medium text-foreground">{designSummaryText(data.result.summary)}</p>
         <p>{banSummaryText(data.result.summary)}</p>
         <p className="break-words">{configText(data.meta.configs)}</p>
         <p className="text-xs text-foreground-tertiary">
@@ -76,11 +79,11 @@ export default function ResultView({
       )}
 
       <div className="flex flex-col gap-2">
-        <h3 className="text-base font-semibold text-foreground">확실한 항목 {groups.certain.length}건</h3>
+        <h3 className="text-base font-semibold text-foreground">확실한 카드 {groups.certain.length}장</h3>
         {groups.certain.length === 0 ? (
           <p className="text-sm text-foreground-secondary">설계와 다르다고 확인된 항목이 없습니다.</p>
         ) : (
-          <ul className="flex flex-col gap-2" aria-label="확실한 항목 목록">
+          <ul className="flex flex-col gap-2" aria-label="확실한 카드 목록">
             {groups.certain.map((f) => (
               <CertainCard key={f.id} finding={f} />
             ))}
@@ -89,13 +92,13 @@ export default function ResultView({
       </div>
 
       <div className="flex flex-col gap-2">
-        <h3 className="text-base font-semibold text-foreground">확인 필요 {groups.review.length}건</h3>
+        <h3 className="text-base font-semibold text-foreground">확인 필요 카드 {groups.review.length}장</h3>
         {groups.review.length === 0 ? (
           <p className="text-sm text-foreground-secondary">확인이 필요한 항목이 없습니다.</p>
         ) : (
           <>
             <p className="text-sm text-foreground-secondary">&ldquo;수정 요청에 포함&rdquo;과 &ldquo;무시&rdquo;는 아래 수정 지시서에만 영향을 줍니다. 설계 준수 집계(일치·확인 필요 수)는 바뀌지 않습니다.</p>
-            <ul className="flex flex-col gap-2" aria-label="확인 필요 항목 목록">
+            <ul className="flex flex-col gap-2" aria-label="확인 필요 카드 목록">
               {groups.review.map((f) => (
                 <ReviewCard
                   key={f.id}

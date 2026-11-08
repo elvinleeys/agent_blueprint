@@ -32,7 +32,7 @@ describe("ImplementationCheckPanel", () => {
   const out = text(<ImplementationCheckPanel projectId="p1" onGoStructure={() => {}} />);
 
   it("업로드 칸·검사 버튼·tsconfig 안내를 그리고, 결과는 아직 없다", () => {
-    for (const t of ["1. 검사할 코드", "폴더 선택", "파일 선택", "검사하기", "tsconfig.json·jsconfig.json도 함께 선택하면", "없으면 별칭으로 가져온 import는", "설계도를 먼저 만들어 두어야 합니다", "저장하지 않으며", "새로고침하면 사라집니다"]) expect(out).toContain(t);
+    for (const t of ["1. 검사할 코드", "폴더 선택", "파일 선택", "검사하기", "tsconfig.json·jsconfig.json도 함께 선택하면", "폴더 선택을 권장합니다", "프로젝트 맨 위 설정으로 간주", "json 파일은 이 두 설정 파일만 씁니다", "설계도를 먼저 만들어 두어야 합니다", "저장하지 않으며", "새로고침하면 사라집니다"]) expect(out).toContain(t);
     expect(out).not.toContain("2. 검사 결과");
     expect(out).toMatch(/<button[^>]*disabled=""[^>]*>검사하기<\/button>/);
     expect(out).toContain("검사할 .ts·.tsx 파일을 올려 주세요.");
@@ -50,7 +50,7 @@ describe("ResultView: 기준 판·집계·카드", () => {
 
   it("기준 판·설계 준수 집계·금지 규칙·설정 파일·서버 시간을 보인다", () => {
     const out = view(data);
-    for (const t of ["설계도 판 3 기준(지시서를 내보낸 판)", "설계 항목 65개 중 일치 56개 · 불일치 0개 · 확인 필요 9개", "금지 규칙(인라인 style·바깥 여백): 위반 0개 · 확인 불가 2개", "설정 파일 1개 읽음 / 못 따라간 설정 0개", "서버 처리 12ms (이 서버의 첫 요청)", "확인 필요 3건", "확실한 항목 0건"]) expect(out).toContain(t);
+    for (const t of ["설계도 판 3 기준(지시서를 내보낸 판)", "설계 항목 65개 중 일치 56개 · 불일치 0개 · 확인 필요 9개", "금지 규칙(인라인 style·바깥 여백): 위반 0개 · 확인 불가 2개", "설정 파일 1개 읽음 / 못 따라간 설정 0개", "서버 처리 12ms (이 서버의 첫 요청)", "확인 필요 카드 3장", "확실한 카드 0장"]) expect(out).toContain(t);
   });
 
   it("후보 코드는 이름·파일 경로·근거와 [같은 것으로 짝짓기]를 보인다", () => {
@@ -87,15 +87,15 @@ describe("ResultView: 기준 판·집계·카드", () => {
     const allIgnored = Object.fromEntries(ids.map((i) => [i, "ignore" as const]));
     const allIncluded = Object.fromEntries(ids.map((i) => [i, "include" as const]));
     const lines = (out: string) => ({
-      summary: out.match(/설계 항목 [^<]*/)?.[0],
-      review: out.match(/확인 필요 \d+건/)?.[0],
+      summary: out.match(/설계 항목 \d+개 중 일치 \d+개 · 불일치 \d+개 · 확인 필요 \d+개/)?.[0],
+      review: out.match(/확인 필요 카드 \d+장/)?.[0],
       header: out.match(/설계 준수: [^\n]*/)?.[0],
     });
     const none = lines(view(data));
     expect(lines(view(data, allIgnored))).toEqual(none);
     expect(lines(view(data, allIncluded))).toEqual(none);
     expect(none.summary).toBe("설계 항목 65개 중 일치 56개 · 불일치 0개 · 확인 필요 9개");
-    expect(none.review).toBe("확인 필요 3건");
+    expect(none.review).toBe("확인 필요 카드 3장");
     expect(none.header).toBe("설계 준수: 65개 중 일치 56개 (불일치 0, 확인 필요 9)");
   });
 
@@ -110,7 +110,7 @@ describe("ResultView: 기준 판·집계·카드", () => {
 
   it("확실한 항목(wrong-IC-03)과 수정 지시서 카드를 그린다", () => {
     const out = view(response("wrong-IC-03", { source: "latest", newerRevision: 5 }));
-    for (const t of ["확실한 항목 1건", "IC-03 · AddToCartButton", "내보낸 기록이 없어 최신 판 3 기준. 이후 판 5가 있습니다.", "3. 수정 지시서", "implementation-fix-prompt.md · 저장하지 않음", "복사", ".md 내려받기"]) expect(out).toContain(t);
+    for (const t of ["확실한 카드 1장", "IC-03 · AddToCartButton", "내보낸 기록이 없어 최신 판 3 기준. 이후 판 5가 있습니다.", "3. 수정 지시서", "implementation-fix-prompt.md · 저장하지 않음", "복사", ".md 내려받기"]) expect(out).toContain(t);
   });
 
   it("고칠 것이 없는 결과(correct)도 그린다", () => {

@@ -87,7 +87,8 @@ function WorkspaceBody({ project, onRenamed, structureLoadError }: { project: Pr
         ))}
       </div>
 
-      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="flex flex-1 flex-col lg:min-h-0 lg:overflow-y-auto">
+      {/* 구현 검사 탭은 안쪽 스크롤 없이 페이지 스크롤 하나만 쓴다(결과가 길어 잘리지 않도록). 다른 탭은 화면 높이에 맞춰 영역 안에서 스크롤 */}
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className={tab === "implementation-check" ? "flex flex-1 flex-col pb-8" : "flex flex-1 flex-col lg:min-h-0 lg:overflow-y-auto"}>
         {tab === "settings" && <ProjectSettingsTab project={project} onRenamed={onRenamed} />}
         {tab === "structure" && <StructurePanel projectId={project.id} loadError={structureLoadError} />}
         {tab === "design-system" && <DesignSystemPanel />}

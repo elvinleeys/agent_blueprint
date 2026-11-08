@@ -16,7 +16,7 @@ import { restoreSelection, toggleChoice, type Selection } from "./selection";
 
 const readContents = (summary: UploadSummary<PickedFile>): Promise<SourceFile[]> => Promise.all(summary.selected.map(async (f) => ({ path: f.path, content: await f.file.text() })));
 
-const CONFIG_NOTE = "tsconfig.json·jsconfig.json도 받으며 경로 별칭을 읽는 데만 씁니다.";
+const CONFIG_NOTE = "폴더 선택을 권장합니다. 파일 선택으로 올린 tsconfig.json·jsconfig.json은 어느 폴더의 설정인지 알 수 없어 프로젝트 맨 위 설정으로 간주하고, 이때 별칭(@/…) import는 확인 필요로 남기 쉽습니다. json 파일은 이 두 설정 파일만 씁니다.";
 
 /**
  * 구현 검사 탭. 올린 파일과 검사 결과는 저장하지 않는다. 작업공간이 이 탭을 한 번 연 뒤에는 숨기기만 하므로 탭을 바꿔도 유지되고,
@@ -88,18 +88,19 @@ export default function ImplementationCheckPanel({ projectId, onGoStructure }: {
         <h2 id="ic-code-title" className="text-lg font-semibold text-foreground">
           1. 검사할 코드
         </h2>
-        <p className="text-sm text-foreground-secondary">구현한 코드가 있는 폴더(예: src)를 선택하세요. 파일이 많으면 더 좁은 폴더를 선택하세요. 폴더 선택이 안 되는 브라우저에서는 파일을 여러 개 선택하세요. tsconfig.json·jsconfig.json도 함께 선택하면 <code>@/</code> 같은 경로 별칭을 따라가고, 없으면 별칭으로 가져온 import는 &ldquo;확인 필요&rdquo;로 남습니다.</p>
+        <p className="text-sm text-foreground-secondary">구현한 코드가 있는 폴더(예: src)를 선택하세요. 파일이 많으면 더 좁은 폴더를 선택하세요. 폴더 선택이 안 되는 브라우저에서는 파일을 여러 개 선택하세요. tsconfig.json·jsconfig.json도 함께 선택하면 <code>@/</code> 같은 경로 별칭을 따라갑니다.</p>
         <FileListSection
           idPrefix="ic-code"
           title="검사할 코드"
           pickers={[
             { label: "폴더 선택", directory: true },
-            { label: "파일 선택", directory: false },
+            { label: "파일 선택", directory: false, accept: ".ts,.tsx,.json" },
           ]}
           upload={upload}
           disabled={running}
           configFilesNote={CONFIG_NOTE}
           sourceNote=".tsx(컴포넌트)와 .ts(훅 등) 파일을 보냅니다."
+          scrollList={false}
         />
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" onClick={() => run(confirmed)} disabled={!canRun}>

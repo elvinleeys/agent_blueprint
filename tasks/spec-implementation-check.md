@@ -88,6 +88,7 @@ docs/pr/implementation-check.md
 | `baseUrl` | `baseUrl` 기준으로 별칭 없는 import(`components/Foo`)를 푼다. `paths` 대상은 `baseUrl`(없으면 설정 파일 폴더) 기준 | - |
 | `extends` | 올린 파일을 가리키는 상대 경로(문자열·배열, 깊이 5까지). 뒤에 적은 것이 앞의 것을 덮고, 자식이 부모를 덮는다 | 패키지에서 이어받는 `extends`(예: `@tsconfig/next`)와 올리지 않은 파일은 따라가지 않고 기록한다. 이때 **그 설정에 기대는 import만** 해석 못 함(`uncertain`)으로 표시한다(별칭처럼 보이는 import와 업로드 폴더 이름으로 시작하는 import). 다른 import는 영향받지 않는다 |
 | 설정이 여러 개 | 각 파일에서 가장 가까운 위쪽 폴더의 설정을 쓴다. 같은 폴더에 둘 다 있으면 `tsconfig.json`이 이긴다 | - |
+| 파일 선택으로 올린 설정 | 파일 선택(폴더가 아닌 파일 여러 개 선택)은 폴더 위치를 알 수 없어 파일 이름만 경로가 되므로, 올린 `tsconfig.json`·`jsconfig.json`은 **프로젝트 맨 위에 있는 설정**(경로 `tsconfig.json`)으로 간주해 `paths`를 읽는다 | 이때 코드 파일도 폴더 정보 없이 이름만 있어 `paths` 대상(`./src/*` 등)에 해당하는 파일이 없으므로 별칭 import는 대부분 풀리지 않고 해석 못 함(`resolved: null`)으로 남아 관련 판정이 확인 필요로 간다(설정 자체는 읽은 것이라 "읽지 못한 설정"이 아니다). 폴더 업로드를 권장한다(`core/impl-check/config-upload.test.ts`) |
 | 설정을 읽지 못함 | - | 읽지 못한 설정(`invalid-json`)에 기대는 import는 위와 같이 해석 못 함으로 표시한다. 틀린 경로로 확정하지 않는다 |
 | 그 밖의 별칭 장치 | - | `rootDirs`, `package.json`의 `imports`, vite·webpack 별칭, `references`, `${configDir}` 치환은 읽지 않는다. 이런 것에 기대는 별칭 import는 해석 못 함이다 |
 

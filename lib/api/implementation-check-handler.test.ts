@@ -264,7 +264,61 @@ describe("confirmed(확정한 짝)", () => {
   });
 });
 
-describe("코드 내용 보호와 시간 기록", () => {
+describe("invalid_confirmed 오류 형식(4b): 어느 확정이 왜 틀렸는지 구분해 알린다", () => {
+  type ErrBody = { error: { code: string; invalid?: { index: number; nodeId: string; reason: string; removable: boolean }[]; fields?: { path: string }[] } };
+  const err = async (res: Response) => (await res.json()) as ErrBody;
+
+  it("틀린 확정마다 index·nodeId·사유·자동으로 뺄 수 있는지를 담는다(뺄 수 있는 사유는 코드·설계도가 바뀐 것)", async () => {
+    const cases: [string, unknown, string, boolean][] = [
+      ["없는 노드", { ...GALLERY, nodeId: "nope" }, "unknown-node", true],
+      ["없는 코드", { ...GALLERY, name: "Nope" }, "unknown-code", true],
+      ["이미 확실한 짝이 있는 노드", { nodeId: "n-info", path: GALLERY.path, name: GALLERY.name }, "already-certain-node", true],
+      ["남의 확실한 짝인 코드", { nodeId: "n-gallery", path: "src/widgets/product-info/ui/ProductInfo.tsx", name: "ProductInfo" }, "code-taken", true],
+      ["종류 불일치", { nodeId: "n-use-cart", path: GALLERY.path, name: GALLERY.name }, "kind-mismatch", false],
+    ];
+    for (const [label, item, reason, removable] of cases) {
+      const res = await call({ codeFiles: files("renamed"), confirmed: [item] });
+      expect(res.status, label).toBe(422);
+      const b = await err(res);
+      expect(b.error.code, label).toBe("invalid_confirmed");
+      expect(b.error.invalid, label).toEqual([{ index: 0, nodeId: (item as { nodeId: string }).nodeId, reason, removable }]);
+    }
+  });
+
+  it("같은 노드·같은 코드의 중복 확정은 자동으로 뺄 수 없는 사유", async () => {
+    const dupNode = await err(await call({ codeFiles: files("renamed"), confirmed: [GALLERY, GALLERY] }));
+    expect(dupNode.error.invalid).toEqual([{ index: 1, nodeId: "n-gallery", reason: "duplicate-node", removable: false }]);
+    const dupCode = await err(await call({ codeFiles: files("renamed"), confirmed: [GALLERY, { ...GALLERY, nodeId: "n-review" }] }));
+    expect(dupCode.error.invalid).toContainEqual({ index: 1, nodeId: "n-review", reason: "duplicate-code", removable: false });
+  });
+
+  it("유효한 확정과 틀린 확정이 섞이면 틀린 것만 알린다(유효한 것은 그대로 유지할 수 있도록 index로 구분)", async () => {
+    const res = await call({ codeFiles: files("renamed"), confirmed: [GALLERY, { nodeId: "n-review", path: "src/gone.tsx", name: "Gone" }] });
+    expect(res.status).toBe(422);
+    expect((await err(res)).error.invalid).toEqual([{ index: 1, nodeId: "n-review", reason: "unknown-code", removable: true }]);
+  });
+
+  it("확정 문제가 아닌 422(판 없음·HTML 프로젝트)는 invalid_confirmed가 아니고 invalid 목록도 없다", async () => {
+    vi.mocked(loadLatestBlueprintRef).mockResolvedValue({ ok: true, data: null });
+    const none = await err(await call({ codeFiles: files("renamed"), confirmed: [GALLERY] }));
+    expect(none.error.code).toBe("no_blueprint");
+    expect(none.error.invalid).toBeUndefined();
+    vi.mocked(loadLatestBlueprintRef).mockResolvedValue({ ok: true, data: { id: "b2", revision: 2 } });
+    const bp = loadFixtureBlueprint("next", "correct");
+    vi.mocked(loadBlueprint).mockResolvedValue({ ok: true, data: { ...bp, stack: { ...bp.stack, framework: "html" } } });
+    const html = await err(await call({ codeFiles: files("renamed"), confirmed: [GALLERY] }));
+    expect(html.error.code).toBe("unsupported_stack");
+    expect(html.error.invalid).toBeUndefined();
+  });
+
+  it("400·413 같은 다른 오류에도 invalid 목록은 없다", async () => {
+    const bad = await err(await call({ codeFiles: files("renamed"), confirmed: [{ nodeId: "x" }] }));
+    expect(bad.error.invalid).toBeUndefined();
+  });
+});
+
+// 모듈을 다시 불러오는 시험이 있어 전체 시험을 함께 돌릴 때 느릴 수 있다(기본 5초를 넉넉히)
+describe("코드 내용 보호와 시간 기록", { timeout: 20_000 }, () => {
   const marked = () => files().map((f) => (f.path.endsWith("ProductInfo.tsx") ? { ...f, content: `// ${MARK}\n${f.content}` } : f));
 
   it("응답(성공·422)과 서버 로그 어디에도 코드 내용이 없다", async () => {

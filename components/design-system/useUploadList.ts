@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { addNotice, addPickedWithStats, removePicked, type PickedMeta } from "@/core/cleanup/picked-files";
+import type { FilterOptions } from "@/core/cleanup/filter-files";
 import { summarizeUpload } from "@/core/cleanup/upload-summary";
 
 export type PickedFile = PickedMeta & { file: File };
@@ -22,11 +23,12 @@ export function toPicked(files: FileList | null): PickedFile[] {
 }
 
 /** 업로드 칸 하나의 상태: 선택할 때마다 추가, 파일별 삭제, 모두 지우기, 이번 분석에서만 빼는 체크, 중복으로 합쳐졌을 때의 잠깐 안내 */
-export function useUploadList() {
+export function useUploadList(options: FilterOptions = {}) {
   const [list, setList] = useState<PickedFile[]>([]);
   const [unchecked, setUnchecked] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
-  const summary = useMemo(() => (list.length ? summarizeUpload(list, unchecked) : null), [list, unchecked]);
+  const allowConfigFiles = options.allowConfigFiles;
+  const summary = useMemo(() => (list.length ? summarizeUpload(list, unchecked, { allowConfigFiles }) : null), [list, unchecked, allowConfigFiles]);
 
   // 안내는 잠시 보이고 사라진다
   useEffect(() => {

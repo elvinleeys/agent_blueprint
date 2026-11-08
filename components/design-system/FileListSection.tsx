@@ -48,6 +48,8 @@ export default function FileListSection({
   pickers,
   upload,
   disabled,
+  configFilesNote,
+  sourceNote = ".tsx(컴포넌트)와 .ts(타입을 찾는 데만 사용) 파일을 보냅니다.",
 }: {
   idPrefix: string;
   /** 접근성 이름에 쓰는 칸 이름(예: "디자인 시스템") */
@@ -55,6 +57,10 @@ export default function FileListSection({
   pickers: Picker[];
   upload: UploadList;
   disabled: boolean;
+  /** 있으면 안내 문구 끝에 덧붙인다(구현 검사: tsconfig.json·jsconfig.json도 받는다) */
+  configFilesNote?: string;
+  /** 보내는 파일 종류 안내 문장(기본: 디자인 시스템 정리용). 구현 검사는 .ts의 훅도 검사하므로 다르게 적는다 */
+  sourceNote?: string;
 }) {
   const { summary, unchecked, list, notice } = upload;
   const limitMessage = summary ? describeLimitProblems(summary.problems) : "";
@@ -81,7 +87,7 @@ export default function FileListSection({
         </p>
       )}
       <p className="text-xs text-foreground-tertiary">
-        .tsx(컴포넌트)와 .ts(타입을 찾는 데만 사용) 파일을 보냅니다. 선택할 때마다 목록에 추가되며, 한 칸에 {UPLOAD_LIMITS.maxFiles}개, 파일당 {UPLOAD_LIMITS.maxFileBytes / 1024}KB, 합계 {UPLOAD_LIMITS.maxTotalBytes / (1024 * 1024)}MB까지입니다.
+        {sourceNote} 선택할 때마다 목록에 추가되며, 한 칸에 {UPLOAD_LIMITS.maxFiles}개, 파일당 {UPLOAD_LIMITS.maxFileBytes / 1024}KB, 합계 {UPLOAD_LIMITS.maxTotalBytes / (1024 * 1024)}MB까지입니다.{configFilesNote ? ` ${configFilesNote}` : ""}
       </p>
 
       {summary && (
@@ -114,7 +120,7 @@ export default function FileListSection({
                     onChange={() => upload.toggle(f.path)}
                     className="size-4"
                   />
-                  <label htmlFor={`${idPrefix}-pick-${f.path}`} className="min-w-0 flex-1 truncate text-foreground">
+                  <label htmlFor={`${idPrefix}-pick-${f.path}`} className="min-w-0 flex-1 break-all text-foreground">
                     {pickedLabel(f)}
                   </label>
                   <span className="text-xs text-foreground-tertiary">{kb(f.size)}</span>

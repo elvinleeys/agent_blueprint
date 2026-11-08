@@ -3,7 +3,7 @@ import { z } from "zod";
 import { httpError } from "../ai/draft-http";
 import { readCodeModel } from "../../core/code-model/facts";
 import { checkLimits, describeLimitProblems, CONFIG_FILE, filterFiles } from "../../core/code-model/filter-files";
-import { CONFIRMED_PROBLEM_TEXT, validateConfirmed } from "../../core/impl-check/confirmed";
+import { AUTO_REMOVABLE, CONFIRMED_PROBLEM_TEXT, validateConfirmed } from "../../core/impl-check/confirmed";
 import { checkImplementation } from "../../core/impl-check/run";
 import { loadBlueprint } from "../db/blueprints";
 import { loadLatestBlueprintRef, loadLatestExportedRevision } from "../db/prompt-exports";
@@ -76,7 +76,9 @@ export async function handleImplementationCheckPost(request: Request, ctx: IdCon
     const wrong = validateConfirmed(bp, model, confirmed);
     if (wrong.length) {
       const fields = wrong.map((w) => ({ path: `confirmed[${w.index}]`, message: CONFIRMED_PROBLEM_TEXT[w.reason] }));
-      return respond(httpError(422, "invalid_confirmed", "확정한 짝이 올바르지 않습니다.", false, fields));
+      // 다른 422(판 없음·HTML 등)와 구분하도록 code와 invalid 목록(nodeId·사유·자동으로 뺄 수 있는지)을 함께 낸다. 코드 내용은 담지 않는다
+      const e = httpError(422, "invalid_confirmed", "확정한 짝이 올바르지 않습니다.", false, fields);
+      return respond({ status: e.status, body: { error: { ...e.body.error, invalid: wrong.map((w) => ({ index: w.index, nodeId: w.nodeId, reason: w.reason, removable: AUTO_REMOVABLE.has(w.reason) })) } } });
     }
     const { pairing, ...result } = checkImplementation(bp, model, confirmed);
     // 화면이 "같은 것으로 짝짓기"에서 confirmed의 path를 만들 수 있도록 짝 확인 필요 노드의 후보(이름·파일 경로·근거)를 따로 낸다. 코드 내용은 담지 않는다

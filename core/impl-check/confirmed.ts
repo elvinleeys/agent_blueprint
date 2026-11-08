@@ -17,6 +17,12 @@ export type ConfirmedProblemReason =
 
 export type ConfirmedProblem = { index: number; nodeId: string; reason: ConfirmedProblemReason };
 
+/**
+ * 코드나 설계도가 바뀌어 생긴 사유(없는 노드·없는 코드·이미 확실한 짝이 생김)만 화면이 자동으로 빼고 다시 검사할 수 있다.
+ * 같은 노드·코드의 중복이나 종류 불일치는 화면이 잘못된 요청을 만든 것이라 자동으로 빼지 않고 오류로 보인다.
+ */
+export const AUTO_REMOVABLE: ReadonlySet<ConfirmedProblemReason> = new Set(["unknown-node", "unknown-code", "already-certain-node", "code-taken"]);
+
 export const CONFIRMED_PROBLEM_TEXT: Record<ConfirmedProblemReason, string> = {
   "unknown-node": "기준 설계도에 없는 노드입니다.",
   "unknown-code": "올린 코드에 없는 컴포넌트·훅입니다.",

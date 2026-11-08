@@ -9,7 +9,9 @@ export const MAX_IMAGES = 3;
 export const MAX_SPEC_CHARS = 20_000; // 스펙 텍스트 7개 항목 합계(프롬프트 비용 보호)
 const MAX_ORIGINAL_WIDTH = 20_000;
 
-export type ErrorBody = { error: { code: string; message: string; retryable: boolean; fields?: Field[] } };
+/** 구현 검사의 잘못된 확정 짝(invalid_confirmed) 하나: 어느 항목(index)의 어느 노드가 왜 어긋났는지, 자동으로 뺄 수 있는 사유인지 */
+export type InvalidConfirmed = { index: number; nodeId: string; reason: string; removable: boolean };
+export type ErrorBody = { error: { code: string; message: string; retryable: boolean; fields?: Field[]; invalid?: InvalidConfirmed[] } };
 export type HttpError = { status: 400 | 401 | 404 | 409 | 413 | 422 | 429 | 500 | 502 | 503 | 504; body: ErrorBody };
 
 export const httpError = (status: HttpError["status"], code: string, message: string, retryable: boolean, fields?: Field[]): HttpError => ({

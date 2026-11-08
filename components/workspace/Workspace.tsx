@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Project } from "../../lib/db/projects";
 import type { StructureInit } from "../../store/structure-store";
 import DesignSystemPanel from "../design-system/DesignSystemPanel";
+import ImplementationCheckPanel from "../implementation-check/ImplementationCheckPanel";
 import GuardedLink from "../layout/GuardedLink";
 import PromptPanel from "../prompt/PromptPanel";
 import { SaveQueueProvider } from "../structure/SaveQueueProvider";
@@ -12,13 +13,14 @@ import StructurePanel from "../structure/StructurePanel";
 import { stackSummary } from "../projects/stack-labels";
 import ProjectSettingsTab from "./ProjectSettingsTab";
 
-type TabId = "settings" | "structure" | "design-system" | "prompt";
+type TabId = "settings" | "structure" | "design-system" | "implementation-check" | "prompt";
 
 const TABS: { id: TabId; label: string; enabled: boolean }[] = [
   { id: "settings", label: "프로젝트 설정", enabled: true },
   { id: "structure", label: "구조 설계", enabled: true },
   { id: "design-system", label: "디자인 시스템 정리", enabled: true },
   { id: "prompt", label: "지시서", enabled: true },
+  { id: "implementation-check", label: "구현 검사", enabled: true },
 ];
 
 export default function Workspace({
@@ -44,6 +46,8 @@ export default function Workspace({
 
 function WorkspaceBody({ project, onRenamed, structureLoadError }: { project: Project; onRenamed: (project: Project) => void; structureLoadError: string | null }) {
   const [tab, setTab] = useState<TabId>("structure");
+  // 구현 검사 탭은 한 번 열면 숨기기만 한다(올린 파일·결과·선택이 탭을 바꿔도 유지됨. 저장하지 않으므로 작업공간을 떠나면 사라진다)
+  const [checkOpened, setCheckOpened] = useState(false);
 
   return (
     <div className="flex flex-1 flex-col gap-4 lg:min-h-0">
@@ -69,7 +73,10 @@ function WorkspaceBody({ project, onRenamed, structureLoadError }: { project: Pr
             aria-selected={tab === t.id}
             aria-controls={`panel-${t.id}`}
             disabled={!t.enabled}
-            onClick={() => setTab(t.id)}
+            onClick={() => {
+              if (t.id === "implementation-check") setCheckOpened(true);
+              setTab(t.id);
+            }}
             className={`-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium ${
               tab === t.id ? "border-primary text-primary" : "border-transparent text-foreground-secondary hover:text-foreground"
             } disabled:cursor-not-allowed disabled:text-foreground-quaternary`}
@@ -85,6 +92,11 @@ function WorkspaceBody({ project, onRenamed, structureLoadError }: { project: Pr
         {tab === "structure" && <StructurePanel projectId={project.id} loadError={structureLoadError} />}
         {tab === "design-system" && <DesignSystemPanel />}
         {tab === "prompt" && <PromptPanel projectId={project.id} onGoStructure={() => setTab("structure")} />}
+        {checkOpened && (
+          <div hidden={tab !== "implementation-check"}>
+            <ImplementationCheckPanel projectId={project.id} onGoStructure={() => setTab("structure")} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -15,11 +15,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsc --noEmit"
+            "command": "npx tsc --noEmit -p \"$CLAUDE_PROJECT_DIR\""
           },
           {
             "type": "command",
-            "command": "node .claude/hooks/work-log.mjs",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/work-log.mjs\"",
             "timeout": 10
           }
         ]
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/block-heredoc.mjs",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-heredoc.mjs\"",
             "timeout": 10
           }
         ]
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/guard.mjs",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\"",
             "timeout": 10
           }
         ]

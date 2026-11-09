@@ -59,7 +59,10 @@ $ npm run score -- --blueprint fixtures/implementation-check/next/blueprint.json
 ```
 
 - `code.mode`: `blueprint-locations`(위치 기준) 또는 `all`. `files`는 분석한 파일 수(설정 파일 포함, 화면의 "파일 N개"와 같은 기준), `scanned`는 거르기를 통과한 폴더의 대상 파일 수.
+- `outsideDesign.messages`와 텍스트의 "설계 밖" 목록은 메시지 뒤에 파일 경로를 붙인다(`— <경로> 에서 내보냄`). 같은 이름이 여러 파일에 있어도 구분된다.
 - 집계(`design`·`ban`)는 화면의 집계 줄과 같은 값이다. 확정한 짝(`confirmed`)은 받지 않으므로 화면에서 짝짓기 전의 결과와 같다.
+
+React Router로 해 보기: `--blueprint fixtures/score/react-router-blueprint.json --code fixtures/score/react-router`(위치 기준이면 라우터 `src/router.tsx`를 화면 진입 파일로 읽고 59개 모두 일치, `--all`이면 라우터에만 연결된 설정 화면 2개가 "설계 밖"으로 나온다).
 
 시연 세트로 해 보기: `--code fixtures/demo-implementation-check/correct`(65개 중 일치 65), `renamed`(일치 56·확인 필요 9), `warning`(일치 64·불일치 1·금지 규칙 위반 2).
 

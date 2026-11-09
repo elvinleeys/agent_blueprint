@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "fixtures/implementation-check/**",
     // 구현 검사 화면 시연 코드(시험 데이터에서 만든 완성 코드 폴더)
     "fixtures/demo-implementation-check/**",
+    // 채점 스크립트 시험 코드(구현 검사 시험 데이터를 복사해 만든 폴더, 자체 별칭(@/)을 쓴다)
+    "fixtures/score/**",
   ]),
 ]);
 

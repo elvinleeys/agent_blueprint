@@ -91,6 +91,40 @@ describe("설계도 위치 기준으로 고르기", () => {
   });
 });
 
+describe("React Router: 라우터 설정 파일을 화면 진입 파일로 고른다 (fixtures/score/react-router)", () => {
+  // 승인된 시험 데이터 fixtures/implementation-check/react/correct를 복사하고, 설계도에 없는 설정 화면(src/screens/settings)을 라우터에만 연결했다
+  const rbp = BlueprintSchema.parse(JSON.parse(readFileSync("fixtures/score/react-router-blueprint.json", "utf8")));
+  const files = readLocalFolder("fixtures/score/react-router");
+  const withSize = files.map((f) => ({ ...f, size: f.content.length }));
+
+  it("노드 위치(pages·components·hooks) 밖의 src/router.tsx를 읽고, 라우터가 가져오는 설정 화면은 따라가지 않는다", () => {
+    const picked = selectByBlueprint(rbp, withSize).map((f) => f.path);
+    expect(picked).toContain("react-router/src/router.tsx");
+    expect(picked).toContain("react-router/src/types.ts");
+    expect(picked).not.toContain("react-router/src/screens/settings/SettingsPage.tsx");
+    expect(picked).not.toContain("react-router/src/screens/settings/SettingsForm.tsx");
+  });
+
+  it("위치 기준: 59개 모두 일치(라우터가 화면 주소를 맡음), 설계 밖 0건 / 전체: 같은 집계에 설계 밖 2건(경로 포함)", () => {
+    const loc = report(scoreImplementation(rbp, files));
+    expect(loc).toMatchObject({ files: 10, scanned: 12, design: { total: 59, match: 59, mismatch: 0, review: 0 }, outsideDesign: { count: 0 } });
+    const all = report(scoreImplementation(rbp, files, "all"));
+    expect(all.design).toEqual(loc.design);
+    expect(all.outsideDesign).toEqual({
+      count: 2,
+      messages: [
+        "SettingsForm는 설계에 없는 컴포넌트입니다(코드에만 있음). — react-router/src/screens/settings/SettingsForm.tsx 에서 내보냄",
+        "SettingsPage는 설계에 없는 컴포넌트입니다(코드에만 있음). — react-router/src/screens/settings/SettingsPage.tsx 에서 내보냄",
+      ],
+    });
+  });
+
+  it("라우터를 빼면 화면 주소를 맡는 곳이 없어 일치가 줄어든다(라우터를 읽은 것이 집계에 쓰였음)", () => {
+    const noRouter = report(scoreImplementation(rbp, files.filter((f) => !f.path.endsWith("router.tsx"))));
+    expect(noRouter.design.match).toBeLessThan(59);
+  });
+});
+
 describe("내 컴퓨터용 상한과 오류", () => {
   const files = readLocalFolder(`${DEMO}/correct`);
 

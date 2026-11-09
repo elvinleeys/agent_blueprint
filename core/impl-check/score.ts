@@ -73,7 +73,8 @@ export function scoreImplementation(blueprint: Blueprint, input: SourceFile[], m
       configs: configSummary(files, model),
       design: summary.design,
       ban: summary.ban,
-      outsideDesign: { count: outside.length, messages: outside.map((f) => f.message) },
+      // 같은 이름이 여러 파일에 있어도 구분되게 근거(파일 경로)를 붙인다
+      outsideDesign: { count: outside.length, messages: outside.map((f) => [f.message, ...f.evidence].join(" — ")) },
       cards: { certain: findings.filter((f) => f.certainty === "certain" && !f.outsideDesign).length, review: findings.filter((f) => f.certainty === "review").length },
     },
   };

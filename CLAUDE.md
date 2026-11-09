@@ -80,7 +80,7 @@ lib/api/                   # API 라우트 처리 (session: getClaims 로그인 
 lib/score/                 # 채점 스크립트의 코드 읽기(node:fs, 앱 코드에서 import 금지). read-local: 내 컴퓨터 폴더 → {path, content}[](제외 폴더 건너뜀, --tsconfig는 맨 위 설정으로 간주). GitHub 공개 저장소 입력은 같은 모양의 파일을 더한다
 lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용·단계 알림 콜백, draft-http: 요청 검증·오류 매핑, draft-stream: NDJSON 스트림·하트비트, draft-handler: /api/draft 처리)
 scripts/                   # 개발용 실행 스크립트 (test-draft.ts: lib/ai를 호출하는 초안 생성 검증, 실제 API 호출은 직접 실행)
-fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음. demo-implementation-check/: 구현 검사 화면 시연용 완성 코드 폴더 3개(correct·renamed·warning, 시험 데이터에서 만들고 core/impl-check/demo.test.ts가 확인), demo-cleanup/: 디자인 시스템 정리를 눈으로 확인하는 예시, 일부러 문제를 넣음, 기대 결과는 core/cleanup/demo-cleanup.test.ts)
+fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음. demo-implementation-check/: 구현 검사 화면 시연용 완성 코드 폴더 3개(correct·renamed·warning, 시험 데이터에서 만들고 core/impl-check/demo.test.ts가 확인), demo-cleanup/: 디자인 시스템 정리를 눈으로 확인하는 예시, 일부러 문제를 넣음, 기대 결과는 core/cleanup/demo-cleanup.test.ts, score/: 채점 스크립트 시험 폴더(react-router: 구현 검사 react 시험 데이터 복사본에 라우터에만 연결된 화면을 더함, 설계도는 react-router-blueprint.json, 기대 결과는 lib/score/score.test.ts))
 tasks/                     # 계획·테스트 결과·응답 원문 (draft-test-result.md, draft-outputs/)
 ```
 

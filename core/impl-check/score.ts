@@ -80,11 +80,16 @@ export function scoreImplementation(blueprint: Blueprint, input: SourceFile[], m
   };
 }
 
+/** GitHub 저장소에서 읽었을 때: 같은 커밋으로 다시 채점해 결과를 재현할 수 있게 출력에 적는다 */
+export type RepoInfo = { name: string; ref: string; commit: string | null; subdir: string | null };
+
+const repoLine = (repo: RepoInfo) => `저장소: ${repo.name}${repo.subdir ? `/${repo.subdir}` : ""} @ ${repo.ref}${repo.commit ? ` (커밋 ${repo.commit.slice(0, 7)})` : ""}`;
+
 /** --json 출력: 결과를 여러 개 모아 비교할 수 있게 한 줄 JSON */
-export function scoreJson(r: ScoreReport, blueprintFile: string, codeSource: string): string {
+export function scoreJson(r: ScoreReport, blueprintFile: string, codeSource: string, repo?: RepoInfo): string {
   return JSON.stringify({
     blueprint: { file: blueprintFile, title: r.title, stack: r.stack },
-    code: { source: codeSource, mode: r.mode, files: r.files, scanned: r.scanned, configs: r.configs },
+    code: { source: codeSource, mode: r.mode, files: r.files, scanned: r.scanned, configs: r.configs, ...(repo ? { repo } : {}) },
     design: r.design,
     ban: r.ban,
     outsideDesign: r.outsideDesign,
@@ -93,7 +98,7 @@ export function scoreJson(r: ScoreReport, blueprintFile: string, codeSource: str
 }
 
 /** 사람이 읽는 출력. 집계 문구는 화면(result-view)과 같은 형식이다 */
-export function scoreText(r: ScoreReport, codeName: string): string {
+export function scoreText(r: ScoreReport, codeName: string, repo?: RepoInfo): string {
   const d = r.design;
   const mode =
     r.mode === "all"
@@ -101,6 +106,7 @@ export function scoreText(r: ScoreReport, codeName: string): string {
       : '읽은 방식: 설계도 위치 기준으로 읽음(노드 위치 + 가져오는 파일 + 화면 진입 파일). 위치 밖에서 가져오지 않는 "설계에 없는 컴포넌트"는 찾지 못합니다. 전체를 보려면 --all';
   return [
     `구현 검사 채점: ${r.title} (${r.stack.framework} · ${r.stack.styling} · ${r.stack.architecture})`,
+    ...(repo ? [repoLine(repo)] : []),
     `코드: ${codeName} (${r.files}개 분석 / 폴더의 대상 파일 ${r.scanned}개, 설정 파일 ${r.configs.read}개 읽음 / 못 따라간 설정 ${r.configs.unsupported}개)`,
     mode,
     "",

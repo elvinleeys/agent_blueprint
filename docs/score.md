@@ -7,12 +7,15 @@
 
 ```bash
 npm run score -- --blueprint <설계도 JSON 파일> --code <코드 폴더> [옵션]
+npm run score -- --blueprint <설계도 JSON 파일> --repo <GitHub 공개 저장소 주소> [--subdir <하위 폴더>] [옵션]
 ```
 
 | 옵션 | 뜻 |
 | --- | --- |
 | `--blueprint <파일>` | 설계도 JSON(필수). 앱의 설계도와 같은 형식(`BlueprintSchema`)이며 형식이 틀리면 원인 필드를 보여 주고 끝난다 |
-| `--code <폴더>` | 검사할 코드 폴더(필수). 경로는 화면에서 폴더를 올릴 때처럼 폴더 이름으로 시작한다 |
+| `--code <폴더>` | 검사할 코드 폴더. 경로는 화면에서 폴더를 올릴 때처럼 폴더 이름으로 시작한다. `--repo`와 둘 중 하나만 |
+| `--repo <주소>` | GitHub 공개 저장소(`https://github.com/<owner>/<repo>`, 브랜치는 `/tree/<브랜치>`, 아래 "GitHub 공개 저장소") |
+| `--subdir <폴더>` | `--repo`에서 이 하위 폴더만 읽는다(예: 모노레포의 `apps/web`). 경로는 그 폴더 이름으로 시작한다 |
 | `--tsconfig <파일>` | 폴더 밖의 tsconfig를 프로젝트 맨 위 설정(`<폴더>/tsconfig.json`)으로 간주해 쓴다(폴더의 같은 경로 설정은 이것으로 바뀐다). 폴더 안의 `tsconfig.json`·`jsconfig.json`은 옵션 없이도 읽는다 |
 | `--json` | 같은 내용을 한 줄 JSON으로 출력(여러 결과를 모아 비교) |
 | `--all` | 코드 폴더 전체를 읽는다(기본은 설계도 위치 기준, 아래) |
@@ -21,6 +24,16 @@ npm run score -- --blueprint <설계도 JSON 파일> --code <코드 폴더> [옵
 | `--max-total-mb N` | 합계 크기 상한(기본 20MB) |
 
 종료 코드: 채점이 끝나면 위반이 있어도 0, 입력 오류·상한 초과는 1.
+
+## GitHub 공개 저장소 (`--repo`)
+
+- 주소는 `https://github.com/<owner>/<repo>`(끝의 `.git`·`/` 허용)와 `/tree/<브랜치>`만 받는다. 다른 호스트·http·포트·사용자 정보·쿼리, `/`가 든 브랜치, `.`·`..` 경로는 요청 전에 거부한다.
+- 요청은 검증한 owner·repo·브랜치로 고정 호스트 주소를 새로 만들어 보낸다: ① `api.github.com/repos/<owner>/<repo>`(공개 여부·크기·기본 브랜치) ② `…/tarball/<브랜치>`(압축 파일 주소) ③ codeload의 **같은 저장소 주소일 때만** 받는다. 그 밖의 리다이렉트는 따라가지 않는다.
+- 공개 저장소만(`private`가 false). 404는 "없거나 공개 저장소가 아님". 받은 압축 파일은 **메모리에서만** 풀고 디스크·DB에 저장하지 않는다.
+- 제한: 저장소 200MB(받기 전 확인)·받는 압축 30MB·푼 전체 300MB(버리는 파일 포함)·항목 50,000개·읽을 파일 하나 1MB·합계 20MB·30초. 넘으면 바로 중단한다.
+- 압축 파일 안에서는 일반 파일만 읽는다(폴더·바로가기·하드링크 등은 버림). `../`·절대 경로가 든 항목이 있으면 전체를 거부한다.
+- 출력에 `저장소: owner/repo @ 브랜치 (커밋 abc1234)` 줄이 붙고, JSON의 `code.repo`에 커밋 id 전체가 들어간다(같은 커밋으로 다시 채점할 때: `/tree/<커밋 id>`).
+- **요청 횟수**: 한 번에 GitHub API 2번(저장소 정보·압축 파일 주소). 토큰이 없으면 IP당 시간당 60번, `GITHUB_TOKEN` 환경변수가 있으면 시간당 5,000번이다. 한도에 걸리면 "N분 뒤 다시 시도"를 알리고 자동으로 다시 시도하지 않는다. 토큰 만드는 법은 `docs/deploy-checklist.md` 1절.
 
 ## 어떤 파일을 읽나
 
@@ -70,5 +83,6 @@ React Router로 해 보기: `--blueprint fixtures/score/react-router-blueprint.j
 
 - `core/impl-check/score.ts`: 거르기 → (위치 기준 고르기) → 상한 → 분석·검사 → 숫자, 텍스트·JSON 출력(순수 함수)
 - `core/impl-check/select-files.ts`: 설계도 위치 기준 고르기(순수 함수)
-- `lib/score/read-local.ts`: 내 컴퓨터 폴더 읽기. 코드 읽기를 여기로 분리해 두었으므로 GitHub 공개 저장소 입력은 같은 모양(`{ path, content }[]`)을 돌려주는 파일을 더하면 된다
+- `lib/code-source/`: 코드 읽기(모두 `{ path, content }[]`를 돌려준다). `local.ts` 내 컴퓨터 폴더, `github.ts` GitHub 공개 저장소(4f에서 서버도 같은 함수를 쓴다), `tar.ts` 압축 파일 해석(메모리에서만)
+- `core/code-source/github-url.ts`: 저장소 주소·하위 폴더 검증(순수 함수, 화면·서버·스크립트 공용)
 - `scripts/score.ts`: 인자 읽기·설계도 검증·출력

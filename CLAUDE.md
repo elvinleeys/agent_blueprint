@@ -29,7 +29,7 @@ npm run verify:regression   # 디자인 시스템 정리 결과가 기준 스냅
 npm run verify:mutation     # 구현 검사 변이 실험(전체 약 9분. `-- --stage 3a|3b|3c|neutral` 또는 `-- --only 번호`). 실행 기준은 .claude/skills/step/SKILL.md
 npm run demo:build         # 구현 검사 화면 시연 코드 폴더(fixtures/demo-implementation-check)를 시험 데이터에서 다시 만든다
 npm run demo:sql -- <프로젝트 id>   # 예시 설계도를 그 프로젝트에 넣는 SQL을 출력(DB 접속 없음, 대시보드 SQL 편집기에서 실행). 방법은 docs/demo-implementation-check.md
-npm run score -- --blueprint <설계도 JSON> --code <코드 폴더> [--json] [--all]   # 구현 검사 채점(화면·AI·DB 없이, 지시서 효과 비교용). 기본은 설계도 위치 기준으로 골라 읽음, 내 컴퓨터용 상한은 --max-files 등으로 변경. 사용법은 docs/score.md
+npm run score -- --blueprint <설계도 JSON> (--code <코드 폴더> | --repo <GitHub 공개 저장소 주소> [--subdir <폴더>]) [--json] [--all]   # 구현 검사 채점(화면·AI·DB 없이, 지시서 효과 비교용). 기본은 설계도 위치 기준으로 골라 읽음, 내 컴퓨터용 상한은 --max-files 등으로 변경. --repo는 GITHUB_TOKEN(셸 환경변수, 선택)을 쓴다. 사용법은 docs/score.md
 ```
 
 ## 폴더 구조와 책임
@@ -77,10 +77,10 @@ lib/db/                    # DB 접근 함수 (projects(삭제 포함), blueprin
 supabase/migrations/       # 표·RLS·GRANT SQL (대시보드 SQL 편집기로 직접 실행, 절차는 docs/db-migration.md)
 supabase/tests/            # RLS 격리 확인 스크립트(적용 후 실행, 끝에 rollback)
 lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, http: 오류 매핑·JSON 읽기(readJson은 라우트별 본문 한도), *-handler: 라우트별 처리, analyze-handler: 본문 3MB·칸마다 30개/파일 200KB/합계 1MB, implementation-check-handler: 구현 검사. 본문 3MB·30개/파일 200KB/합계 1MB, tsconfig·jsconfig 허용, 기준 판 조회, 확정한 짝 검증 뒤 재판정, 코드는 저장·로그 없음, 처리 시간 기록)
-lib/score/                 # 채점 스크립트의 코드 읽기(node:fs, 앱 코드에서 import 금지). read-local: 내 컴퓨터 폴더 → {path, content}[](제외 폴더 건너뜀, --tsconfig는 맨 위 설정으로 간주). GitHub 공개 저장소 입력은 같은 모양의 파일을 더한다
+lib/code-source/           # 코드 읽기(Node 전용, 화면 코드에서 import 금지. 모두 {path, content}[]): local(내 컴퓨터 폴더, 제외 폴더 건너뜀, --tsconfig는 맨 위 설정으로 간주), github(공개 저장소: 저장소 정보로 private 확인·크기 → tarball 주소 → codeload의 같은 저장소만 받기, 메모리에서만 풀기, 제한 REPO_LIMITS, GITHUB_TOKEN은 api.github.com에만), tar(직접 만든 작은 tar 해석기: 일반 파일만, ../·절대 경로 거부, ustar·pax·GNU 긴 이름, 제한), tar-builder(테스트 전용 tar 만들기). 주소 검증은 core/code-source/github-url(순수 함수)
 lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용·단계 알림 콜백, draft-http: 요청 검증·오류 매핑, draft-stream: NDJSON 스트림·하트비트, draft-handler: /api/draft 처리)
 scripts/                   # 개발용 실행 스크립트 (test-draft.ts: lib/ai를 호출하는 초안 생성 검증, 실제 API 호출은 직접 실행)
-fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음. demo-implementation-check/: 구현 검사 화면 시연용 완성 코드 폴더 3개(correct·renamed·warning, 시험 데이터에서 만들고 core/impl-check/demo.test.ts가 확인), demo-cleanup/: 디자인 시스템 정리를 눈으로 확인하는 예시, 일부러 문제를 넣음, 기대 결과는 core/cleanup/demo-cleanup.test.ts, score/: 채점 스크립트 시험 폴더(react-router: 구현 검사 react 시험 데이터 복사본에 라우터에만 연결된 화면을 더함, 설계도는 react-router-blueprint.json, 기대 결과는 lib/score/score.test.ts))
+fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음. demo-implementation-check/: 구현 검사 화면 시연용 완성 코드 폴더 3개(correct·renamed·warning, 시험 데이터에서 만들고 core/impl-check/demo.test.ts가 확인), demo-cleanup/: 디자인 시스템 정리를 눈으로 확인하는 예시, 일부러 문제를 넣음, 기대 결과는 core/cleanup/demo-cleanup.test.ts, score/: 채점 스크립트 시험 폴더(react-router: 구현 검사 react 시험 데이터 복사본에 라우터에만 연결된 화면을 더함, 설계도는 react-router-blueprint.json, 기대 결과는 core/impl-check/score.test.ts))
 tasks/                     # 계획·테스트 결과·응답 원문 (draft-test-result.md, draft-outputs/)
 ```
 
@@ -146,8 +146,10 @@ tasks/                     # 계획·테스트 결과·응답 원문 (draft-test
 - OpenAI 응답은 받는 즉시 Zod 스키마로 검증한다. 검증 실패 시 1회 자동 재시도 후 사용자에게 안내한다.
 - Supabase 쿼리는 기본적으로 publishable key(`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) + 로그인 세션으로 실행한다. 서버에서 사용자를 확인할 때는 `getClaims()`를 쓰고 `getSession()`의 값은 신뢰하지 않는다. service role key는 꼭 필요한 서버 전용 작업에만, 별도 클라이언트로 분리해 사용한다.
 - 모든 Supabase 테이블은 RLS를 켜고, `user_id = auth.uid()` 기준(또는 project_id를 통한 간접 기준)으로 정책을 작성한다. 정책 없는 공개 테이블을 만들지 않는다.
-- 업로드된 이미지·코드 원본은 분석 후 저장하지 않는다. DB에는 설계도·스펙·검사 결과·지시서만 저장한다.
+- 업로드된 이미지·코드 원본은 분석 후 저장하지 않는다. DB에는 설계도·스펙·검사 결과·지시서만 저장한다. GitHub 저장소에서 받은 코드도 메모리에서만 풀고 디스크·DB에 저장하지 않는다.
 - 환경변수는 `.env.local`에만 두고 커밋하지 않는다. `NEXT_PUBLIC_` 접두사는 브라우저에 노출해도 되는 값에만 붙인다.
+- `GITHUB_TOKEN`(선택, 서버 전용)은 공개 저장소만 읽고 다른 권한이 없는 fine-grained 토큰만 쓴다. `lib/code-source/github.ts`에서만 읽고 `api.github.com` 요청 머리말에만 붙이며, 화면·응답·로그·오류 문구에 넣지 않는다. 없어도 동작해야 한다(토큰 없이 시간당 60번). 만드는 법은 `docs/deploy-checklist.md` 1절.
+- GitHub 저장소 주소는 `core/code-source/github-url`로 검증한 owner·repo·브랜치만 쓰고, 사용자 주소로 직접 요청하지 않는다(고정 호스트 주소를 새로 만든다. 리다이렉트는 codeload의 같은 저장소만).
 
 ## 금지 사항
 

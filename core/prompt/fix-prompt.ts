@@ -1,7 +1,7 @@
 import type { Finding, ImplCheckResult, ReviewKind, Severity } from "../impl-check/result";
 
 // 구현 검사 수정 지시서. 템플릿만 쓰고 AI를 부르지 않아 같은 입력이면 같은 출력이다.
-// 담는 것: 확실한 카드(설계 밖 발견 제외) 전부 + 사용자가 포함한 확인 필요 카드. 포함하지 않은(또는 무시한) 확인 필요 카드는 지시서에서만 빠지고,
+// 담는 것: 확실한 카드(설계 밖 발견 제외) 전부 + 사용자가 포함한 확인 필요 카드. 포함하지 않은 확인 필요 카드는 지시서에서만 빠지고(건수도 적지 않음),
 // 머리말의 설계 준수 집계(일치 M / 전체 N)는 검사 결과 그대로다. 이름·파일 경로·근거만 적고 코드 본문은 넣지 않는다.
 
 export const FIX_SOURCE = "implementation-check";
@@ -102,11 +102,10 @@ export function buildFixPrompt({ baseline, result, include }: FixPromptInput): s
   }
   if (!certain.length && !picked.length) lines.push("## 고칠 항목", "", "고칠 항목이 없습니다.", "");
 
-  const skipped = reviews.length - picked.length;
+  // 사용자의 진행 상황(포함하지 않은 확인 필요 건수)은 적지 않는다: 지시서는 에이전트가 고칠 것만 담는다
   lines.push("## 건드리지 않을 것", "");
-  if (skipped > 0) lines.push(`- 포함하지 않은 확인 필요 항목 ${skipped}건(이번 지시서에서 제외)`);
   for (const f of outside) lines.push(`- 설계 밖: ${f.message}`);
-  lines.push("- 위에 적지 않은 코드");
+  lines.push("- 위에 적지 않은 코드는 바꾸지 않는다");
   lines.push("");
   return lines.join("\n");
 }

@@ -12,7 +12,7 @@ import FileListSection from "../design-system/FileListSection";
 import { useUploadList, type PickedFile } from "../design-system/useUploadList";
 import ResultView from "./ResultView";
 import { designSummaryText, removedTexts } from "./result-view";
-import { restoreSelection, toggleChoice, type Selection } from "./selection";
+import { restoreSelection, toggleIncluded, type Selection } from "./selection";
 
 const readContents = (summary: UploadSummary<PickedFile>): Promise<SourceFile[]> => Promise.all(summary.selected.map(async (f) => ({ path: f.path, content: await f.file.text() })));
 
@@ -21,7 +21,7 @@ const CONFIG_NOTE = "폴더 선택을 권장합니다. 파일 선택으로 올�
 /**
  * 구현 검사 탭. 올린 파일과 검사 결과는 저장하지 않는다. 작업공간이 이 탭을 한 번 연 뒤에는 숨기기만 하므로 탭을 바꿔도 유지되고,
  * 작업공간을 떠나거나 새로고침하면 사라진다.
- * 순서: 코드 폴더 업로드(+ tsconfig) → 검사하기 → 기준 판·집계·설정 → 확실 → 확인 필요(짝짓기·포함·무시) → 수정 지시서
+ * 순서: 코드 폴더 업로드(+ tsconfig) → 검사하기 → 기준 판·집계·설정 → 확실 → 확인 필요(짝짓기·수정 요청에 포함 체크) → 수정 지시서
  */
 export default function ImplementationCheckPanel({ projectId, onGoStructure }: { projectId: string; onGoStructure: () => void }) {
   const upload = useUploadList({ allowConfigFiles: true });
@@ -30,7 +30,7 @@ export default function ImplementationCheckPanel({ projectId, onGoStructure }: {
   const [data, setData] = useState<CheckResponse | null>(null);
   const [confirmed, setConfirmed] = useState<ConfirmedPair[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
-  const [selection, setSelection] = useState<Selection>({});
+  const [selection, setSelection] = useState<Selection>(() => new Set());
   const [stale, setStale] = useState(false);
   const hasResult = useRef(false);
 
@@ -66,7 +66,7 @@ export default function ImplementationCheckPanel({ projectId, onGoStructure }: {
         hasResult.current = true;
         setData(next);
         setStale(false);
-        // 같은 카드 id의 선택은 유지, 새 카드는 선택 안 함, 사라진 카드의 선택은 지움
+        // 같은 카드 id의 체크는 유지, 새 카드는 체크 안 함, 사라진 카드의 체크는 지움
         setSelection((prev) => restoreSelection(prev, next.result.findings.filter((f) => f.certainty === "review").map((f) => f.id)));
       } else {
         setFailure(r.outcome.failure);
@@ -160,7 +160,7 @@ export default function ImplementationCheckPanel({ projectId, onGoStructure }: {
           running={running}
           stale={stale}
           nameOf={nameOf}
-          onChoice={(id, c) => setSelection((prev) => toggleChoice(prev, id, c))}
+          onToggle={(id) => setSelection((prev) => toggleIncluded(prev, id))}
           onConfirm={confirmPair}
           onCancelConfirm={(nodeId) => run(confirmed.filter((x) => x.nodeId !== nodeId))}
         />

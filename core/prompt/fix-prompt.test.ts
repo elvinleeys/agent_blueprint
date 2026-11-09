@@ -43,7 +43,7 @@ describe("고칠 것이 없음과 확실한 항목", () => {
   it("설계 밖 발견(IC-02)은 고칠 항목이 아니라 '건드리지 않을 것'에 이름만", () => {
     const doc = build("wrong-IC-02");
     expect(doc).toContain("## 고칠 항목\n\n고칠 항목이 없습니다.");
-    expect(doc).toMatch(/- 설계 밖: .*설계에 없는 컴포넌트/);
+    expect(doc).toMatch(/## 건드리지 않을 것\n\n- 설계 밖: .*설계에 없는 컴포넌트.*\n- 위에 적지 않은 코드는 바꾸지 않는다\n/);
     expect(doc.match(/^### /gm)).toBeNull();
   });
 });
@@ -58,19 +58,20 @@ describe("확인 필요 항목: 기본은 제외, 포함한 것만 '확인 뒤 �
     expect(reviewIds).toContain(galleryId);
   });
 
-  it("포함하지 않으면 '확인 뒤 수정' 구역이 없고 제외 건수가 적힌다. 집계는 56/65·확인 필요 9", () => {
+  it("포함하지 않으면 '확인 뒤 수정' 구역이 없고, '건드리지 않을 것'에는 확인 필요 건수를 적지 않는다. 집계는 56/65·확인 필요 9", () => {
     const doc = build("renamed");
     expect(doc).not.toContain("## 확인 뒤 수정");
-    expect(doc).toContain("- 포함하지 않은 확인 필요 항목 3건(이번 지시서에서 제외)");
+    expect(doc).toContain("## 건드리지 않을 것\n\n- 위에 적지 않은 코드는 바꾸지 않는다\n");
+    expect(doc).not.toMatch(/확인 필요 항목 \d+건/);
     expect(headerOf(doc)).toBe("> 설계 준수: 65개 중 일치 56개 (불일치 0, 확인 필요 9)");
   });
 
-  it("IC-01 카드를 포함하면 그 항목만 '확인 뒤 수정'에 나오고 나머지 둘은 제외 건수에 남는다", () => {
+  it("IC-01 카드를 포함하면 그 항목만 '확인 뒤 수정'에 나오고, 포함하지 않은 둘은 건수로도 적지 않는다", () => {
     const doc = build("renamed", [galleryId]);
     expect(doc).toContain("## 확인 뒤 수정 (사용자가 포함한 확인 필요 항목)");
     expect(doc.match(/^### /gm)).toHaveLength(1);
     expect(doc).toContain("### 1. [IC-01 · 짝 확인 필요] ProductGallery ↔ ItemImages");
-    expect(doc).toContain("- 포함하지 않은 확인 필요 항목 2건(이번 지시서에서 제외)");
+    expect(doc).not.toMatch(/확인 필요 항목 \d+건/);
   });
 
   it("IC-01 짝 확인 필요의 할 일은 import 경로·이름 변경까지 적는다", () => {
@@ -84,7 +85,7 @@ describe("확인 필요 항목: 기본은 제외, 포함한 것만 '확인 뒤 �
     expect(doc.match(/^### /gm)).toHaveLength(3);
   });
 
-  it("무시(지시서에서 빼기)는 집계를 바꾸지 않는다: 모두 포함한 문서와 모두 제외한 문서의 머리말이 같고 항목 구역만 다르다", () => {
+  it("포함하지 않아도 집계를 바꾸지 않는다: 모두 포함한 문서와 모두 제외한 문서의 머리말이 같고 항목 구역만 다르다", () => {
     const all = build("renamed", reviewIds);
     const none = build("renamed", []);
     expect(headerOf(all)).toBe(headerOf(none));

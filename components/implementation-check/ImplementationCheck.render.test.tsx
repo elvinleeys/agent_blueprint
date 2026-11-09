@@ -25,8 +25,8 @@ function response(name: string, over: Partial<CheckResponse["baseline"]> = {}): 
   return { baseline: { revision: 3, source: "export", ...over }, result, pairReviews, meta: { timing: { totalMs: 12.4, requestNumber: 1, first: true }, files: 11, bytes: 2000, nodes: 8, confirmedApplied: 0, configs: { read: 1, unsupported: 0 } } };
 }
 
-const view = (data: CheckResponse, selection: Selection = {}, extra: Partial<React.ComponentProps<typeof ResultView>> = {}) =>
-  text(<ResultView data={data} confirmed={[]} selection={selection} running={false} stale={false} nameOf={(id) => id} onChoice={() => {}} onConfirm={() => {}} onCancelConfirm={() => {}} {...extra} />);
+const view = (data: CheckResponse, selection: Selection = new Set(), extra: Partial<React.ComponentProps<typeof ResultView>> = {}) =>
+  text(<ResultView data={data} confirmed={[]} selection={selection} running={false} stale={false} nameOf={(id) => id} onToggle={() => {}} onConfirm={() => {}} onCancelConfirm={() => {}} {...extra} />);
 
 describe("ImplementationCheckPanel", () => {
   const out = text(<ImplementationCheckPanel projectId="p1" onGoStructure={() => {}} />);
@@ -59,7 +59,8 @@ describe("ResultView: 기준 판·집계·카드", () => {
     expect(out).toContain("src/entities/product/ui/ItemImages.tsx");
     expect(out).toContain("ProductGallery를 ItemImages(src/entities/product/ui/ItemImages.tsx)와 같은 것으로 짝짓기");
     expect(out).toContain("수정 요청에 포함");
-    expect(out).toContain(">무시<");
+    expect(out).toMatch(/<input[^>]*type="checkbox"[^>]*>/);
+    expect(out).not.toContain(">무시<");
   });
 
   it("다른 노드의 1순위이기도 한 후보에는 그 사실을 보인다", () => {
@@ -68,31 +69,32 @@ describe("ResultView: 기준 판·집계·카드", () => {
     expect(view(data)).not.toContain("1순위 후보이기도 함");
   });
 
-  it("무시한 카드는 설명을 접고 표시만 남기며, 포함한 카드는 포함됨 표시와 지시서 항목이 생긴다", () => {
+  it("체크한 카드는 체크 상태·포함됨 표시·지시서 항목이 생기고, 'N장 중 M장 포함'이 바뀐다. 미결정 문구는 없다", () => {
     const id = "IC-01|n-gallery|pair";
     const base = view(data);
     expect(base).toContain("ProductGallery의 짝이 ItemImages인지 확인이 필요합니다.");
-    const ignored = view(data, { [id]: "ignore" });
-    expect(ignored).toContain("무시함");
-    expect(ignored).not.toContain("ProductGallery의 짝이 ItemImages인지 확인이 필요합니다.");
-    expect(ignored).toMatch(/aria-pressed="true"[^>]*>무시<\/button>/); // 라벨은 고정하고 눌림 상태만 알린다
-    const included = view(data, { [id]: "include" });
+    expect(base).toContain("확인 필요 카드 3장 중 0장 포함");
+    expect(base).not.toMatch(/checked=""/);
+    expect(base).not.toContain("## 확인 뒤 수정");
+    const included = view(data, new Set([id]));
+    expect(included).toContain("확인 필요 카드 3장 중 1장 포함");
+    expect(included).toMatch(/<input[^>]*type="checkbox"[^>]*checked=""/);
     expect(included).toContain("수정 요청에 포함됨");
     expect(included).toContain("## 확인 뒤 수정");
-    expect(base).not.toContain("## 확인 뒤 수정");
+    for (const out of [base, included]) expect(out).not.toContain("미결정");
   });
 
-  it("무시·포함은 설계 준수 집계를 바꾸지 않는다(화면의 집계 줄·제목이 모든 선택에서 같다)", () => {
+  it("체크는 설계 준수 집계를 바꾸지 않는다(화면의 집계 줄·제목이 모든 선택에서 같다)", () => {
     const ids = data.result.findings.filter((f) => f.certainty === "review").map((f) => f.id);
-    const allIgnored = Object.fromEntries(ids.map((i) => [i, "ignore" as const]));
-    const allIncluded = Object.fromEntries(ids.map((i) => [i, "include" as const]));
+    const noneChecked: Selection = new Set();
+    const allIncluded: Selection = new Set(ids);
     const lines = (out: string) => ({
       summary: out.match(/설계 항목 \d+개 중 일치 \d+개 · 불일치 \d+개 · 확인 필요 \d+개/)?.[0],
       review: out.match(/확인 필요 카드 \d+장/)?.[0],
       header: out.match(/설계 준수: [^\n]*/)?.[0],
     });
     const none = lines(view(data));
-    expect(lines(view(data, allIgnored))).toEqual(none);
+    expect(lines(view(data, noneChecked))).toEqual(none);
     expect(lines(view(data, allIncluded))).toEqual(none);
     expect(none.summary).toBe("설계 항목 65개 중 일치 56개 · 불일치 0개 · 확인 필요 9개");
     expect(none.review).toBe("확인 필요 카드 3장");
@@ -100,7 +102,7 @@ describe("ResultView: 기준 판·집계·카드", () => {
   });
 
   it("확정한 짝이 있으면 목록과 [확정 취소]를 보인다. 파일이 바뀌면 다시 검사하라는 안내를 보인다", () => {
-    const out = view(data, {}, { confirmed: [{ nodeId: "n-gallery", path: "src/entities/product/ui/ItemImages.tsx", name: "ItemImages" }], nameOf: () => "ProductGallery", stale: true });
+    const out = view(data, undefined, { confirmed: [{ nodeId: "n-gallery", path: "src/entities/product/ui/ItemImages.tsx", name: "ItemImages" }], nameOf: () => "ProductGallery", stale: true });
     expect(out).toContain("확정한 짝 1개");
     expect(out).toContain("ProductGallery ↔ ItemImages");
     expect(out).toContain("ProductGallery의 확정 취소");

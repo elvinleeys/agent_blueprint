@@ -5,7 +5,6 @@ import type { Finding } from "@/core/impl-check/result";
 import { REVIEW_LABEL, SEVERITY_LABEL } from "@/core/prompt/fix-prompt";
 import type { PairReview } from "@/lib/client/run-implementation-check";
 import { contestedText } from "./result-view";
-import type { Choice } from "./selection";
 
 type Common = { finding: Finding };
 
@@ -45,18 +44,18 @@ export function CertainCard({ finding: f }: Common) {
 }
 
 /**
- * 확인 필요 카드: 설명·근거, 후보(있으면 경로와 근거, "다른 노드의 1순위이기도 함"), 행동 버튼.
- * [같은 것으로 짝짓기]는 후보 코드마다 보이고, [수정 요청에 포함]·[무시]는 수정 지시서에만 영향을 준다(설계 준수 집계는 그대로).
+ * 확인 필요 카드: 설명·근거, 후보(있으면 경로와 근거, "다른 노드의 1순위이기도 함"), 행동.
+ * [같은 것으로 짝짓기]는 후보 코드마다 보이고, "수정 요청에 포함" 체크는 수정 지시서에만 영향을 준다(설계 준수 집계는 그대로).
  */
 export function ReviewCard({
   finding: f,
-  choice,
-  onChoice,
+  included,
+  onToggle,
   pairReview,
   onConfirm,
   busy,
-}: Common & { choice: Choice | undefined; onChoice: (c: Choice) => void; pairReview: PairReview | undefined; onConfirm: (nodeId: string, path: string, name: string) => void; busy: boolean }) {
-  const ignored = choice === "ignore";
+}: Common & { included: boolean; onToggle: () => void; pairReview: PairReview | undefined; onConfirm: (nodeId: string, path: string, name: string) => void; busy: boolean }) {
+  const checkId = `ic-include-${f.id}`;
   const candidates = f.kind === "pair" ? (pairReview?.candidates ?? []) : [];
   return (
     <li>
@@ -67,49 +66,41 @@ export function ReviewCard({
             <span>
               {f.rule} · {f.node}
             </span>
-            {choice === "include" && <Badge variant="default">수정 요청에 포함됨</Badge>}
-            {ignored && <Badge variant="secondary">무시함</Badge>}
+            {included && <Badge variant="default">수정 요청에 포함됨</Badge>}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 break-words text-sm text-foreground-secondary">
-          {!ignored && (
-            <>
-              <p>{f.message}</p>
-              <Evidence list={f.evidence} />
-              {candidates.length > 0 && (
-                <ul className="flex flex-col gap-2" aria-label={`${f.node}의 후보 코드`}>
-                  {candidates.map((c) => (
-                    <li key={`${c.path}#${c.name}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-2">
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="text-foreground">
-                          {c.name} <span className="text-xs text-foreground-tertiary">({c.kind === "hook" ? "훅" : "컴포넌트"})</span>
-                        </span>
-                        <span className="break-all text-xs text-foreground-tertiary">{c.path}</span>
-                        {contestedText(c.contestedBy) && <span className="text-xs text-warning">{contestedText(c.contestedBy)}</span>}
-                        {c.evidence.map((e) => (
-                          <span key={e.detail} className="break-words text-xs text-foreground-tertiary">
-                            {e.detail}
-                          </span>
-                        ))}
+          <p>{f.message}</p>
+          <Evidence list={f.evidence} />
+          {candidates.length > 0 && (
+            <ul className="flex flex-col gap-2" aria-label={`${f.node}의 후보 코드`}>
+              {candidates.map((c) => (
+                <li key={`${c.path}#${c.name}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-2">
+                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-foreground">
+                      {c.name} <span className="text-xs text-foreground-tertiary">({c.kind === "hook" ? "훅" : "컴포넌트"})</span>
+                    </span>
+                    <span className="break-all text-xs text-foreground-tertiary">{c.path}</span>
+                    {contestedText(c.contestedBy) && <span className="text-xs text-warning">{contestedText(c.contestedBy)}</span>}
+                    {c.evidence.map((e) => (
+                      <span key={e.detail} className="break-words text-xs text-foreground-tertiary">
+                        {e.detail}
                       </span>
-                      <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onConfirm(f.nodeIds[0], c.path, c.name)} aria-label={`${f.node}를 ${c.name}(${c.path})와 같은 것으로 짝짓기`}>
-                        같은 것으로 짝짓기
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
+                    ))}
+                  </span>
+                  <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onConfirm(f.nodeIds[0], c.path, c.name)} aria-label={`${f.node}를 ${c.name}(${c.path})와 같은 것으로 짝짓기`}>
+                    같은 것으로 짝짓기
+                  </Button>
+                </li>
+              ))}
+            </ul>
           )}
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant={choice === "include" ? "default" : "outline"} aria-pressed={choice === "include"} onClick={() => onChoice("include")}>
+          <div className="flex items-center gap-2">
+            <input id={checkId} type="checkbox" checked={included} onChange={onToggle} aria-label={`${f.rule} · ${f.node} 수정 요청에 포함`} className="size-4" />
+            <label htmlFor={checkId} className="text-foreground">
               수정 요청에 포함
-            </Button>
-            <Button type="button" size="sm" variant={ignored ? "default" : "outline"} aria-pressed={ignored} onClick={() => onChoice("ignore")}>
-              무시
-            </Button>
+            </label>
           </div>
-          {ignored && <p className="text-xs text-foreground-tertiary">수정 지시서에서 뺐습니다. &ldquo;무시&rdquo;를 다시 누르면 되돌립니다.</p>}
         </CardContent>
       </Card>
     </li>

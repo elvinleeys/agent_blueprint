@@ -6,11 +6,11 @@ import type { CheckResponse } from "@/lib/client/run-implementation-check";
 import { CertainCard, ReviewCard } from "./FindingCard";
 import FixPromptCard from "./FixPromptCard";
 import { baselineText, banSummaryText, configText, designSummaryText, groupFindings } from "./result-view";
-import { includedIds, type Choice, type Selection } from "./selection";
+import { fixPromptInput, includedCount, type Selection } from "./selection";
 
 /**
  * 검사 결과 화면(그리기만 한다): 기준 판·집계·설정 → 확정한 짝 → 확실 → 확인 필요 → 설계 밖·범위 밖 → 수정 지시서.
- * 집계(일치 M/N·확인 필요 수)는 검사 결과의 summary 그대로이고, 포함·무시 선택(selection)은 수정 지시서에만 영향을 준다.
+ * 집계(일치 M/N·확인 필요 수)는 검사 결과의 summary 그대로이고, "수정 요청에 포함" 체크(selection)는 수정 지시서에만 영향을 준다.
  */
 export default function ResultView({
   data,
@@ -19,7 +19,7 @@ export default function ResultView({
   running,
   stale,
   nameOf,
-  onChoice,
+  onToggle,
   onConfirm,
   onCancelConfirm,
 }: {
@@ -29,12 +29,12 @@ export default function ResultView({
   running: boolean;
   stale: boolean;
   nameOf: (nodeId: string) => string;
-  onChoice: (cardId: string, choice: Choice) => void;
+  onToggle: (cardId: string) => void;
   onConfirm: (nodeId: string, path: string, name: string) => void;
   onCancelConfirm: (nodeId: string) => void;
 }) {
   const groups = groupFindings(data.result.findings);
-  const prompt = buildFixPrompt({ baseline: data.baseline, result: data.result, include: includedIds(selection) });
+  const prompt = buildFixPrompt(fixPromptInput(data, selection));
 
   return (
     <>
@@ -97,14 +97,16 @@ export default function ResultView({
           <p className="text-sm text-foreground-secondary">확인이 필요한 항목이 없습니다.</p>
         ) : (
           <>
-            <p className="text-sm text-foreground-secondary">&ldquo;수정 요청에 포함&rdquo;과 &ldquo;무시&rdquo;는 아래 수정 지시서에만 영향을 줍니다. 설계 준수 집계(일치·확인 필요 수)는 바뀌지 않습니다.</p>
+            <p className="text-sm text-foreground-secondary" aria-live="polite">
+              확인 필요 카드 {groups.review.length}장 중 {includedCount(selection, data)}장 포함. &ldquo;수정 요청에 포함&rdquo;을 체크한 카드만 아래 수정 지시서에 들어갑니다. 설계 준수 집계(일치·확인 필요 수)는 바뀌지 않습니다.
+            </p>
             <ul className="flex flex-col gap-2" aria-label="확인 필요 카드 목록">
               {groups.review.map((f) => (
                 <ReviewCard
                   key={f.id}
                   finding={f}
-                  choice={selection[f.id]}
-                  onChoice={(c) => onChoice(f.id, c)}
+                  included={selection.has(f.id)}
+                  onToggle={() => onToggle(f.id)}
                   pairReview={data.pairReviews.find((p) => p.nodeId === f.nodeIds[0])}
                   onConfirm={onConfirm}
                   busy={running}

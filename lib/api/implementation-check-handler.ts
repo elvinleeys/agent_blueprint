@@ -16,7 +16,7 @@ export const IMPLEMENTATION_CHECK_MAX_BODY_BYTES = 3 * 1024 * 1024;
 const FileList = z.array(z.object({ path: z.string().min(1).max(500), content: z.string() }).strict()).max(500);
 const ConfirmedItem = z.object({ nodeId: z.string().min(1).max(200), path: z.string().min(1).max(500), name: z.string().min(1).max(200) }).strict();
 
-// useAi·accepted는 5단계(AI 제안)에서 더한다. 지금은 모르는 필드로 보고 400을 낸다
+// useAi와 confirmed 각 짝의 source("user"|"ai", 기록용·판정에 안 씀)는 5단계(AI 제안)에서 더한다. 지금은 모르는 필드로 보고 400을 낸다
 const BodySchema = z.object({ codeFiles: FileList, confirmed: z.array(ConfirmedItem).max(200).optional() }).strict();
 
 const byteLength = (s: string) => new TextEncoder().encode(s).length;

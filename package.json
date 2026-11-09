@@ -12,7 +12,8 @@
     "verify:regression": "tsx scripts/verify-regression.ts",
     "verify:mutation": "tsx scripts/verify-mutation.ts",
     "demo:build": "tsx scripts/build-demo-code.ts",
-    "demo:sql": "tsx scripts/demo-blueprint-sql.ts"
+    "demo:sql": "tsx scripts/demo-blueprint-sql.ts",
+    "score": "tsx scripts/score.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

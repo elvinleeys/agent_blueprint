@@ -3,6 +3,7 @@ import { z } from "zod";
 import { httpError } from "../ai/draft-http";
 import { readCodeModel } from "../../core/code-model/facts";
 import { checkLimits, describeLimitProblems, CONFIG_FILE, filterFiles } from "../../core/code-model/filter-files";
+import { configSummary } from "../../core/impl-check/config-summary";
 import { AUTO_REMOVABLE, CONFIRMED_PROBLEM_TEXT, validateConfirmed } from "../../core/impl-check/confirmed";
 import { checkImplementation } from "../../core/impl-check/run";
 import { loadBlueprint } from "../db/blueprints";
@@ -97,10 +98,7 @@ export async function handleImplementationCheckPost(request: Request, ctx: IdCon
         evidence: c.evidence.map((e) => ({ kind: e.kind, detail: e.detail })),
       })),
     }));
-    // 올린 설정 파일 중 읽은 수와, 끝까지 따라가지 못한 설정(읽지 못함·extends·지원하지 않는 패턴) 수
-    const uploadedConfigs = files.filter((f) => CONFIG_FILE.test(f.path)).length;
-    const unreadConfigs = new Set(model.configNotes.filter((n) => n.reason === "invalid-json").map((n) => n.path)).size;
-    const configs = { read: uploadedConfigs - unreadConfigs, unsupported: model.configNotes.length };
+    const configs = configSummary(files, model);
     const t4 = performance.now();
 
     const timing = { totalMs: ms(t0, t4), filterMs: ms(t0, t1), dbMs: ms(t1, t2), parseMs: ms(t2, t3), checkMs: ms(t3, t4), requestNumber: sequence, first: sequence === 1 };

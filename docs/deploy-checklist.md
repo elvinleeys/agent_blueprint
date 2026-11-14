@@ -22,6 +22,8 @@
 | `GITHUB_TOKEN` | `lib/code-source/github.ts`(GitHub 공개 저장소 읽기. 4e는 채점 스크립트 `--repo`, 4f부터 구현 검사 API) | 서버 전용 | 선택. 권장(Production·Preview, **`NEXT_PUBLIC_` 접두사 금지**) |
 | `REPO_CHECK_ENABLED` | `lib/api/feature-access.ts`(구현 검사 GitHub 저장소 입력 켜기) | 서버 전용 | 선택. 정확히 `true`일 때만 켜짐, 없으면 꺼짐 |
 | `REPO_CHECK_ALLOWED_USERS` | 위와 같음(허용할 GitHub 숫자 id, 쉼표 구분) | 서버 전용 | 켤 때만. 비어 있으면 켜져도 아무도 못 씀 |
+| `AI_SUGGEST_ENABLED` | `lib/api/feature-access.ts`(구현 검사의 AI 제안 켜기. OpenAI 비용 발생) | 서버 전용 | 선택. 정확히 `true`일 때만 켜짐, 없으면 꺼짐 |
+| `AI_SUGGEST_ALLOWED_USERS` | 위와 같음(허용할 GitHub 숫자 id, 쉼표 구분) | 서버 전용 | 켤 때만. 비어 있으면 켜져도 아무도 못 씀 |
 
 - 모델 이름·가격은 환경변수가 아니라 코드(`lib/ai/draft-blueprint.ts`)에 있다.
 - **`GITHUB_TOKEN`**(선택):
@@ -34,6 +36,7 @@
   - 목록에는 GitHub 로그인 이름이 아니라 **숫자 id**를 적는다(이름은 바뀔 수 있다). 확인: `https://api.github.com/users/<로그인 이름>`의 `id`.
   - 서버는 사용자가 바꿀 수 있는 `user_metadata`가 아니라 인증 서버의 `identities`(github)에서 id를 읽는다.
   - 값을 바꾼 뒤에는 Vercel에서 다시 배포해야 반영된다.
+- **`AI_SUGGEST_ENABLED`·`AI_SUGGEST_ALLOWED_USERS`**(구현 검사의 AI 제안): 저장소 검사와 같은 방식(기본 꺼짐, 켜도 허용 목록의 GitHub 숫자 id만, identities 기준)이고 목록은 따로다. 허용되지 않은 사용자가 AI 제안을 요청하면 서버가 OpenAI를 부르기 전에 403을 돌려준다. **AI 초안 생성(`/api/draft`)에는 적용되지 않는다**(사용량 제한은 고도화 목록).
 - `.env.local`은 `.gitignore`에 있고 저장소에 올라가 있지 않다(`.env.example`만 추적).
 
 ## 2. Vercel 설정

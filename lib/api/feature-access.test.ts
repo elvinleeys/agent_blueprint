@@ -18,6 +18,27 @@ describe("기능별 환경변수", () => {
     expect(featureConfig("repoCheck", ON)).toEqual({ enabled: true, allowedGithubIds: new Set(["111", "222"]) });
     expect(featureConfig("repoCheck", {}).enabled).toBe(false);
   });
+
+  it("ai는 AI_SUGGEST_ENABLED·AI_SUGGEST_ALLOWED_USERS를 읽고, 기본은 꺼짐", () => {
+    expect(featureConfig("ai", { AI_SUGGEST_ENABLED: "true", AI_SUGGEST_ALLOWED_USERS: "333" })).toEqual({ enabled: true, allowedGithubIds: new Set(["333"]) });
+    expect(featureConfig("ai", {}).enabled).toBe(false);
+  });
+
+  it("기능마다 설정이 따로다: 저장소 검사를 켜고 허용해도 AI는 꺼져 있고, 그 반대도 같다", async () => {
+    const both = { ...ON, AI_SUGGEST_ENABLED: "true", AI_SUGGEST_ALLOWED_USERS: "222" };
+    const { db } = fakeDb(user([{ provider: "github", id: "111" }]));
+    expect(await checkFeature("repoCheck", db, ON)).toBe("allowed");
+    expect(await checkFeature("ai", db, ON)).toBe("disabled");
+    // AI 허용 목록(222)에는 없고 저장소 허용 목록(111·222)에는 있다
+    expect(await checkFeature("ai", db, both)).toBe("not_allowed");
+    expect(await checkFeature("ai", fakeDb(user([{ provider: "github", id: "222" }])).db, both)).toBe("allowed");
+  });
+
+  it("ai도 user_metadata를 허용 id로 바꿔도 identities가 다르면 통과하지 못한다", async () => {
+    const env = { AI_SUGGEST_ENABLED: "true", AI_SUGGEST_ALLOWED_USERS: "333" };
+    const { db } = fakeDb(user([{ provider: "github", id: "999" }], { provider_id: "333", sub: "333" }));
+    expect(await checkFeature("ai", db, env)).toBe("not_allowed");
+  });
 });
 
 describe("GitHub id는 identities에서만", () => {

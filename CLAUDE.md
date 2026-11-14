@@ -52,7 +52,7 @@ app/                       # 라우팅만. 로직을 두지 않는다 (globals.c
   login/page.tsx           # 쿼리를 유지해 홈(/)으로 보내는 주소 (로그인은 홈이 맡음)
   account/page.tsx         # S-09 계정
 core/                      # 순수 TypeScript. React·Next.js import 금지
-  auth/                    # 로그인 후 이동 경로 검증(safeNextPath), 보호 경로 판단(decideRedirect), feature-access(기능 사용 허용 판단 decideAccess: 서버 설정 켜짐 + GitHub 숫자 id 허용 목록. 새 기능은 FeatureId에 이름을 더하고 lib/api/feature-access의 환경변수 표에 한 줄)
+  auth/                    # 로그인 후 이동 경로 검증(safeNextPath), 보호 경로 판단(decideRedirect), feature-access(기능 사용 허용 판단 decideAccess: 서버 설정 켜짐 + GitHub 숫자 id 허용 목록. 기능은 repoCheck(구현 검사 GitHub 저장소)·ai(구현 검사 AI 제안, AI 초안 생성에는 적용 안 함). 새 기능은 FeatureId에 이름을 더하고 lib/api/feature-access의 환경변수 표에 한 줄)
   schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환), normalize-blueprint.ts(AI 응답 자동 보정)
   image/                   # 이미지 전송 전 축소 규칙(fit-size: 가로 1,200px·합계 4MB·품질 단계, 고를 때 검사)
   preview/                 # 구조 미리보기 계산(설계도 layout·placement·order·반응형 → 상자 트리, 훅 분리)

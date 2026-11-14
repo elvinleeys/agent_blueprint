@@ -4,8 +4,8 @@
  * lib/api/feature-access.ts의 환경변수 표에 한 줄을 더한다. 사용자별 횟수 제한을 넣을 때는 decideAccess만 바꾼다.
  */
 
-/** 허용 판단을 거치는 기능. AI 제안 단계에서 "ai"를 더한다 */
-export type FeatureId = "repoCheck";
+/** 허용 판단을 거치는 기능: repoCheck 구현 검사의 GitHub 저장소 입력, ai 구현 검사의 AI 제안(OpenAI 호출). AI 초안 생성은 여기 없다(고도화 목록) */
+export type FeatureId = "repoCheck" | "ai";
 
 export type FeatureConfig = { enabled: boolean; allowedGithubIds: ReadonlySet<string> };
 /** allowed 허용, disabled 서버 설정으로 꺼짐(모든 사용자), not_allowed 켜져 있지만 허용 목록 밖 */

@@ -5,6 +5,7 @@ import { decideAccess, parseFeatureConfig, type Access, type FeatureConfig, type
 /** 기능별 서버 설정(환경변수 이름). 새 기능은 여기에 한 줄 */
 const FEATURE_ENV: Record<FeatureId, { enabled: string; allowed: string }> = {
   repoCheck: { enabled: "REPO_CHECK_ENABLED", allowed: "REPO_CHECK_ALLOWED_USERS" },
+  ai: { enabled: "AI_SUGGEST_ENABLED", allowed: "AI_SUGGEST_ALLOWED_USERS" },
 };
 
 export function featureConfig(feature: FeatureId, env: Record<string, string | undefined> = process.env): FeatureConfig {

@@ -95,9 +95,12 @@ export async function runScore(argv: string[], deps: { fetch?: typeof fetch } = 
 /** --tsconfig: 프로젝트 맨 위 설정(<폴더>/tsconfig.json)으로 간주하고 같은 경로의 설정을 바꾼다(폴더 읽기와 같은 규칙) */
 const withTopConfig = (files: SourceFile[], folder: string, content: string): SourceFile[] => [{ path: `${folder}/tsconfig.json`, content }, ...files.filter((f) => f.path !== `${folder}/tsconfig.json`)];
 
-if (process.argv[1]?.endsWith("score.ts")) {
+// 맨 바깥 await는 tsx의 cjs 변환에서 실행 자체가 안 된다(package.json 모듈 방식은 그대로 둔다)
+async function main() {
   const r = await runScore(process.argv.slice(2));
   if (r.out) process.stdout.write(r.out);
   if (r.err) console.error(r.err);
   process.exit(r.code);
 }
+
+if (process.argv[1]?.endsWith("score.ts")) void main();

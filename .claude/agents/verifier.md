@@ -40,6 +40,8 @@ model: sonnet
 
 11. **변이 실험(범위가 주어질 때만)**: 호출한 쪽이 "변이 범위"를 알려 주면 그 범위만 실행한다 — `npm run verify:mutation -- --stage 3a|3b|3c|neutral` 또는 `-- --only 번호,번호`, 범위가 "전체"면 `npm run verify:mutation`(약 9분, 셸 한도 10분에 가까우면 `--stage`별로 나눠 실행). "변이 범위: 없음"이거나 알려 주지 않았으면 ➖ 해당 없음으로 적고 임의로 돌리지 않는다. 결과는 종료 코드와 요약 줄(잡힘 N · 살아남음 N · 중립 결과가 달라진 것 N)을 그대로 적는다. **PR 제출 직전(끝 단계)에는 호출한 쪽이 인용한 결과를 쓰지 않고 verifier가 전체 `npm run verify:mutation`을 직접 실행한다.** 이때 `tasks/mutation-result-implementation-check.md`가 러너가 만든 그대로 다시 생성되며(손으로 고치지 않음), 문서 맨 위 요약 줄이 콘솔 요약 줄과 같은지 확인해 보고한다. 살아남은 변이가 있으면 ❌이고 번호를 적는다(동등 변이로 표시된 것은 실패가 아니다). 전체 실행은 `tasks/mutation-result-implementation-check.md`를 새로 쓴다. 그 파일이 바뀌는 것은 정상이지만 그 밖의 원본 소스는 러너가 건드리지 않아야 하므로 `git status`로 확인한다.
 
+12. **채점 스크립트를 바꾼 단계**: `git diff <기준> --name-only`에 `scripts/score.ts`·`core/impl-check/score.ts`·`core/impl-check/select-files.ts`·`lib/code-source/` 중 하나라도 있으면, 채점 스크립트를 바꾼 단계로 보고 `npm run score -- --blueprint fixtures/implementation-check/next/blueprint.json --code fixtures/demo-implementation-check/correct`를 **직접 실행한다**(함수 테스트만으로는 명령 자체가 실행되지 않는 문제를 놓친 적이 있다). 종료 코드 0과 출력의 "설계 항목 65개 중 일치 65개"를 확인해 그대로 적는다. 해당 파일이 바뀌지 않았으면 ➖ 해당 없음.
+
 ## 보고 형식
 **모두 통과**하면 아래처럼 짧게:
 

@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
@@ -186,6 +187,14 @@ describe("명령(npm run score)", async () => {
     expect((await runScore([...base, "--max-files", "11"])).code).toBe(0);
     expect(await runScore([...base, "--max-file-kb", "abc"])).toMatchObject({ code: 1, err: "--max-file-kb는 0보다 큰 숫자여야 합니다." });
   });
+
+  // runScore만 부르면 실행 자체가 깨지는 문제(맨 바깥 await가 tsx cjs 변환에서 거부됨)를 놓친다. 실제 명령을 실행한다
+  it("실제 npm run score 실행: 시연 폴더 correct를 로컬 채점하면 종료 코드 0, 65개 중 일치 65개", () => {
+    const r = spawnSync(`npm run score -- --blueprint ${BLUEPRINT_FILE} --code ${DEMO}/correct`, { shell: true, encoding: "utf8" });
+    expect(r.stderr).not.toContain("ERROR");
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain("설계 준수   설계 항목 65개 중 일치 65개 · 불일치 0개 · 확인 필요 0개");
+  }, 60_000);
 
   it("인자가 빠졌거나 파일이 없으면 사용법·원인을 알린다", async () => {
     expect(await runScore([])).toMatchObject({ code: 1, err: expect.stringContaining("사용법: npm run score") });

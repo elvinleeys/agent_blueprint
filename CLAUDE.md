@@ -52,7 +52,7 @@ app/                       # 라우팅만. 로직을 두지 않는다 (globals.c
   login/page.tsx           # 쿼리를 유지해 홈(/)으로 보내는 주소 (로그인은 홈이 맡음)
   account/page.tsx         # S-09 계정
 core/                      # 순수 TypeScript. React·Next.js import 금지
-  auth/                    # 로그인 후 이동 경로 검증(safeNextPath), 보호 경로 판단(decideRedirect)
+  auth/                    # 로그인 후 이동 경로 검증(safeNextPath), 보호 경로 판단(decideRedirect), feature-access(기능 사용 허용 판단 decideAccess: 서버 설정 켜짐 + GitHub 숫자 id 허용 목록. 새 기능은 FeatureId에 이름을 더하고 lib/api/feature-access의 환경변수 표에 한 줄)
   schema/                  # 설계도·DS 스펙 Zod 스키마, tree.ts(평면→트리 변환), normalize-blueprint.ts(AI 응답 자동 보정)
   image/                   # 이미지 전송 전 축소 규칙(fit-size: 가로 1,200px·합계 4MB·품질 단계, 고를 때 검사)
   preview/                 # 구조 미리보기 계산(설계도 layout·placement·order·반응형 → 상자 트리, 훅 분리)
@@ -76,7 +76,7 @@ lib/client/                # 브라우저 전용 (resize-images: 캔버스 축�
 lib/db/                    # DB 접근 함수 (projects(삭제 포함), blueprints, spec-inputs(화면 주소만 저장하는 saveSpecRoute 포함), prompt-exports: 클라이언트를 인자로 받고 결과를 DbResult로 반환, 저장 전·읽은 뒤 Zod 검증)
 supabase/migrations/       # 표·RLS·GRANT SQL (대시보드 SQL 편집기로 직접 실행, 절차는 docs/db-migration.md)
 supabase/tests/            # RLS 격리 확인 스크립트(적용 후 실행, 끝에 rollback)
-lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, http: 오류 매핑·JSON 읽기(readJson은 라우트별 본문 한도), *-handler: 라우트별 처리, analyze-handler: 본문 3MB·칸마다 30개/파일 200KB/합계 1MB, implementation-check-handler: 구현 검사. 본문 3MB·30개/파일 200KB/합계 1MB, tsconfig·jsconfig 허용, 기준 판 조회, 확정한 짝 검증 뒤 재판정, 코드는 저장·로그 없음, 처리 시간 기록)
+lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, feature-access: 기능별 환경변수 읽기·checkFeature(GitHub id는 getUser()의 identities에서만, user_metadata는 쓰지 않음), http: 오류 매핑·JSON 읽기(readJson은 라우트별 본문 한도), *-handler: 라우트별 처리, analyze-handler: 본문 3MB·칸마다 30개/파일 200KB/합계 1MB, implementation-check-handler: 구현 검사. 본문 3MB·30개/파일 200KB/합계 1MB, tsconfig·jsconfig 허용, 기준 판 조회, 확정한 짝 검증 뒤 재판정, 코드는 저장·로그 없음, 처리 시간 기록)
 lib/code-source/           # 코드 읽기(Node 전용, 화면 코드에서 import 금지. 모두 {path, content}[]): local(내 컴퓨터 폴더, 제외 폴더 건너뜀, --tsconfig는 맨 위 설정으로 간주), github(공개 저장소: 저장소 정보로 private 확인·크기 → tarball 주소 → codeload의 같은 저장소만 받기, 메모리에서만 풀기, 제한 REPO_LIMITS, GITHUB_TOKEN은 api.github.com에만), tar(직접 만든 작은 tar 해석기: 일반 파일만, ../·절대 경로 거부, ustar·pax·GNU 긴 이름, 제한), tar-builder(테스트 전용 tar 만들기). 주소 검증은 core/code-source/github-url(순수 함수)
 lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용·단계 알림 콜백, draft-http: 요청 검증·오류 매핑, draft-stream: NDJSON 스트림·하트비트, draft-handler: /api/draft 처리)
 scripts/                   # 개발용 실행 스크립트 (test-draft.ts: lib/ai를 호출하는 초안 생성 검증, 실제 API 호출은 직접 실행)

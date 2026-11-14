@@ -20,6 +20,8 @@
 | `OPENAI_API_KEY` | `lib/ai/draft-blueprint.ts`가 `new OpenAI()`로 SDK 기본 동작에 맡겨 읽음(코드에 이름이 직접 보이지 않는다). `scripts/test-draft.ts`도 읽음 | 서버 전용 | 필요 (**`NEXT_PUBLIC_` 접두사 금지**) |
 | `SUPABASE_SERVICE_ROLE_KEY` | `.env.example`에만 있고 코드에서 읽지 않는다 | 서버 전용 | **설정하지 않는다** (필요해질 때만) |
 | `GITHUB_TOKEN` | `lib/code-source/github.ts`(GitHub 공개 저장소 읽기. 4e는 채점 스크립트 `--repo`, 4f부터 구현 검사 API) | 서버 전용 | 선택. 권장(Production·Preview, **`NEXT_PUBLIC_` 접두사 금지**) |
+| `REPO_CHECK_ENABLED` | `lib/api/feature-access.ts`(구현 검사 GitHub 저장소 입력 켜기) | 서버 전용 | 선택. 정확히 `true`일 때만 켜짐, 없으면 꺼짐 |
+| `REPO_CHECK_ALLOWED_USERS` | 위와 같음(허용할 GitHub 숫자 id, 쉼표 구분) | 서버 전용 | 켤 때만. 비어 있으면 켜져도 아무도 못 씀 |
 
 - 모델 이름·가격은 환경변수가 아니라 코드(`lib/ai/draft-blueprint.ts`)에 있다.
 - **`GITHUB_TOKEN`**(선택):
@@ -27,6 +29,11 @@
   - **공개 저장소만 읽고 다른 권한이 없는 토큰**을 쓴다: GitHub → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token. Repository access는 공개 저장소만 고르는 선택지(화면에 보이는 이름, 예: "Public repositories")를 고르고, **Permissions는 하나도 추가하지 않는다**(GitHub 문서: "Tokens always include read-only access to all public repositories on GitHub"). 만료일을 정하고, 만료 전에 바꾼다.
   - 코드는 토큰이 있어도 저장소 정보의 `private`가 false인지 항상 확인한다. 토큰은 `api.github.com` 요청 머리말에만 붙이고(압축 파일을 받는 codeload 요청에는 붙이지 않음) 화면·응답·로그·오류 문구에 넣지 않는다(`lib/code-source/github.test.ts`가 오류 문구에 토큰이 없는지 확인).
   - 로컬에서 채점 스크립트에 쓸 때는 `.env.local`이 아니라 셸 환경변수로 준다(`npm run score`는 `.env.local`을 읽지 않는다).
+- **`REPO_CHECK_ENABLED`·`REPO_CHECK_ALLOWED_USERS`**(구현 검사의 GitHub 저장소 입력):
+  - 사용자별 횟수 제한이 아직 없어서(고도화 필수 항목) 기본은 꺼 두고, 켜도 허용 목록의 사용자만 쓰게 한다. 허용되지 않은 사용자에게 화면은 "현재 제한된 기능" 안내를 보이고, 서버도 같은 판단으로 403을 돌려준다.
+  - 목록에는 GitHub 로그인 이름이 아니라 **숫자 id**를 적는다(이름은 바뀔 수 있다). 확인: `https://api.github.com/users/<로그인 이름>`의 `id`.
+  - 서버는 사용자가 바꿀 수 있는 `user_metadata`가 아니라 인증 서버의 `identities`(github)에서 id를 읽는다.
+  - 값을 바꾼 뒤에는 Vercel에서 다시 배포해야 반영된다.
 - `.env.local`은 `.gitignore`에 있고 저장소에 올라가 있지 않다(`.env.example`만 추적).
 
 ## 2. Vercel 설정

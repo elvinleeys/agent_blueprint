@@ -25,7 +25,8 @@ const only = arg("--only")?.split(",");
 type Outcome = { id: string; status: "잡힘" | "살아남음" | "적용 실패" | "기준 실패"; failed: string[]; failedCount: number; note?: string };
 
 const work = mkdtempSync(join(tmpdir(), "mutation-"));
-for (const p of ["core", "fixtures"]) cpSync(join(ROOT, p), join(work, p), { recursive: true });
+// 대상 테스트가 가져오는 것까지 복사한다: 채점·시연 스크립트(scripts), 저장소·폴더 읽기와 시험용 tar(lib/code-source), 채점 문구(components/implementation-check/result-view)
+for (const p of ["core", "fixtures", "scripts", "lib/code-source", "components/implementation-check"]) cpSync(join(ROOT, p), join(work, p), { recursive: true });
 for (const p of ["package.json", "tsconfig.json", "vitest.config.mts"]) cpSync(join(ROOT, p), join(work, p));
 symlinkSync(join(ROOT, "node_modules"), join(work, "node_modules"), "junction");
 
@@ -67,7 +68,8 @@ let baselineOk = true;
 try {
   const base = runTests();
   baselineOk = base.failed.length === 0 && base.fileErrors.length === 0 && base.total > 0;
-  console.log(`기준(변이 없음): 테스트 ${base.total}개 중 실패 ${base.failed.length}개${baselineOk ? "" : " — 기준이 통과해야 변이 결과를 믿을 수 있어 중단합니다"}`);
+  console.log(`기준(변이 없음): 테스트 ${base.total}개 중 실패 ${base.failed.length}개 · 불러오지 못한 테스트 파일 ${base.fileErrors.length}개${baselineOk ? "" : " — 기준이 통과해야 변이 결과를 믿을 수 있어 중단합니다"}`);
+  for (const e of base.fileErrors) console.log(`  불러오기 실패: ${e}`);
   if (!baselineOk) {
     console.log([...base.failed, ...base.fileErrors].join("\n"));
     process.exitCode = 1;

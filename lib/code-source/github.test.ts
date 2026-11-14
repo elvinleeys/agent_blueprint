@@ -1,7 +1,7 @@
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import type { RepoTarget } from "@/core/code-source/github-url";
-import { readGithubRepo, type RepoRead, type RepoReadOptions } from "./github";
+import { readGithubRepo, SERVER_REPO_LIMITS, type RepoRead, type RepoReadOptions } from "./github";
 import { buildTar, paxRecord, type TarEntrySpec } from "./tar-builder";
 
 // GitHub 공개 저장소 읽기: 가짜 fetch로만 시험한다(실제 GitHub를 부르지 않는다)
@@ -167,6 +167,11 @@ describe("리다이렉트는 codeload의 같은 저장소만", () => {
     "http://codeload.github.com/acme/shop/legacy.tar.gz/main",
     "https://codeload.github.com:8443/acme/shop/legacy.tar.gz/main",
     "https://codeload.github.com/other/repo/legacy.tar.gz/main",
+    "https://codeload.github.com/acme/shopx/legacy.tar.gz/main",
+    "https://codeload.github.com/acme/shop/../../other/repo/legacy.tar.gz/main",
+    "https://codeload.github.com/acme/shop/%2e%2e/%2e%2e/other/repo/legacy.tar.gz/main",
+    "https://codeload.github.com/acme/shop/legacy.tar.gz/main?token=ABC",
+    "https://codeload.github.com/acme/shop/legacy.tar.gz/main#x",
     "https://codeload.github.com.evil.example/acme/shop/legacy.tar.gz/main",
     "https://user@codeload.github.com/acme/shop/legacy.tar.gz/main",
     "not a url",
@@ -211,6 +216,29 @@ describe("압축 파일 제한·손상·시간", () => {
       new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)))) as typeof fetch;
     const r = await readGithubRepo(target(), { token: "", fetch: slowFetch, limits: { timeoutMs: 30 } });
     expect(errorOf(r)).toMatchObject({ code: "timeout", message: expect.stringContaining("0.03초 안에 받지 못했습니다") });
+  });
+
+  it("호출한 쪽이 중단하면(사용자가 연결을 끊음) 받기를 멈추고 취소로 알린다", async () => {
+    const ac = new AbortController();
+    const slowFetch = (async (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)))) as typeof fetch;
+    const pending = readGithubRepo(target(), { token: "", fetch: slowFetch, signal: ac.signal });
+    ac.abort();
+    expect(errorOf(await pending)).toEqual({ code: "aborted", message: "요청이 취소되어 저장소 받기를 멈췄습니다." });
+  });
+
+  it("남길 파일 개수 상한을 넘으면 하위 폴더 안내와 함께 중단한다", async () => {
+    const { r } = await run([json(META), redirect(), tgz()], target(), { limits: { maxKeptFiles: 2 } });
+    expect(errorOf(r)).toMatchObject({ code: "too_many_files", message: expect.stringContaining("하위 폴더를 지정해 범위를 좁혀 보세요.") });
+  });
+
+  it("커밋 id가 40자리 16진수가 아니면 null(압축 파일 안 문자열을 결과에 싣지 않음)", async () => {
+    const { r } = await run([json(META), redirect(), tgz(archive([{ name: "pax_global_header", type: "g", content: paxRecord("comment", "<b>x</b>") }, ...ENTRIES.slice(1)]))]);
+    expect(r.ok && r.commit).toBeNull();
+  });
+
+  it("서버용 제한값(4f 승인 값)", () => {
+    expect(SERVER_REPO_LIMITS).toEqual({ maxRepoKb: 200 * 1024, maxCompressedBytes: 10 * 1024 * 1024, maxUnpackedBytes: 100 * 1024 * 1024, maxEntries: 20_000, maxFileBytes: 200 * 1024, maxKeptBytes: 5 * 1024 * 1024, maxKeptFiles: 2_000, timeoutMs: 20_000 });
   });
 
   it("연결 실패는 네트워크 오류로 알린다", async () => {

@@ -19,9 +19,23 @@ export const REPO_LIMITS = {
   maxEntries: 50_000,
   maxFileBytes: 1024 * 1024,
   maxKeptBytes: 20 * 1024 * 1024,
+  /** 채점 스크립트(내 컴퓨터)는 항목 수 상한과 같게 둔다 */
+  maxKeptFiles: 50_000,
   timeoutMs: 30_000,
 };
 export type RepoLimits = typeof REPO_LIMITS;
+
+/** 서버(API)용 제한(4f 승인 값). 여러 사용자가 함께 쓰는 서버라 채점 스크립트보다 작게. 고른 뒤 상한(200개·5MB)은 API가 따로 본다 */
+export const SERVER_REPO_LIMITS: RepoLimits = {
+  ...REPO_LIMITS,
+  maxCompressedBytes: 10 * 1024 * 1024,
+  maxUnpackedBytes: 100 * 1024 * 1024,
+  maxEntries: 20_000,
+  maxFileBytes: 200 * 1024,
+  maxKeptBytes: 5 * 1024 * 1024,
+  maxKeptFiles: 2_000,
+  timeoutMs: 20_000,
+};
 
 export type RepoErrorCode =
   | "not_found"
@@ -34,6 +48,7 @@ export type RepoErrorCode =
   | "forbidden"
   | "bad_redirect"
   | "timeout"
+  | "aborted"
   | "github_error"
   | "network"
   | TarError["code"];
@@ -48,6 +63,8 @@ export type RepoReadOptions = {
   token?: string;
   fetch?: Fetch;
   limits?: Partial<RepoLimits>;
+  /** 호출한 쪽의 중단 신호(API는 request.signal: 사용자가 연결을 끊으면 받기·풀기를 멈춘다) */
+  signal?: AbortSignal;
 };
 
 const API = "https://api.github.com";
@@ -78,7 +95,7 @@ export async function readGithubRepo(target: RepoTarget, options: RepoReadOption
   const doFetch = options.fetch ?? fetch;
   const token = options.token ?? process.env.GITHUB_TOKEN ?? "";
   const nowSec = () => Math.floor(Date.now() / 1000);
-  const signal = AbortSignal.timeout(limits.timeoutMs);
+  const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(limits.timeoutMs)]) : AbortSignal.timeout(limits.timeoutMs);
   // 토큰은 api.github.com 요청에만 붙인다(압축 파일 받기에는 붙이지 않는다)
   const apiHeaders: Record<string, string> = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": UA, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
   const { owner, repo } = target;
@@ -110,7 +127,8 @@ export async function readGithubRepo(target: RepoTarget, options: RepoReadOption
       return fail("bad_redirect", "GitHub가 알 수 없는 주소로 보냈습니다.");
     }
     const samePath = location.pathname.toLowerCase().startsWith(`/${owner}/${repo}/`.toLowerCase());
-    if (location.protocol !== "https:" || location.hostname !== CODELOAD || location.port !== "" || location.username !== "" || !samePath) {
+    // 공개 저장소의 codeload 주소에는 쿼리가 없다(비공개 저장소면 ?token=이 붙는다)
+    if (location.protocol !== "https:" || location.hostname !== CODELOAD || location.port !== "" || location.username !== "" || location.search !== "" || location.hash !== "" || !samePath) {
       return fail("bad_redirect", "GitHub가 허용하지 않은 주소로 보냈습니다.");
     }
 
@@ -161,7 +179,8 @@ export async function readGithubRepo(target: RepoTarget, options: RepoReadOption
     return { ok: true, files: reader.files, owner, repo, ref, commit: reader.commit, folder };
   } catch (e) {
     if (e instanceof CompressedTooLarge) return fail("too_large", `압축 파일이 ${limits.maxCompressedBytes / (1024 * 1024)}MB를 넘습니다.`);
-    if (e instanceof TarError) return fail(e.code, `${e.message}${e.code === "file_too_large" || e.code === "kept_too_large" ? " 하위 폴더를 지정해 범위를 좁혀 보세요." : ""}`);
+    if (e instanceof TarError) return fail(e.code, `${e.message}${e.code === "file_too_large" || e.code === "kept_too_large" || e.code === "too_many_files" ? " 하위 폴더를 지정해 범위를 좁혀 보세요." : ""}`);
+    if (options.signal?.aborted) return fail("aborted", "요청이 취소되어 저장소 받기를 멈췄습니다.");
     const name = e instanceof Error ? e.name : "";
     if (name === "TimeoutError" || name === "AbortError" || signal.aborted) return fail("timeout", `저장소를 ${limits.timeoutMs / 1000}초 안에 받지 못했습니다. 하위 폴더를 지정하거나 더 작은 저장소로 시도해 주세요.`);
     if (name === "ZlibError" || (e as { code?: string })?.code?.startsWith?.("Z_")) return fail("bad_archive", "압축 파일을 풀지 못했습니다.");

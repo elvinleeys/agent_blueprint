@@ -35,6 +35,8 @@ export function parseRepoUrl(raw: string, subdirRaw?: string | null): RepoUrlRes
   if (!text || text.length > 300) return bad("주소가 비었거나 너무 깁니다.");
   // URL 해석기는 `/./`·`/../`를 조용히 정리하므로, 정리되기 전 원문에서 먼저 거부한다
   if (/\/\.{1,2}(\/|$|[?#])/.test(text)) return bad("주소에 . 이나 .. 경로가 있습니다.");
+  // URL 해석기는 `\`를 `/`로 바꾼 뒤 `..`를 정리하므로 원문에서 거부한다
+  if (text.includes("\\")) return bad("주소에 역슬래시(\\)가 있습니다.");
   let url: URL;
   try {
     url = new URL(text);
@@ -52,7 +54,7 @@ export function parseRepoUrl(raw: string, subdirRaw?: string | null): RepoUrlRes
   const repo = parts[1].replace(/\.git$/, "");
   if (!OWNER.test(owner) || !REPO.test(repo) || repo === "." || repo === "..") return bad("저장소 이름에 쓸 수 없는 글자가 있습니다.");
   const ref = parts.length === 4 ? parts[3] : null;
-  if (ref !== null && (!REF.test(ref) || ref.includes(".."))) return bad("브랜치 이름에 쓸 수 없는 글자가 있습니다(/ 가 든 브랜치는 지원하지 않습니다).");
+  if (ref !== null && (!REF.test(ref) || ref === "." || ref.includes(".."))) return bad("브랜치 이름에 쓸 수 없는 글자가 있습니다(/ 가 든 브랜치는 지원하지 않습니다).");
   const sub = parseSubdir(subdirRaw);
   if (!sub.ok) return { ok: false, message: sub.message };
   return { ok: true, target: { owner, repo, ref, subdir: sub.subdir } };

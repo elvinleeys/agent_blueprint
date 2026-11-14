@@ -11,6 +11,10 @@ export type TarEntrySpec = {
   sizeOverride?: number;
   /** 검사합을 일부러 틀리게 */
   badChecksum?: boolean;
+  /** GNU 형식 머리말("ustar  \0"): 345바이트부터가 prefix가 아니다 */
+  gnu?: boolean;
+  /** 크기 칸을 base-256(첫 바이트 0x80) 표기로 */
+  base256Size?: boolean;
 };
 
 const enc = new TextEncoder();
@@ -26,8 +30,12 @@ function header(e: TarEntrySpec, size: number): Uint8Array {
   put("00000000000\0", 136, 12);
   put(e.type ?? "0", 156, 1);
   if (e.linkname) put(e.linkname, 157, 100);
-  put("ustar\0", 257, 6);
-  put("00", 263, 2);
+  if (e.base256Size) h.set([0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], 124);
+  if (e.gnu) put("ustar  \0", 257, 8);
+  else {
+    put("ustar\0", 257, 6);
+    put("00", 263, 2);
+  }
   if (e.prefix) put(e.prefix, 345, 155);
   h.fill(0x20, 148, 156);
   let sum = h.reduce((a, b) => a + b, 0);

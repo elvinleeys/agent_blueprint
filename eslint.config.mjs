@@ -5,6 +5,13 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // 내 컴퓨터 폴더 읽기(경로 제한·크기 상한 없음)와 테스트용 tar 만들기는 서버·화면 코드에서 쓰지 않는다
+  {
+    files: ["app/**", "lib/api/**", "components/**"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [{ regex: "code-source/(local|tar-builder)$", message: "채점 스크립트·테스트 전용 모듈입니다(서버·화면에서 import 금지)." }] }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

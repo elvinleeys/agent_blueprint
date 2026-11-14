@@ -3,11 +3,12 @@
  * - 일반 파일만 읽는다. 폴더·바로가기(symlink)·하드링크·장치 파일 등 특수 항목은 내용을 버린다.
  * - `../`·절대 경로·드라이브 경로·역슬래시가 든 항목 이름은 압축 파일 전체를 거부한다(GitHub tarball에는 없어야 하는 이름).
  * - 머리말: 표준(ustar, prefix+name), 긴 경로용 pax(`x`: path·size, `g`: GitHub가 넣는 커밋 id comment), GNU 긴 이름(`L`).
- * - 제한: 항목 수, 푼 전체 크기(버리는 파일 포함, 압축 폭탄 방어), 남긴 파일 하나 크기·합계. 넘으면 바로 중단한다.
+ * - 제한: 항목 수, 푼 전체 크기(버리는 파일 포함, 압축 폭탄 방어), 남긴 파일 하나 크기·합계·개수. 넘으면 바로 중단한다.
+ * - 압축 파일 안의 문자열은 오류 문구·결과에 그대로 싣지 않는다(경로는 잘라서, 커밋 id는 40자리 16진수만). 같은 경로가 여러 번 나오면 마지막 것만 남긴다.
  */
 
-export type TarLimits = { maxEntries: number; maxUnpackedBytes: number; maxFileBytes: number; maxKeptBytes: number };
-export type TarErrorCode = "unsafe_path" | "bad_archive" | "too_many_entries" | "too_large_unpacked" | "file_too_large" | "kept_too_large";
+export type TarLimits = { maxEntries: number; maxUnpackedBytes: number; maxFileBytes: number; maxKeptBytes: number; maxKeptFiles: number };
+export type TarErrorCode = "unsafe_path" | "bad_archive" | "too_many_entries" | "too_large_unpacked" | "file_too_large" | "kept_too_large" | "too_many_files";
 
 export class TarError extends Error {
   constructor(
@@ -25,6 +26,10 @@ const BLOCK = 512;
 /** pax·GNU 긴 이름 같은 머리말 내용 상한(정상은 수백 바이트) */
 const MAX_META_BYTES = 64 * 1024;
 const decoder = new TextDecoder("utf-8");
+const COMMIT = /^[0-9a-f]{40}$/;
+
+/** 압축 파일에서 온 경로를 문구에 실을 때: 제어 문자를 빼고 200자로 자른다 */
+export const shownPath = (p: string) => { const s = p.replace(/[\u0000-\u001f\u007f]/g, ""); return s.length > 200 ? `${s.slice(0, 200)}…` : s; };
 
 const cstr = (b: Uint8Array, start: number, len: number) => {
   const slice = b.subarray(start, start + len);
@@ -39,7 +44,7 @@ export function unsafeTarPath(path: string): boolean {
 
 /** pax 기록: "<길이> <키>=<값>\n" 반복(길이는 바이트 단위, 자기 자신 포함) */
 function parsePax(b: Uint8Array): Record<string, string> {
-  const out: Record<string, string> = {};
+  const out: Record<string, string> = Object.create(null);
   let pos = 0;
   while (pos < b.length) {
     const sp = b.indexOf(0x20, pos);
@@ -67,6 +72,9 @@ export class TarReader {
   private entries = 0;
   private unpacked = 0;
   private kept = 0;
+  private keptFiles = 0;
+  /** 남긴 경로 → files의 위치(같은 경로가 다시 나오면 덮어쓴다) */
+  private index = new Map<string, number>();
   private finished = false;
 
   constructor(
@@ -123,7 +131,8 @@ export class TarReader {
     if (h[124] & 0x80) throw new TarError("bad_archive", "압축 파일에 지원하지 않는 크기 표기가 있습니다.");
     let size = parseInt(cstr(h, 124, 12).trim() || "0", 8);
     const name = cstr(h, 0, 100);
-    const prefix = cstr(h, 257, 6).startsWith("ustar") ? cstr(h, 345, 155) : "";
+    // POSIX ustar("ustar\0")만 345바이트부터 prefix다. GNU("ustar  ")는 같은 자리에 다른 값이 있다
+    const prefix = cstr(h, 257, 6) === "ustar" ? cstr(h, 345, 155) : "";
     let path = prefix ? `${prefix}/${name}` : name;
 
     const meta = type === "x" || type === "g" || type === "L";
@@ -134,7 +143,7 @@ export class TarReader {
       if (this.pax.size !== undefined) size = Number(this.pax.size);
       this.pax = {};
       this.longName = null;
-      if (unsafeTarPath(path)) throw new TarError("unsafe_path", `압축 파일에 허용하지 않는 경로가 있습니다: ${path}`);
+      if (unsafeTarPath(path)) throw new TarError("unsafe_path", "압축 파일에 허용하지 않는 경로가 있습니다.");
     }
     if (!Number.isSafeInteger(size) || size < 0) throw new TarError("bad_archive", "압축 파일의 항목 크기를 읽지 못했습니다.");
 
@@ -145,7 +154,8 @@ export class TarReader {
     } else if (type === "0" || type === "7") {
       const mapped = this.accept(path);
       if (mapped !== null) {
-        if (size > this.limits.maxFileBytes) throw new TarError("file_too_large", `파일 하나가 ${this.limits.maxFileBytes / 1024}KB를 넘습니다: ${mapped}`);
+        if (size > this.limits.maxFileBytes) throw new TarError("file_too_large", `파일 하나가 ${this.limits.maxFileBytes / 1024}KB를 넘습니다: ${shownPath(mapped)}`);
+        if (++this.keptFiles > this.limits.maxKeptFiles) throw new TarError("too_many_files", `읽을 파일이 ${this.limits.maxKeptFiles.toLocaleString("en-US")}개를 넘습니다.`);
         this.kept += size;
         if (this.kept > this.limits.maxKeptBytes) throw new TarError("kept_too_large", `읽을 파일의 합계가 ${this.limits.maxKeptBytes / (1024 * 1024)}MB를 넘습니다.`);
         sink = "keep";
@@ -169,11 +179,17 @@ export class TarReader {
       o += c.length;
     }
     if (b.sink === "keep") {
-      this.files.push({ path: b.path, content: decoder.decode(bytes) });
+      const file = { path: b.path, content: decoder.decode(bytes) };
+      const at = this.index.get(b.path);
+      if (at === undefined) this.index.set(b.path, this.files.push(file) - 1);
+      else this.files[at] = file;
       return;
     }
     if (b.type === "L") this.longName = cstr(bytes, 0, bytes.length);
     else if (b.type === "x") this.pax = parsePax(bytes);
-    else if (b.type === "g") this.commit = parsePax(bytes).comment ?? this.commit;
+    else if (b.type === "g") {
+      const comment = parsePax(bytes).comment;
+      if (comment !== undefined && COMMIT.test(comment)) this.commit = comment;
+    }
   }
 }

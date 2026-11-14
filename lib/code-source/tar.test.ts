@@ -4,7 +4,7 @@ import { buildTar, paxRecord } from "./tar-builder";
 
 // tar 해석기(사용자 결정 1): 일반 파일만, 특수 항목 무시, 위험한 경로 거부, 표준·긴 경로 머리말, 제한을 넘으면 중단
 
-const LIMITS: TarLimits = { maxEntries: 50_000, maxUnpackedBytes: 300 * 1024 * 1024, maxFileBytes: 1024 * 1024, maxKeptBytes: 20 * 1024 * 1024 };
+const LIMITS: TarLimits = { maxEntries: 50_000, maxUnpackedBytes: 300 * 1024 * 1024, maxFileBytes: 1024 * 1024, maxKeptBytes: 20 * 1024 * 1024, maxKeptFiles: 50_000 };
 const keepAll: TarAccept = (p) => p;
 
 function read(bytes: Uint8Array, { limits = LIMITS, accept = keepAll, chunk = 0 }: { limits?: TarLimits; accept?: TarAccept; chunk?: number } = {}) {
@@ -96,6 +96,21 @@ describe("머리말: 표준(ustar prefix)·pax·GNU 긴 이름·GitHub 커밋 id
     expect(read(buildTar([{ name: "r/a.ts", content: "a" }])).commit).toBeNull();
   });
 
+  it("커밋 id가 40자리 16진수가 아니면 쓰지 않는다(압축 파일 안 문자열을 결과에 그대로 싣지 않음)", () => {
+    for (const bad of ["not-a-sha", "x".repeat(60_000), "0123456789ABCDEF0123456789ABCDEF01234567", "0123456789abcdef0123456789abcdef01234567\u0000"]) {
+      expect(read(buildTar([{ name: "pax_global_header", type: "g", content: paxRecord("comment", bad) }, { name: "r/a.ts", content: "a" }])).commit).toBeNull();
+    }
+  });
+
+  it("GNU 머리말(ustar 두 칸 공백)은 345바이트를 prefix로 읽지 않는다", () => {
+    expect(read(buildTar([{ name: "r/a.ts", prefix: "junk", gnu: true, content: "a" }])).files[0].path).toBe("r/a.ts");
+  });
+
+  it("같은 경로가 여러 번 나오면 마지막 내용 하나만 남긴다", () => {
+    const r = read(buildTar([{ name: "r/a.ts", content: "old" }, { name: "r/b.ts", content: "b" }, { name: "r/a.ts", content: "new" }]));
+    expect(r.files).toEqual([{ path: "r/a.ts", content: "new" }, { path: "r/b.ts", content: "b" }]);
+  });
+
   it("끝 표시(0 블록) 뒤의 내용은 읽지 않는다", () => {
     const t = buildTar([{ name: "r/a.ts", content: "a" }]);
     const extra = buildTar([{ name: "r/b.ts", content: "b" }], { end: false });
@@ -114,6 +129,20 @@ describe("손상된 압축 파일", () => {
   it("항목 중간에서 끝나면 거부", () => {
     const t = buildTar([{ name: "r/a.ts", content: "x".repeat(2000) }], { end: false });
     expect(codeOf(() => read(t.subarray(0, 1200)))).toBe("bad_archive");
+  });
+
+  it("크기가 base-256 표기이거나 음수(pax size)면 거부", () => {
+    expect(codeOf(() => read(buildTar([{ name: "r/a.ts", content: "a", base256Size: true }])))).toBe("bad_archive");
+    expect(codeOf(() => read(buildTar([{ name: "PaxHeader", type: "x", content: paxRecord("size", "-5") }, { name: "r/a.ts", content: "a" }])))).toBe("bad_archive");
+  });
+
+  it("위험한 경로 오류 문구에 압축 파일 안의 경로를 싣지 않는다", () => {
+    try {
+      read(buildTar([{ name: "PaxHeader", type: "x", content: paxRecord("path", `../${"A".repeat(5000)}\u0007.ts`) }, { name: "safe.ts", content: "x" }]));
+      expect.unreachable();
+    } catch (e) {
+      expect((e as TarError).message).toBe("압축 파일에 허용하지 않는 경로가 있습니다.");
+    }
   });
 
   it("pax 기록 길이가 틀리면 거부", () => {
@@ -143,6 +172,26 @@ describe("제한(3절 값)을 넘으면 중단", () => {
     expect(codeOf(() => read(t, { limits: { ...LIMITS, maxFileBytes: 500 }, accept: keepTs }))).toBe("file_too_large");
     expect(codeOf(() => read(t, { limits: { ...LIMITS, maxKeptBytes: 1_000 }, accept: keepTs }))).toBe("kept_too_large");
     expect(read(t, { limits: { ...LIMITS, maxKeptBytes: 1_200 }, accept: keepTs }).files).toHaveLength(2);
+  });
+
+  it("남길 파일 개수(버리는 파일은 세지 않음)", () => {
+    const t = buildTar([...Array.from({ length: 3 }, (_, i) => ({ name: `r/${i}.ts`, content: "x" })), { name: "r/skip.md", content: "x" }]);
+    const keepTs = (p: string) => (p.endsWith(".ts") ? p : null);
+    expect(codeOf(() => read(t, { limits: { ...LIMITS, maxKeptFiles: 2 }, accept: keepTs }))).toBe("too_many_files");
+    expect(read(t, { limits: { ...LIMITS, maxKeptFiles: 3 }, accept: keepTs }).files).toHaveLength(3);
+  });
+
+  it("너무 큰 파일 오류 문구의 경로는 제어 문자를 빼고 200자로 자른다", () => {
+    const long = `r/${"B".repeat(500)}\u0007.ts`;
+    try {
+      read(buildTar([{ name: "PaxHeader", type: "x", content: paxRecord("path", long) }, { name: "r/x.ts", content: "x".repeat(600) }]), { limits: { ...LIMITS, maxFileBytes: 500 } });
+      expect.unreachable();
+    } catch (e) {
+      const m = (e as TarError).message;
+      expect(m).not.toContain("\u0007");
+      expect(m).toContain(`r/${"B".repeat(198)}…`);
+      expect(m.length).toBeLessThan(300);
+    }
   });
 
   it("머리말의 크기가 실제보다 크게 적혀 있어도 제한을 먼저 본다(남길 파일)", () => {

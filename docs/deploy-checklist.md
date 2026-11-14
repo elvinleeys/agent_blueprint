@@ -45,7 +45,7 @@
 2. Settings → Environment Variables에 1절의 필요한 3개를 넣는다. `OPENAI_API_KEY`는 Sensitive로 둔다.
 3. **환경변수를 넣은 뒤에 배포(또는 재배포)한다.** `NEXT_PUBLIC_*`는 빌드 때 번들에 들어가므로, 나중에 값을 바꾸면 재배포해야 반영된다. 비어 있는 채로 빌드해도 빌드는 통과하지만 로그인이 깨진다.
 4. Node.js 버전은 프로젝트 기본값을 쓴다(`package.json`에 `engines` 지정 없음).
-5. 함수 실행 시간: `/api/draft`는 최대 70초를 요청한다. Settings → Functions의 최대 실행 시간(요금제·Fluid Compute 설정에 따라 다름)이 70초 이상인지 확인한다. 부족하면 초안 생성이 끝나기 전에 끊기고 화면은 "연결이 끊겼습니다"를 보여 준다.
+5. 함수 실행 시간: 구현 검사(`/api/projects/[id]/implementation-check`)는 최대 60초를 요청한다(저장소 받기 최대 20초, AI 제안은 남은 시간 안에서 최대 45초). `/api/draft`는 최대 70초를 요청한다. Settings → Functions의 최대 실행 시간(요금제·Fluid Compute 설정에 따라 다름)이 70초 이상인지 확인한다. 부족하면 초안 생성이 끝나기 전에 끊기고 화면은 "연결이 끊겼습니다"를 보여 준다.
 6. 요청 본문 한도: Vercel 함수는 4.5MB다. 이미지는 브라우저에서 합계 4MB 이하로 줄여 보내도록 이미 맞춰 두었다.
 7. 도메인이 정해지면 Production URL을 적어 둔다(아래 Supabase 설정에 쓴다).
 

@@ -1,5 +1,5 @@
-// PreToolUse(Bash|Write|Edit) 훅: 이 프로젝트에서 문제가 됐던 행동을 실행 전에 막거나(종료 코드 2) 사용자에게 묻는다(JSON + 종료 코드 0).
-// 파일·명령을 읽는 도구(Read·Grep·Glob)는 이 훅이 아예 붙지 않는다. 훅 자신이 고장 나면 막지 않고 통과시킨다(종료 코드 0).
+// PreToolUse(Bash|PowerShell|Write|Edit|Read|Grep) 훅: 이 프로젝트에서 문제가 됐던 행동을 실행 전에 막거나(종료 코드 2) 사용자에게 묻는다(JSON + 종료 코드 0).
+// Read·Grep은 .env 파일 규칙만 본다. 훅 자신이 고장 나면 막지 않고 통과시킨다(종료 코드 0). 시험: .claude/hooks/guard.test.mjs
 import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
@@ -47,12 +47,14 @@ const gitCommand = (tokens) => {
 
 // 파일에 쓰는 명령처럼 보이는가(리다이렉트, sed -i, tee, mv, cp, rm …). 읽기 명령(cat, grep, git add)은 해당하지 않는다
 const WRITES = /(^|[^<>0-9&])>{1,2}|\bsed\s+(-\w*i|--in-place)|\btee\b|\b(mv|cp|rm|truncate|dd)\b|\bperl\s+-\w*i/;
-const words = (cmd) => cmd.split(/[\s"'`;&|()<>]+/).filter(Boolean).map(slash);
+// 경로에 쓰이지 않는 글자(공백·따옴표·한글·가운뎃점 등)에서 끊는다. 커밋 메시지의 ".env.example·문서.md"가 한 단어로 붙어 오판한 적이 있다
+const words = (cmd) => cmd.split(/[^A-Za-z0-9_./\\:@~+*?-]+/).filter(Boolean).map(slash);
 
 // ── 규칙 ───────────────────────────────────────────────────────────
 // 각 규칙은 걸리면 { id, action: "block"|"ask", target, why, instead }를 돌려준다.
 // target은 일지에 남기는 값이라 명령 전체가 아니라 파일 이름·브랜치만 적는다(비밀값이 일지에 남지 않게)
-const ENV_FILE = (name) => /^\.env(\..+)?$/.test(name) && !/\.(example|sample|template)$/.test(name);
+// .env로 시작하는 파일은 모두 비밀 파일로 본다(.env, .env.local, .env.production.local, .env* 같은 글롭 포함). 예외는 이름만 적는 .env.example 하나
+const ENV_FILE = (name) => name.startsWith(".env") && name !== ".env.example";
 const MIGRATION = /^supabase\/migrations\/[^/]+$/;
 const EXPECTED = /^fixtures\/.+\/expected\.(json|md)$/;
 
@@ -67,7 +69,7 @@ const ENV_RULE = (target) => ({
   id: "2-env-수정",
   action: "block",
   target,
-  why: ".env 파일에는 비밀 키가 들어 있습니다. 잘못 쓰면 키가 노출되거나 개발 환경이 깨집니다.",
+  why: ".env 파일에는 비밀 키가 들어 있습니다. 읽거나 쓰면 키가 노출되거나 개발 환경이 깨집니다(.env.example만 읽기·편집·git add 가능).",
   instead: "새 변수가 필요하면 .env.example에 이름만 추가하고, 값은 사용자가 직접 .env.local에 넣도록 안내하세요.",
 });
 const EXPECTED_RULE = (target) => ({
@@ -91,14 +93,18 @@ function fileRules({ rel, abs }) {
 function bashRules({ root, cmd }) {
   const out = [];
 
-  // 1·2·6: 파일에 쓰는 명령이 이 파일들을 가리키면
+  // 2: .env 파일은 읽기(cat·Get-Content·git add …)도 쓰기도 막는다. 프로젝트 밖 경로라도 이름으로 막는다
+  for (const w of words(cmd)) {
+    const name = w.split("/").pop().toLowerCase();
+    if (ENV_FILE(name)) out.push(ENV_RULE(name));
+  }
+
+  // 1·6: 파일에 쓰는 명령이 이 파일들을 가리키면
   if (WRITES.test(cmd)) {
     for (const w of words(cmd)) {
       const rel = slash(relative(root, resolve(root, w))).toLowerCase();
       if (rel.startsWith("..")) continue;
-      const name = rel.split("/").pop();
       if (MIGRATION.test(rel) && existsSync(resolve(root, w))) out.push(MIGRATION_RULE(rel));
-      if (ENV_FILE(name)) out.push(ENV_RULE(rel));
       if (EXPECTED.test(rel)) out.push(EXPECTED_RULE(rel));
     }
   }
@@ -163,11 +169,17 @@ process.stdin.on("end", () => {
     root = resolve(process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd());
     tool = input.tool_name ?? "?";
     const ti = input.tool_input ?? {};
-    if (tool === "Bash" && typeof ti.command === "string") hits = bashRules({ root, cmd: ti.command });
+    if ((tool === "Bash" || tool === "PowerShell") && typeof ti.command === "string") hits = bashRules({ root, cmd: ti.command });
     else if ((tool === "Write" || tool === "Edit") && typeof ti.file_path === "string") {
       const abs = isAbsolute(ti.file_path) ? ti.file_path : resolve(root, ti.file_path);
       const rel = slash(relative(root, abs));
       if (!rel.startsWith("..")) hits = fileRules({ rel, abs });
+      else if (ENV_FILE(slash(abs).split("/").pop().toLowerCase())) hits = [ENV_RULE(slash(abs).split("/").pop())];
+    } else if (tool === "Read" || tool === "Grep") {
+      // 읽기 도구는 .env 규칙만. Grep은 path(파일·폴더)와 glob을 본다
+      const name = (p) => (typeof p === "string" ? slash(p).split("/").pop().toLowerCase() : "");
+      const hit = [ti.file_path, ti.path, ti.glob].map(name).find(ENV_FILE);
+      if (hit) hits = [ENV_RULE(hit)];
     }
   } catch {
     process.exit(0); // 읽지 못하면 막지 않는다

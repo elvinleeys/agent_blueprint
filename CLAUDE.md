@@ -37,7 +37,7 @@ npm run score -- --blueprint <설계도 JSON> (--code <코드 폴더> | --repo <
 ```
 (프로젝트 루트)/
 components.json            # shadcn/ui 설정
-vitest.config.mts          # 테스트 설정 (tsconfig의 "@/" 경로 별칭만. 컴포넌트 렌더링 스모크 테스트가 쓴다)
+vitest.config.mts          # 테스트 설정 (tsconfig의 "@/" 경로 별칭(컴포넌트 렌더링 스모크 테스트가 쓴다), .claude/hooks의 보호 훅 시험 포함)
 THIRD_PARTY_NOTICES.md     # 서드파티(몽타주 토큰·Pretendard·shadcn/ui) 출처와 라이선스 고지
 proxy.ts                   # 세션 갱신, 비로그인 사용자의 /projects·/account 접근을 /?next=로 이동, /login은 /로 이동, 로그인 상태의 /는 next 또는 /projects로 이동
 app/                       # 라우팅만. 로직을 두지 않는다 (globals.css가 디자인 기준값 CSS 변수의 정본, fonts/ 글꼴 파일)

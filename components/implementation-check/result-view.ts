@@ -44,6 +44,9 @@ export function removedTexts(removed: RemovedPair[], nameOf: (nodeId: string) =>
 export const PAIR_VERDICT = { same: "같은 것으로 보임", different: "다른 것으로 보임", unsure: "판단 어려움" } as const;
 export const RESPONSIBILITY_VERDICT = { done: "수행함", missing: "수행하지 않은 것 같음", unsure: "판단 어려움" } as const;
 
+/** AI가 판단한 책임 total개 중 done개가 "수행함"일 때의 접힌 요약 한 줄 */
+export const aiDoneSummary = (total: number, done: number) => `책임 ${total}개 중 ${done}개는 수행한 것으로 보임`;
+
 /** AI 실패 이유(사용자용) */
 export function aiFailureText(kind: "invalid_output" | "timeout" | "rate_limited" | "upstream"): string {
   const why = { invalid_output: "AI 응답 형식이 맞지 않았습니다", timeout: "AI 응답이 시간 안에 오지 않았습니다", rate_limited: "AI 요청 한도에 걸렸습니다", upstream: "AI 서비스에 연결하지 못했습니다" }[kind];

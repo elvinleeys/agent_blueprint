@@ -6,7 +6,7 @@ import { checkImplementation } from "@/core/impl-check/run";
 import type { CheckResponse, PairReview } from "@/lib/client/run-implementation-check";
 import ImplementationCheckPanel, { AI_RESTRICTED_TEXT, AI_SEND_NOTE, REPO_RESTRICTED_TEXT, RepoSource } from "./ImplementationCheckPanel";
 import ResultView from "./ResultView";
-import { baselineText, configText, designSummaryText, groupFindings, removedTexts, repoText } from "./result-view";
+import { aiDoneSummary, baselineText, configText, designSummaryText, groupFindings, removedTexts, repoText } from "./result-view";
 import type { Selection } from "./selection";
 
 // 서버 렌더링 스모크 테스트: 파일 선택·검사·복사 같은 클릭 흐름과 탭을 바꿔도 유지되는지는 브라우저에서 확인한다
@@ -107,8 +107,8 @@ describe("AI 제안 구역(ResultView)", () => {
     expect(out).toContain("[받아들이기]를 누르면 그 짝을 직접 고른 것처럼 확정하고 코드로 다시 검사합니다");
     expect(out).toContain("체크한 것은 수정 지시서에만 들어가고 설계 준수 집계는 바뀌지 않습니다");
     expect(out).toMatch(/<section[^>]*aria-labelledby="ic-ai-title"/);
-    expect(out).toContain("AddToCartButton · 수량 검증: 수행하지 않은 것 같음");
-    expect(out).toContain("PriceTag · 가격 표시: 수행함");
+    expect(out).toMatch(/AddToCartButton · 수량 검증: <span[^>]*>수행하지 않은 것 같음/);
+    expect(out).toContain("책임 2개 중 1개는 수행한 것으로 보임");
     const aiChecks = out.match(/<input id="ic-ai-include-[^"]*"[^>]*>/g) ?? [];
     expect(aiChecks).toHaveLength(1);
     expect(aiChecks[0]).not.toMatch(/checked=""/);
@@ -139,6 +139,52 @@ describe("AI 제안 구역(ResultView)", () => {
     expect(lines(on)).toEqual(lines(off));
     expect(lines(on)).toEqual(lines(view(data)));
     expect(lines(on).summary).toBe("설계 항목 65개 중 일치 56개 · 불일치 0개 · 확인 필요 9개");
+  });
+
+  it("수행함(done)은 카드로 보이지 않고 '책임 N개 중 M개는 수행한 것으로 보임' 한 줄 아래 접혀 있다(missing·unsure만 카드)", () => {
+    const UNSURE = { ...DONE, responsibility: "할인가 표시", verdict: "unsure" as const, id: "AI|resp|n-price|할인가 표시" };
+    const DONE2 = { ...DONE, nodeId: "n-cart", nodeName: "AddToCartButton", responsibility: "장바구니에 담기", id: "AI|resp|n-cart|장바구니에 담기" };
+    const many: NonNullable<CheckResponse["ai"]> = { ...ok, suggestions: { ...ok.suggestions, responsibilities: [MISSING, DONE, UNSURE, DONE2] } };
+    const out = view(data, undefined, { ai: many });
+    // 요약 숫자: 판단한 책임 4개 중 수행함 2개
+    expect(out).toContain("책임 4개 중 2개는 수행한 것으로 보임");
+    expect(aiDoneSummary(12, 9)).toBe("책임 12개 중 9개는 수행한 것으로 보임");
+    // 기본은 접힘(open 속성 없음)
+    expect(out).toMatch(/<details class="[^"]*"><summary[^>]*>책임 4개 중 2개는 수행한 것으로 보임<\/summary>/);
+    // 카드 목록에는 missing·unsure만, 접힌 목록에는 done만
+    // 확인할 것 2건(missing 1 + unsure 1) + 수행함 2 = 판단한 책임 4개
+    expect(out).toContain("확인할 책임 2건");
+    const cards = out.match(/<ul[^>]*aria-label="AI 책임 제안\(확인할 것\)"[^>]*>.*?<\/ul>/)?.[0] ?? "";
+    expect(cards).toMatch(/수량 검증: <span[^>]*>수행하지 않은 것 같음/);
+    expect(cards).toMatch(/할인가 표시: <span[^>]*>판단 어려움/);
+    expect(cards).toContain("AI가 확신하지 못한 항목이라 직접 확인해 주세요(수정 요청 체크는 없습니다).");
+    expect(cards).not.toContain("가격 표시");
+    expect(cards).not.toContain("장바구니에 담기");
+    const folded = out.match(/<ul[^>]*aria-label="AI 책임 제안\(수행한 것으로 보임\)"[^>]*>.*?<\/ul>/)?.[0] ?? "";
+    expect(folded).toContain("PriceTag · 가격 표시");
+    expect(folded).toContain("AddToCartButton · 장바구니에 담기");
+    expect(folded).toContain("AI 근거: 가격을 그린다.");
+    expect(folded).not.toContain("수량 검증");
+    expect(folded).not.toContain("할인가 표시");
+    // 체크는 missing에만, 그대로 1개
+    expect(out.match(/<input id="ic-ai-include-[^"]*"/g)).toHaveLength(1);
+  });
+
+  it("done이 없으면 요약 줄이 없고, done만 있으면 카드 없이 요약 줄만", () => {
+    expect(view(data, undefined, { ai: { ...ok, suggestions: { ...ok.suggestions, responsibilities: [MISSING] } } })).not.toContain("수행한 것으로 보임");
+    const onlyDone = view(data, undefined, { ai: { ...ok, suggestions: { pairs: [], responsibilities: [DONE], dropped: 0 } } });
+    expect(onlyDone).toContain("책임 1개 중 1개는 수행한 것으로 보임");
+    expect(onlyDone).not.toContain("AI 책임 제안(확인할 것)");
+  });
+
+  it("done을 접어도 수정 지시서·집계·체크 동작은 같다(done은 체크 대상이 아님)", () => {
+    const withDone = view(data, new Set([MISSING.id]), { ai: ok });
+    const withoutDone = view(data, new Set([MISSING.id]), { ai: { ...ok, suggestions: { ...ok.suggestions, responsibilities: [MISSING] } } });
+    const doc = (out: string) => out.match(/# 구현 수정 지시서[\s\S]*?(?=<\/pre>|$)/)?.[0];
+    // 지시서를 실제로 찾았는지 먼저 본다(못 찾아 둘 다 undefined로 같아지는 약한 비교 방지)
+    expect(doc(withDone)).toContain("## AI 제안(사용자 확인)");
+    expect(doc(withDone)).toBe(doc(withoutDone));
+    expect(withDone.match(/설계 항목 \d+개 중 일치 \d+개 · 불일치 \d+개 · 확인 필요 \d+개/)?.[0]).toBe("설계 항목 65개 중 일치 56개 · 불일치 0개 · 확인 필요 9개");
   });
 
   it("실패·건너뜀·생략을 알린다(코드 판정 결과는 그대로라고)", () => {

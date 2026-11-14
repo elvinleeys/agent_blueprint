@@ -2,13 +2,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CheckResponse } from "@/lib/client/run-implementation-check";
-import { aiFailureText, aiOmittedText, PAIR_VERDICT, RESPONSIBILITY_VERDICT } from "./result-view";
+import { aiDoneSummary, aiFailureText, aiOmittedText, PAIR_VERDICT, RESPONSIBILITY_VERDICT } from "./result-view";
 import { aiIncludedCount, aiMissing, type Selection } from "./selection";
 
 /**
  * AI 제안 구역(그리기만 한다). AI 의견은 설계 준수 집계·확실·확인 필요 카드와 따로 보이고 숫자에 들어가지 않는다.
  * - 짝 제안: 지금도 짝 확인이 필요한 노드만 보인다. "같음"이면 [받아들이기]로 그 짝을 source "ai"로 확정해 다시 검사한다.
- * - 책임 제안: 노드별로 보이고, "수행하지 않은 것 같음(missing)"에만 "수정 요청에 포함" 체크가 있다(기본 꺼짐, 수정 지시서에만 영향).
+ * - 책임 제안: 확인할 것(missing·unsure)만 카드로 보이고, "수행하지 않은 것 같음(missing)"에만 "수정 요청에 포함" 체크가 있다(기본 꺼짐, 수정 지시서에만 영향).
+ *   수행함(done)은 "책임 N개 중 M개는 수행한 것으로 보임" 한 줄 아래 접어 둔다(기본 접힘).
  */
 export default function AiSuggestions({
   ai,
@@ -63,6 +64,9 @@ function AiOk({
   // 받아들여 확정했거나 다시 검사로 짝이 정해진 노드의 짝 제안은 더 보이지 않는다
   const pairs = ai.suggestions.pairs.filter((p) => reviewNodes.has(p.nodeId));
   const resps = ai.suggestions.responsibilities;
+  // 볼 것(missing·unsure)만 카드로, 수행함(done)은 한 줄 요약 아래 접어 둔다(문제가 많아 보이지 않게)
+  const attention = resps.filter((r) => r.verdict !== "done");
+  const done = resps.filter((r) => r.verdict === "done");
   const missing = aiMissing(ai);
   if (!pairs.length && !resps.length) return <p className="text-sm text-foreground-secondary">이 검사에서는 AI 제안이 없습니다.</p>;
 
@@ -97,16 +101,18 @@ function AiOk({
           ))}
         </ul>
       )}
-      {resps.length > 0 && (
-        <ul className="flex flex-col gap-2" aria-label="AI 책임 제안">
-          {resps.map((r) => {
+      {attention.length > 0 && <p className="text-sm font-medium text-foreground">확인할 책임 {attention.length}건</p>}
+      {attention.length > 0 && (
+        <ul className="flex flex-col gap-2" aria-label="AI 책임 제안(확인할 것)">
+          {attention.map((r) => {
             const checkId = `ic-ai-include-${r.id}`;
             return (
               <li key={r.id} className="flex flex-col gap-1 rounded-lg border border-border p-2 text-sm">
                 <span className="break-words text-foreground">
-                  {r.nodeName} · {r.responsibility}: {RESPONSIBILITY_VERDICT[r.verdict]}
+                  {r.nodeName} · {r.responsibility}: <span className={r.verdict === "missing" ? "font-medium text-foreground" : "text-foreground-secondary"}>{RESPONSIBILITY_VERDICT[r.verdict]}</span>
                 </span>
                 <span className="break-words text-xs text-foreground-secondary">AI 근거: {r.reason}</span>
+                {r.verdict === "unsure" && <span className="text-xs text-foreground-tertiary">AI가 확신하지 못한 항목이라 직접 확인해 주세요(수정 요청 체크는 없습니다).</span>}
                 {r.verdict === "missing" && (
                   <span className="flex items-center gap-2">
                     <input id={checkId} type="checkbox" checked={selection.has(r.id)} onChange={() => onToggle(r.id)} className="size-4" />
@@ -119,6 +125,18 @@ function AiOk({
             );
           })}
         </ul>
+      )}
+      {done.length > 0 && (
+        <details className="min-w-0 text-sm text-foreground-secondary">
+          <summary className="cursor-pointer">{aiDoneSummary(resps.length, done.length)}</summary>
+          <ul className="mt-1 list-disc break-words pl-5" aria-label="AI 책임 제안(수행한 것으로 보임)">
+            {done.map((r) => (
+              <li key={r.id}>
+                {r.nodeName} · {r.responsibility} <span className="text-xs text-foreground-tertiary">— AI 근거: {r.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
     </>
   );

@@ -91,6 +91,20 @@ describe("runImplementationCheck: 요청과 오류 변환", () => {
     expect(JSON.parse(f.mock.calls[1][1]!.body as string)).toEqual({ codeFiles: files, confirmed: [A] });
   });
 
+  it("GitHub 저장소는 { repo }로 보내고(codeFiles 없음), 확정한 짝과 함께 보낼 수 있다. 서버의 403·429 문구를 그대로 보인다", async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify(OK.ok && OK.data), { status: 200 }));
+    await runImplementationCheck("p1", { url: "https://github.com/acme/shop", subdir: null }, [], f as unknown as typeof fetch);
+    await runImplementationCheck("p1", { url: "https://github.com/acme/shop", subdir: "apps/web", commit: "a".repeat(40) }, [A], f as unknown as typeof fetch);
+    const bodies = f.mock.calls.map((c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string));
+    expect(bodies).toEqual([{ repo: { url: "https://github.com/acme/shop", subdir: null } }, { repo: { url: "https://github.com/acme/shop", subdir: "apps/web", commit: "a".repeat(40) }, confirmed: [A] }]);
+
+    const res = (status: number, body: unknown) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+    const restricted = await runImplementationCheck("p1", { url: "https://github.com/acme/shop" }, [], res(403, { error: { code: "feature_restricted", message: "GitHub 저장소 검사는 현재 제한된 기능입니다.", retryable: false } }));
+    expect(restricted).toEqual({ ok: false, failure: { message: "GitHub 저장소 검사는 현재 제한된 기능입니다.", details: [], retryable: false, code: "feature_restricted" } });
+    const limited = await runImplementationCheck("p1", { url: "https://github.com/acme/shop" }, [], res(429, { error: { code: "rate_limited", message: "GitHub 요청 한도에 걸렸습니다. 2분 뒤 다시 시도해 주세요.", retryable: true } }));
+    expect(limited).toMatchObject({ ok: false, failure: { message: "GitHub 요청 한도에 걸렸습니다. 2분 뒤 다시 시도해 주세요.", retryable: true } });
+  });
+
   it("invalid_confirmed의 code·invalid·fields를 구분해 담고, 다른 422는 invalid가 없다", async () => {
     const inv = [{ index: 0, nodeId: "a", reason: "unknown-code", removable: true }];
     const a = await runImplementationCheck("p1", files, [A], res(422, { error: { code: "invalid_confirmed", message: "m", retryable: false, fields: [{ path: "confirmed[0]", message: "올린 코드에 없는 컴포넌트·훅입니다." }], invalid: inv } }));

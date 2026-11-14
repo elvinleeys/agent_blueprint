@@ -17,8 +17,13 @@ export type PairReviewCandidate = {
 };
 export type PairReview = { nodeId: string; nodeName: string; reason: string; via?: string; candidates: PairReviewCandidate[] };
 
+/** GitHub 저장소 입력(4f). commit은 짝 확정 뒤 다시 검사할 때 첫 결과의 커밋으로 같은 코드를 받으려고 보낸다 */
+export type RepoInput = { url: string; subdir?: string | null; commit?: string };
+export type RepoInfo = { name: string; ref: string; commit: string | null; subdir: string | null };
+
 export type CheckResponse = {
   baseline: { revision: number; source: "export" | "latest"; newerRevision?: number };
+  repo?: RepoInfo;
   result: Pick<ImplCheckResult, "items" | "bans" | "findings" | "summary">;
   pairReviews: PairReview[];
   meta: { timing: { totalMs: number; requestNumber: number; first: boolean }; files: number; bytes: number; nodes: number; confirmedApplied: number; configs: { read: number; unsupported: number } };
@@ -29,13 +34,15 @@ export type CheckOutcome = { ok: true; data: CheckResponse } | { ok: false; fail
 
 const NETWORK_ERROR: CheckFailure = { message: "서버에 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.", details: [], retryable: true };
 
-export async function runImplementationCheck(projectId: string, codeFiles: SourceFile[], confirmed: ConfirmedPair[], fetchImpl: typeof fetch = fetch): Promise<CheckOutcome> {
+/** code: 올린 파일 목록 또는 GitHub 저장소 */
+export async function runImplementationCheck(projectId: string, code: SourceFile[] | RepoInput, confirmed: ConfirmedPair[], fetchImpl: typeof fetch = fetch): Promise<CheckOutcome> {
+  const source = Array.isArray(code) ? { codeFiles: code } : { repo: code };
   let res: Response;
   try {
     res = await fetchImpl(`/api/projects/${projectId}/implementation-check`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(confirmed.length ? { codeFiles, confirmed } : { codeFiles }),
+      body: JSON.stringify(confirmed.length ? { ...source, confirmed } : source),
     });
   } catch {
     return { ok: false, failure: NETWORK_ERROR };

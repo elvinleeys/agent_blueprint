@@ -5,7 +5,7 @@ import { buildFixPrompt } from "@/core/prompt/fix-prompt";
 import type { CheckResponse } from "@/lib/client/run-implementation-check";
 import { CertainCard, ReviewCard } from "./FindingCard";
 import FixPromptCard from "./FixPromptCard";
-import { baselineText, banSummaryText, configText, designSummaryText, groupFindings } from "./result-view";
+import { baselineText, banSummaryText, configText, designSummaryText, groupFindings, repoText } from "./result-view";
 import { fixPromptInput, includedCount, type Selection } from "./selection";
 
 /**
@@ -53,6 +53,7 @@ export default function ResultView({
       </p>
       <div className="flex flex-col gap-1 text-sm text-foreground-secondary">
         <p className="break-words">{baselineText(data.baseline)}</p>
+        {data.repo && <p className="break-words">{repoText(data.repo)}</p>}
         <p>{banSummaryText(data.result.summary)}</p>
         <p className="break-words">{configText(data.meta.configs)}</p>
         <p className="text-xs text-foreground-tertiary">

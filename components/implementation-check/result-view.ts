@@ -18,6 +18,11 @@ export function baselineText(b: CheckResponse["baseline"]): string {
   return b.newerRevision !== undefined ? `${base}. 이후 판 ${b.newerRevision}가 있습니다.` : base;
 }
 
+/** GitHub 저장소에서 읽은 결과: 저장소·브랜치·커밋 앞 7자리·하위 폴더 */
+export function repoText(r: NonNullable<CheckResponse["repo"]>): string {
+  return [`GitHub ${r.name}`, r.ref.length === 40 ? null : `브랜치 ${r.ref}`, r.commit ? `커밋 ${r.commit.slice(0, 7)}` : null, r.subdir ? `하위 폴더 ${r.subdir}` : null].filter(Boolean).join(" · ");
+}
+
 export function designSummaryText(s: CheckResponse["result"]["summary"]): string {
   const d = s.design;
   return `설계 항목 ${d.total}개 중 일치 ${d.match}개 · 불일치 ${d.mismatch}개 · 확인 필요 ${d.review}개`;

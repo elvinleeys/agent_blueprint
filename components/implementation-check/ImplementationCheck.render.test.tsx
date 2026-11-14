@@ -4,9 +4,9 @@ import { readCodeModel } from "@/core/code-model/facts";
 import { loadBlueprint, loadCode } from "@/core/impl-check/load-fixture";
 import { checkImplementation } from "@/core/impl-check/run";
 import type { CheckResponse, PairReview } from "@/lib/client/run-implementation-check";
-import ImplementationCheckPanel from "./ImplementationCheckPanel";
+import ImplementationCheckPanel, { REPO_RESTRICTED_TEXT, RepoSource } from "./ImplementationCheckPanel";
 import ResultView from "./ResultView";
-import { baselineText, configText, designSummaryText, groupFindings, removedTexts } from "./result-view";
+import { baselineText, configText, designSummaryText, groupFindings, removedTexts, repoText } from "./result-view";
 import type { Selection } from "./selection";
 
 // 서버 렌더링 스모크 테스트: 파일 선택·검사·복사 같은 클릭 흐름과 탭을 바꿔도 유지되는지는 브라우저에서 확인한다
@@ -38,6 +38,26 @@ describe("ImplementationCheckPanel", () => {
     expect(out).toContain("검사할 .ts·.tsx 파일을 올려 주세요.");
   });
 
+  it("코드를 가져오는 방법(폴더 올리기·GitHub 저장소)을 고르고, 처음은 폴더 올리기", () => {
+    expect(out).toContain("검사할 코드를 가져오는 방법");
+    expect(out).toMatch(/<input[^>]*type="radio"[^>]*checked=""[^>]*>폴더 올리기/);
+    expect(out).toContain("GitHub 저장소");
+  });
+
+  it("허용되지 않은 사용자(기본값)는 처음 화면부터 '현재 제한된 기능' 안내가 보이고 GitHub 저장소를 고를 수 없다", () => {
+    // 서버 설정이 꺼진 경우와 허용 목록 밖인 경우는 모두 WorkspaceLoader가 false로 내려 준다(판단은 lib/api/feature-access.test.ts)
+    expect(out).toContain(REPO_RESTRICTED_TEXT);
+    expect(out).toMatch(/<input[^>]*type="radio"[^>]*disabled=""[^>]*aria-describedby="ic-repo-restricted"[^>]*>GitHub 저장소 \(제한됨\)/);
+    expect(out).toMatch(/<p id="ic-repo-restricted"[^>]*>GitHub 저장소 검사는 현재 제한된 기능으로, 허용된 계정에서만 쓸 수 있습니다/);
+  });
+
+  it("허용된 사용자는 안내 없이 GitHub 저장소를 고를 수 있다", () => {
+    const allowed = text(<ImplementationCheckPanel projectId="p1" onGoStructure={() => {}} repoCheckAllowed />);
+    expect(allowed).not.toContain(REPO_RESTRICTED_TEXT);
+    expect(allowed).not.toContain("(제한됨)");
+    expect(allowed).toMatch(/<input[^>]*type="radio"[^>]*name="ic-mode"(?![^>]*disabled="")[^>]*>GitHub 저장소/);
+  });
+
   it("폴더·파일 입력은 숨기고 버튼으로 대신한다", () => {
     const inputs = out.match(/<input[^>]*type="file"[^>]*>/g) ?? [];
     expect(inputs).toHaveLength(2);
@@ -45,7 +65,42 @@ describe("ImplementationCheckPanel", () => {
   });
 });
 
+describe("RepoSource: GitHub 저장소 입력", () => {
+  const repo = (urlError: string | null = null, subdirError: string | null = null) =>
+    text(<RepoSource url="" subdir="" onUrl={() => {}} onSubdir={() => {}} urlError={urlError} subdirError={subdirError} disabled={false} />);
+
+  it("저장소 주소(필수)·하위 폴더(선택) 입력칸(라벨 연결)과 브랜치 안내를 보이고, 오류가 없으면 알림이 없다", () => {
+    const out = repo();
+    expect(out).toMatch(/<label[^>]*for="ic-repo-url"[^>]*>저장소 주소 <span[^>]*>\(필수\)/);
+    expect(out).toMatch(/<input[^>]*id="ic-repo-url"[^>]*aria-invalid="false"/);
+    expect(out).toMatch(/<input[^>]*id="ic-repo-subdir"/);
+    expect(out).toContain("공개 저장소만 검사할 수 있습니다");
+    expect(out).toContain("/tree/브랜치 이름을 붙이세요");
+    expect(out).not.toContain('role="alert"');
+  });
+
+  it("주소 오류와 하위 폴더 오류는 각 칸에 따로 붙고(낭독기 알림), 브랜치 안내는 그대로 남는다", () => {
+    const bad = repo("github.com의 https 주소만 받습니다.");
+    expect(bad).toMatch(/<input[^>]*id="ic-repo-url"[^>]*aria-describedby="ic-repo-url-error ic-repo-hint"[^>]*aria-invalid="true"|<input[^>]*id="ic-repo-url"[^>]*aria-invalid="true"[^>]*aria-describedby="ic-repo-url-error ic-repo-hint"/);
+    expect(bad).toMatch(/<p id="ic-repo-url-error" role="alert"[^>]*>github.com의 https 주소만 받습니다\./);
+    expect(bad).toContain("/tree/브랜치 이름을 붙이세요");
+    const sub = repo(null, "하위 폴더는 apps/web처럼 저장소 안의 상대 경로로 넣어 주세요.");
+    expect(sub).toMatch(/<input[^>]*id="ic-repo-subdir"[^>]*aria-invalid="true"/);
+    expect(sub).toMatch(/<input[^>]*id="ic-repo-url"[^>]*aria-invalid="false"/);
+    expect(sub).toMatch(/<p id="ic-repo-subdir-error" role="alert"/);
+  });
+});
+
 describe("ResultView: 기준 판·집계·카드", () => {
+  it("GitHub 저장소에서 읽은 결과면 저장소·브랜치·커밋·하위 폴더를 보이고, 올린 파일이면 보이지 않는다", () => {
+    const r = response("correct");
+    const out = view({ ...r, repo: { name: "acme/shop", ref: "main", commit: "0123456789abcdef0123456789abcdef01234567", subdir: "apps/web" } });
+    expect(out).toContain("GitHub acme/shop · 브랜치 main · 커밋 0123456 · 하위 폴더 apps/web");
+    expect(view(r)).not.toContain("GitHub ");
+    // 같은 커밋으로 다시 검사한 결과(ref가 커밋 id)는 브랜치를 따로 적지 않는다
+    expect(repoText({ name: "acme/shop", ref: "0123456789abcdef0123456789abcdef01234567", commit: "0123456789abcdef0123456789abcdef01234567", subdir: null })).toBe("GitHub acme/shop · 커밋 0123456");
+  });
+
   const data = response("renamed");
 
   it("기준 판·설계 준수 집계·금지 규칙·설정 파일·서버 시간을 보인다", () => {

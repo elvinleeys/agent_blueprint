@@ -6,7 +6,7 @@ import { checkImplementation } from "@/core/impl-check/run";
 import type { CheckResponse, PairReview } from "@/lib/client/run-implementation-check";
 import ImplementationCheckPanel, { AI_RESTRICTED_TEXT, AI_SEND_NOTE, REPO_RESTRICTED_TEXT, RepoSource } from "./ImplementationCheckPanel";
 import ResultView from "./ResultView";
-import { aiDoneSummary, baselineText, configText, designSummaryText, groupFindings, removedTexts, repoText } from "./result-view";
+import { aiCountSummary, aiDoneSummary, baselineText, configText, designSummaryText, groupFindings, removedTexts, repoText } from "./result-view";
 import type { Selection } from "./selection";
 
 // 서버 렌더링 스모크 테스트: 파일 선택·검사·복사 같은 클릭 흐름과 탭을 바꿔도 유지되는지는 브라우저에서 확인한다
@@ -93,13 +93,52 @@ describe("AI 제안 구역(ResultView)", () => {
   const OMIT = { pairNodes: [], responsibilityNodes: [] };
   const ok: NonNullable<CheckResponse["ai"]> = { status: "ok", suggestions: { pairs: [PAIR], responsibilities: [MISSING, DONE], dropped: 0 }, omitted: OMIT, meta: META };
 
+  it("맨 위에 '참고, 설계 준수 숫자에는 넣지 않음' 제목과 AI 응답 그대로의 한 줄 요약(짝 N건 · 책임 M개: 수행 a · 안 된 것 같음 b · 모르겠음 c)", () => {
+    const UNSURE = { ...DONE, responsibility: "할인가 표시", verdict: "unsure" as const, id: "AI|resp|n-price|할인가 표시" };
+    const DONE2 = { ...DONE, responsibility: "통화 표시", id: "AI|resp|n-price|통화 표시" };
+    const PAIR2 = { ...PAIR, verdict: "different" as const, id: "AI|pair|n-gallery|x#Y", path: "x", name: "Y" };
+    const ai: NonNullable<CheckResponse["ai"]> = { ...ok, suggestions: { pairs: [PAIR, PAIR2], responsibilities: [MISSING, DONE, UNSURE, DONE2], dropped: 0 } };
+    const out = view(data, undefined, { ai });
+    expect(out).toMatch(/<h3[^>]*><span id="ic-ai-title">AI 제안<\/span> <span[^>]*>\(참고, 설계 준수 숫자에는 넣지 않음\)<\/span><\/h3>/);
+    expect(out).toContain("짝 제안 2건 · 책임 4개: 수행 2 · 안 된 것 같음 1 · 모르겠음 1");
+    // 카드 쪽 건수도 요약 용어로 이어 준다
+    expect(out).toMatch(/확인할 책임 2건 <span[^>]*>\(안 된 것 같음 1 · 모르겠음 1\)<\/span>/);
+    expect(out).not.toContain("이미 짝이 정해져");
+    // 요약은 제목 바로 아래(구역 맨 위)
+    expect(out.indexOf("짝 제안 2건")).toBeGreaterThan(out.indexOf('id="ic-ai-title"'));
+    expect(out.indexOf("짝 제안 2건")).toBeLessThan(out.indexOf("코드 검사 판정이 아니라"));
+    // 수행 + 안 된 것 같음 + 모르겠음 = 책임 수, 접힌 요약 숫자와도 맞다
+    expect(out).toContain("책임 4개 중 2개는 수행한 것으로 보임");
+  });
+
+  it("요약 숫자는 AI 응답 그대로다: 받아들여 화면에서 사라진 짝 제안도 세고, 집계(설계 준수)와는 따로다", () => {
+    expect(aiCountSummary(ok.suggestions)).toBe("짝 제안 1건 · 책임 2개: 수행 1 · 안 된 것 같음 1 · 모르겠음 0");
+    expect(aiCountSummary({ pairs: [], responsibilities: [] })).toBe("짝 제안 0건 · 책임 0개: 수행 0 · 안 된 것 같음 0 · 모르겠음 0");
+    // correct 결과에는 n-gallery 짝 확인이 없어 짝 제안 카드는 안 보이지만 요약은 AI 응답대로 1건
+    const out = view(response("correct"), undefined, { ai: ok });
+    expect(out).not.toContain("ProductGallery ↔ ItemImages");
+    expect(out).toContain("짝 제안 1건 · 책임 2개");
+    // 요약에는 셌지만 카드가 없는 짝 제안은 따로 알린다
+    expect(out).toContain("짝 제안 중 1건은 이미 짝이 정해져 아래에 보이지 않습니다.");
+    expect(out).toContain("설계 항목 65개 중 일치 65개 · 불일치 0개 · 확인 필요 0개");
+  });
+
+  it("실패·건너뜀이면 개수 요약 줄이 없다(제목은 있음)", () => {
+    for (const ai of [{ status: "failed" as const, failure: "timeout" as const, omitted: OMIT, meta: META }, { status: "skipped" as const, omitted: OMIT }]) {
+      const out = view(data, undefined, { ai });
+      expect(out).toContain("(참고, 설계 준수 숫자에는 넣지 않음)");
+      expect(out).not.toContain("짝 제안 ");
+    }
+  });
+
   it("AI 제안이 없으면 구역을 그리지 않는다", () => {
     expect(view(data)).not.toContain("AI 제안");
   });
 
   it("짝 제안은 판정·근거와 [받아들이기], 책임 제안은 missing에만 '수정 요청에 포함' 체크(기본 꺼짐)", () => {
     const out = view(data, undefined, { ai: ok });
-    expect(out).toContain("AI 의견 · 집계에 넣지 않음");
+    // 제목을 "AI 제안 (참고, 설계 준수 숫자에는 넣지 않음)"으로 바꾸며 같은 뜻의 배지를 지움(사용자 승인 2026-11-14)
+    expect(out).toContain("(참고, 설계 준수 숫자에는 넣지 않음)");
     expect(out).toContain("ProductGallery ↔ ItemImages: 같은 것으로 보임");
     expect(out).toContain("AI 근거: images prop으로 이미지를 그린다.");
     expect(out).toContain('aria-label="받아들이기: ProductGallery ↔ ItemImages"');

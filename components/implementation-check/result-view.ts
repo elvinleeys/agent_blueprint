@@ -44,6 +44,12 @@ export function removedTexts(removed: RemovedPair[], nameOf: (nodeId: string) =>
 export const PAIR_VERDICT = { same: "같은 것으로 보임", different: "다른 것으로 보임", unsure: "판단 어려움" } as const;
 export const RESPONSIBILITY_VERDICT = { done: "수행함", missing: "수행하지 않은 것 같음", unsure: "판단 어려움" } as const;
 
+/** AI 구역 맨 위의 한 줄 요약(AI 응답 그대로의 개수): "짝 제안 N건 · 책임 M개: 수행 a · 안 된 것 같음 b · 모르겠음 c" */
+export function aiCountSummary(s: { pairs: unknown[]; responsibilities: { verdict: "done" | "missing" | "unsure" }[] }): string {
+  const n = (v: "done" | "missing" | "unsure") => s.responsibilities.filter((r) => r.verdict === v).length;
+  return `짝 제안 ${s.pairs.length}건 · 책임 ${s.responsibilities.length}개: 수행 ${n("done")} · 안 된 것 같음 ${n("missing")} · 모르겠음 ${n("unsure")}`;
+}
+
 /** AI가 판단한 책임 total개 중 done개가 "수행함"일 때의 접힌 요약 한 줄 */
 export const aiDoneSummary = (total: number, done: number) => `책임 ${total}개 중 ${done}개는 수행한 것으로 보임`;
 

@@ -1,8 +1,7 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CheckResponse } from "@/lib/client/run-implementation-check";
-import { aiDoneSummary, aiFailureText, aiOmittedText, PAIR_VERDICT, RESPONSIBILITY_VERDICT } from "./result-view";
+import { aiCountSummary, aiDoneSummary, aiFailureText, aiOmittedText, PAIR_VERDICT, RESPONSIBILITY_VERDICT } from "./result-view";
 import { aiIncludedCount, aiMissing, type Selection } from "./selection";
 
 /**
@@ -28,12 +27,18 @@ export default function AiSuggestions({
 }) {
   const omitted = aiOmittedText(ai.omitted);
   const reviewNodes = new Set(data.pairReviews.map((p) => p.nodeId));
+  // 받아들였거나 다시 검사로 짝이 정해져 카드가 사라진 짝 제안 수(요약에는 세므로 따로 알린다)
+  const hiddenPairs = ai.status === "ok" ? ai.suggestions.pairs.filter((p) => !reviewNodes.has(p.nodeId)).length : 0;
 
   return (
     <section className="flex flex-col gap-2" aria-labelledby="ic-ai-title">
-      <h3 id="ic-ai-title" className="flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
-        AI 제안 <Badge variant="secondary">AI 의견 · 집계에 넣지 않음</Badge>
+      {/* 구역 이름은 "AI 제안"만(보조 글자는 보이되 이름에서 빠지게) */}
+      <h3 className="text-base font-semibold text-foreground">
+        <span id="ic-ai-title">AI 제안</span> <span className="font-normal text-foreground-secondary">(참고, 설계 준수 숫자에는 넣지 않음)</span>
       </h3>
+      {/* 한눈에 보는 요약: AI 응답 그대로의 개수(받아들여 화면에서 사라진 짝 제안도 센다). 위쪽 설계 준수 집계 줄보다 낮은 무게로 */}
+      {ai.status === "ok" && <p className="text-sm text-foreground-secondary">{aiCountSummary(ai.suggestions)}</p>}
+      {ai.status === "ok" && hiddenPairs > 0 && <p className="text-xs text-foreground-tertiary">짝 제안 중 {hiddenPairs}건은 이미 짝이 정해져 아래에 보이지 않습니다.</p>}
       {ai.status === "failed" && (
         <Alert>
           <AlertDescription>{aiFailureText(ai.failure)} 위의 코드 판정 결과는 그대로이고, 잠시 뒤 &ldquo;다시 검사하기&rdquo;로 다시 시도할 수 있습니다.</AlertDescription>
@@ -101,7 +106,11 @@ function AiOk({
           ))}
         </ul>
       )}
-      {attention.length > 0 && <p className="text-sm font-medium text-foreground">확인할 책임 {attention.length}건</p>}
+      {attention.length > 0 && (
+        <p className="text-sm font-medium text-foreground">
+          확인할 책임 {attention.length}건 <span className="font-normal text-foreground-secondary">(안 된 것 같음 {missing.length} · 모르겠음 {attention.length - missing.length})</span>
+        </p>
+      )}
       {attention.length > 0 && (
         <ul className="flex flex-col gap-2" aria-label="AI 책임 제안(확인할 것)">
           {attention.map((r) => {

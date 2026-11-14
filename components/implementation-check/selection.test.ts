@@ -3,7 +3,32 @@ import { readCodeModel } from "@/core/code-model/facts";
 import { loadBlueprint, loadCode } from "@/core/impl-check/load-fixture";
 import { checkImplementation } from "@/core/impl-check/run";
 import { buildFixPrompt } from "@/core/prompt/fix-prompt";
-import { fixPromptInput, includedCount, restoreSelection, toggleIncluded, type Selection } from "./selection";
+import { aiIncludedCount, aiMissing, fixPromptInput, includedCount, restoreSelection, selectableIds, toggleIncluded, type Selection } from "./selection";
+
+describe("AI 책임 제안의 체크", () => {
+  const missing = { nodeId: "n-cart", responsibility: "수량 검증", verdict: "missing" as const, reason: "r", id: "AI|resp|n-cart|수량 검증", nodeName: "AddToCartButton" };
+  const done = { ...missing, responsibility: "담기", verdict: "done" as const, id: "AI|resp|n-cart|담기" };
+  const ai = { status: "ok" as const, suggestions: { pairs: [], responsibilities: [missing, done], dropped: 0 }, omitted: { pairNodes: [], responsibilityNodes: [] }, meta: { model: "m", attempts: 1, elapsedMs: 1, costUsd: 0 } };
+  const data = { baseline: { revision: 1, source: "latest" as const }, result: checkImplementation(loadBlueprint("next", "renamed"), readCodeModel(loadCode("next", "renamed"))) };
+
+  it("체크할 수 있는 것은 missing뿐이고, 다시 검사해도 남아 있는 AI 제안의 체크는 유지된다", () => {
+    expect(aiMissing(ai).map((r) => r.id)).toEqual([missing.id]);
+    const ids = selectableIds(data, ai);
+    expect(ids).toContain(missing.id);
+    expect(ids).not.toContain(done.id);
+    expect(restoreSelection(new Set([missing.id, done.id]), ids)).toEqual(new Set([missing.id]));
+    // AI 제안이 없어지면(AI 없이 새로 검사) 체크도 지운다
+    expect(restoreSelection(new Set([missing.id]), selectableIds(data, null))).toEqual(new Set());
+  });
+
+  it("수정 지시서 입력에는 체크한 missing만 들어가고, 확인 필요 카드 포함 수에는 세지 않는다", () => {
+    const sel = new Set([missing.id]);
+    expect(fixPromptInput(data, sel, ai).aiResponsibilities).toEqual([{ id: missing.id, nodeName: "AddToCartButton", responsibility: "수량 검증", reason: "r" }]);
+    expect(fixPromptInput(data, sel, null).aiResponsibilities).toEqual([]);
+    expect(includedCount(sel, data)).toBe(0);
+    expect(aiIncludedCount(sel, ai)).toBe(1);
+  });
+});
 
 describe("재검사 뒤 체크 복원(카드 id 기준)", () => {
   const prev: Selection = new Set(["IC-01|a|pair", "IC-06|c|prop:y"]);

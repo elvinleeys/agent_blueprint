@@ -1,4 +1,5 @@
 import type { InvalidConfirmed } from "../ai/draft-http";
+import type { AiSuggestions } from "../../core/impl-check/ai-schema";
 import type { ImplCheckResult } from "../../core/impl-check/result";
 import type { ConfirmedPair } from "../../core/impl-check/types";
 import type { SourceFile } from "../../core/cleanup/types";
@@ -21,9 +22,18 @@ export type PairReview = { nodeId: string; nodeName: string; reason: string; via
 export type RepoInput = { url: string; subdir?: string | null; commit?: string };
 export type RepoInfo = { name: string; ref: string; commit: string | null; subdir: string | null };
 
+/** AI 제안(요청에 useAi를 보냈을 때만). 설계 준수 집계(result)와 따로 보인다 */
+export type AiOutcome =
+  | { status: "ok"; suggestions: AiSuggestions; omitted: AiOmitted; meta: AiMeta }
+  | { status: "failed"; failure: "invalid_output" | "timeout" | "rate_limited" | "upstream"; omitted: AiOmitted; meta: AiMeta }
+  | { status: "skipped"; omitted: AiOmitted };
+type AiOmitted = { pairNodes: string[]; responsibilityNodes: string[] };
+type AiMeta = { model: string; attempts: number; elapsedMs: number; costUsd: number };
+
 export type CheckResponse = {
   baseline: { revision: number; source: "export" | "latest"; newerRevision?: number };
   repo?: RepoInfo;
+  ai?: AiOutcome;
   result: Pick<ImplCheckResult, "items" | "bans" | "findings" | "summary">;
   pairReviews: PairReview[];
   meta: { timing: { totalMs: number; requestNumber: number; first: boolean }; files: number; bytes: number; nodes: number; confirmedApplied: number; configs: { read: number; unsupported: number } };
@@ -34,15 +44,15 @@ export type CheckOutcome = { ok: true; data: CheckResponse } | { ok: false; fail
 
 const NETWORK_ERROR: CheckFailure = { message: "서버에 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.", details: [], retryable: true };
 
-/** code: 올린 파일 목록 또는 GitHub 저장소 */
-export async function runImplementationCheck(projectId: string, code: SourceFile[] | RepoInput, confirmed: ConfirmedPair[], fetchImpl: typeof fetch = fetch): Promise<CheckOutcome> {
+/** code: 올린 파일 목록 또는 GitHub 저장소. useAi: 코드 판정 뒤에 AI 제안도 받는다(허용된 사용자만) */
+export async function runImplementationCheck(projectId: string, code: SourceFile[] | RepoInput, confirmed: ConfirmedPair[], fetchImpl: typeof fetch = fetch, useAi = false): Promise<CheckOutcome> {
   const source = Array.isArray(code) ? { codeFiles: code } : { repo: code };
   let res: Response;
   try {
     res = await fetchImpl(`/api/projects/${projectId}/implementation-check`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(confirmed.length ? { ...source, confirmed } : source),
+      body: JSON.stringify({ ...source, ...(confirmed.length ? { confirmed } : {}), ...(useAi ? { useAi: true } : {}) }),
     });
   } catch {
     return { ok: false, failure: NETWORK_ERROR };

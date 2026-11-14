@@ -101,6 +101,42 @@ describe("확인 필요 항목: 기본은 제외, 포함한 것만 '확인 뒤 �
   });
 });
 
+describe("AI 제안(사용자 확인): 사용자가 포함한 AI 책임 제안(missing)만, 집계는 그대로", () => {
+  const A = { id: "AI|resp|n-cart|수량 검증", nodeName: "AddToCartButton", responsibility: "수량 검증", reason: "수량을 확인하는 코드가 없다." };
+  const B = { id: "AI|resp|n-price|할인가 표시", nodeName: "PriceTag", responsibility: "할인가 표시", reason: "할인율을 쓰지 않는다." };
+  const result = check("correct");
+
+  it("포함한 것이 없으면 AI 구역이 없고, 문서는 AI 이전과 같다", () => {
+    expect(buildFixPrompt({ baseline: BASE, result, include: [], aiResponsibilities: [] })).toBe(buildFixPrompt({ baseline: BASE, result, include: [] }));
+    expect(build("correct")).not.toContain("AI 제안");
+  });
+
+  it("포함한 AI 제안은 'AI 제안(사용자 확인)' 구역에 노드·책임·AI 근거·확인 뒤 고치는 할 일로 나오고, '고칠 항목이 없습니다'는 빠진다", () => {
+    const doc = buildFixPrompt({ baseline: BASE, result, include: [], aiResponsibilities: [A] });
+    expect(doc).toContain("## AI 제안(사용자 확인)");
+    expect(doc).toContain("### 1. [AI 제안 · 책임 확인] AddToCartButton");
+    expect(doc).toContain("- 책임: 수량 검증");
+    expect(doc).toContain("- AI 근거: 수량을 확인하는 코드가 없다.");
+    expect(doc).toContain("AI의 의견이라 틀릴 수 있으니 확실하지 않으면 고치지 말고 보고한다.");
+    expect(doc).not.toContain("고칠 항목이 없습니다");
+  });
+
+  it("AI 제안을 포함해도 설계 준수 집계(머리말)는 바뀌지 않는다", () => {
+    const none = buildFixPrompt({ baseline: BASE, result: check("renamed"), include: [] });
+    const withAi = buildFixPrompt({ baseline: BASE, result: check("renamed"), include: [], aiResponsibilities: [A, B] });
+    expect(headerOf(withAi)).toBe(headerOf(none));
+    expect(headerOf(withAi)).toBe("> 설계 준수: 65개 중 일치 56개 (불일치 0, 확인 필요 9)");
+  });
+
+  it("확실·확인 필요 항목 뒤에 이어서 번호를 매기고, 순서·중복과 상관없이 같은 문서", () => {
+    const r = check("wrong-IC-03");
+    const doc = buildFixPrompt({ baseline: BASE, result: r, include: [], aiResponsibilities: [B, A, A] });
+    expect(doc).toContain("### 2. [AI 제안 · 책임 확인] AddToCartButton");
+    expect(doc).toContain("### 3. [AI 제안 · 책임 확인] PriceTag");
+    expect(doc).toBe(buildFixPrompt({ baseline: BASE, result: r, include: [], aiResponsibilities: [A, B] }));
+  });
+});
+
 describe("같은 입력이면 같은 출력", () => {
   it("같은 입력을 두 번, 포함 목록의 순서·중복을 바꿔도 문자열이 같다", () => {
     const ids = check("renamed").findings.filter((f) => f.certainty === "review").map((f) => f.id);

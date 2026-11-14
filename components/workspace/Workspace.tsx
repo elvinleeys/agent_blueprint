@@ -28,11 +28,13 @@ export default function Workspace({
   structureInit,
   structureLoadError,
   repoCheckAllowed = false,
+  aiAllowed = false,
 }: {
   initialProject: Project;
   structureInit: StructureInit;
   structureLoadError: string | null;
   repoCheckAllowed?: boolean;
+  aiAllowed?: boolean;
 }) {
   const [project, setProject] = useState(initialProject);
 
@@ -40,13 +42,25 @@ export default function Workspace({
   return (
     <StructureStoreProvider init={structureInit}>
       <SaveQueueProvider projectId={initialProject.id}>
-        <WorkspaceBody project={project} onRenamed={setProject} structureLoadError={structureLoadError} repoCheckAllowed={repoCheckAllowed} />
+        <WorkspaceBody project={project} onRenamed={setProject} structureLoadError={structureLoadError} repoCheckAllowed={repoCheckAllowed} aiAllowed={aiAllowed} />
       </SaveQueueProvider>
     </StructureStoreProvider>
   );
 }
 
-function WorkspaceBody({ project, onRenamed, structureLoadError, repoCheckAllowed }: { project: Project; onRenamed: (project: Project) => void; structureLoadError: string | null; repoCheckAllowed: boolean }) {
+function WorkspaceBody({
+  project,
+  onRenamed,
+  structureLoadError,
+  repoCheckAllowed,
+  aiAllowed,
+}: {
+  project: Project;
+  onRenamed: (project: Project) => void;
+  structureLoadError: string | null;
+  repoCheckAllowed: boolean;
+  aiAllowed: boolean;
+}) {
   const [tab, setTab] = useState<TabId>("structure");
   // 구현 검사 탭은 한 번 열면 숨기기만 한다(올린 파일·결과·선택이 탭을 바꿔도 유지됨. 저장하지 않으므로 작업공간을 떠나면 사라진다)
   const [checkOpened, setCheckOpened] = useState(false);
@@ -99,7 +113,7 @@ function WorkspaceBody({ project, onRenamed, structureLoadError, repoCheckAllowe
         {tab === "prompt" && <PromptPanel projectId={project.id} onGoStructure={() => setTab("structure")} />}
         {checkOpened && (
           <div hidden={tab !== "implementation-check"}>
-            <ImplementationCheckPanel projectId={project.id} onGoStructure={() => setTab("structure")} repoCheckAllowed={repoCheckAllowed} />
+            <ImplementationCheckPanel projectId={project.id} onGoStructure={() => setTab("structure")} repoCheckAllowed={repoCheckAllowed} aiAllowed={aiAllowed} />
           </div>
         )}
       </div>

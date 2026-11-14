@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import type { ConfirmedPair } from "@/core/impl-check/types";
 import { buildFixPrompt } from "@/core/prompt/fix-prompt";
 import type { CheckResponse } from "@/lib/client/run-implementation-check";
+import AiSuggestions from "./AiSuggestions";
 import { CertainCard, ReviewCard } from "./FindingCard";
 import FixPromptCard from "./FixPromptCard";
 import { baselineText, banSummaryText, configText, designSummaryText, groupFindings, repoText } from "./result-view";
@@ -22,8 +23,13 @@ export default function ResultView({
   onToggle,
   onConfirm,
   onCancelConfirm,
+  ai = null,
+  onAcceptAi = () => {},
 }: {
   data: CheckResponse;
+  /** 화면이 들고 있는 마지막 AI 제안(짝 확정으로 다시 검사할 때는 AI를 부르지 않아 이전 것을 그대로 보인다). 없으면 AI 구역을 그리지 않는다 */
+  ai?: CheckResponse["ai"] | null;
+  onAcceptAi?: (nodeId: string, path: string, name: string) => void;
   confirmed: ConfirmedPair[];
   selection: Selection;
   running: boolean;
@@ -34,7 +40,7 @@ export default function ResultView({
   onCancelConfirm: (nodeId: string) => void;
 }) {
   const groups = groupFindings(data.result.findings);
-  const prompt = buildFixPrompt(fixPromptInput(data, selection));
+  const prompt = buildFixPrompt(fixPromptInput(data, selection, ai));
 
   return (
     <>
@@ -117,6 +123,8 @@ export default function ResultView({
           </>
         )}
       </div>
+
+      {ai && <AiSuggestions ai={ai} data={data} selection={selection} running={running} onToggle={onToggle} onAccept={onAcceptAi} />}
 
       {groups.outside.length > 0 && (
         <details className="text-sm text-foreground-secondary">

@@ -14,7 +14,7 @@ import FileListSection from "../design-system/FileListSection";
 import { useUploadList, type PickedFile } from "../design-system/useUploadList";
 import ResultView from "./ResultView";
 import { designSummaryText, removedTexts } from "./result-view";
-import { restoreSelection, toggleIncluded, type Selection } from "./selection";
+import { restoreSelection, selectableIds, toggleIncluded, type Selection } from "./selection";
 
 const readContents = (summary: UploadSummary<PickedFile>): Promise<SourceFile[]> => Promise.all(summary.selected.map(async (f) => ({ path: f.path, content: await f.file.text() })));
 
@@ -54,6 +54,24 @@ export function RepoSource(p: { url: string; subdir: string; onUrl: (v: string) 
   );
 }
 
+export const AI_RESTRICTED_TEXT = "AI 제안은 현재 제한된 기능으로, 허용된 계정에서만 쓸 수 있습니다. 코드 판정 결과는 그대로 볼 수 있습니다.";
+export const AI_SEND_NOTE = "켜면 검사 뒤에 코드 일부가 외부 AI(OpenAI)로 전송됩니다: 짝 확인이 필요한 노드의 후보 코드와 책임 확인 대상 컴포넌트의 함수 조각뿐이며(조각 하나 4,000자·합계 30,000자 이하), 파일 전체는 보내지 않고 저장하지 않습니다. AI 의견은 설계 준수 집계에 넣지 않습니다.";
+
+/** AI 제안 켜기. 켜기 전부터 무엇이 전송되는지 보인다. 허용되지 않은 사용자에게는 막힌 선택지와 안내만 */
+export function AiToggle({ allowed, checked, onChange, disabled }: { allowed: boolean; checked: boolean; onChange: (v: boolean) => void; disabled: boolean }) {
+  return (
+    <div className="flex max-w-2xl flex-col gap-1 text-sm">
+      <label className={`flex items-center gap-2 ${allowed ? "text-foreground" : "text-foreground-tertiary"}`}>
+        <input type="checkbox" className="size-4" checked={allowed && checked} onChange={(e) => onChange(e.target.checked)} disabled={disabled || !allowed} aria-describedby="ic-ai-note" />
+        AI 제안도 받기 (OpenAI){allowed ? "" : " (제한됨)"}
+      </label>
+      <p id="ic-ai-note" className="text-xs text-foreground-tertiary">
+        {allowed ? AI_SEND_NOTE : AI_RESTRICTED_TEXT}
+      </p>
+    </div>
+  );
+}
+
 const CONFIG_NOTE = "폴더 선택을 권장합니다. 파일 선택으로 올린 tsconfig.json·jsconfig.json은 어느 폴더의 설정인지 알 수 없어 프로젝트 맨 위 설정으로 간주하고, 이때 별칭(@/…) import는 확인 필요로 남기 쉽습니다. json 파일은 이 두 설정 파일만 씁니다.";
 
 /**
@@ -61,8 +79,22 @@ const CONFIG_NOTE = "폴더 선택을 권장합니다. 파일 선택으로 올�
  * 작업공간을 떠나거나 새로고침하면 사라진다.
  * 순서: 코드 폴더 업로드(+ tsconfig) → 검사하기 → 기준 판·집계·설정 → 확실 → 확인 필요(짝짓기·수정 요청에 포함 체크) → 수정 지시서
  */
-export default function ImplementationCheckPanel({ projectId, onGoStructure, repoCheckAllowed = false }: { projectId: string; onGoStructure: () => void; /** 서버 컴포넌트가 core/auth/feature-access로 판단해 내려 준다(서버도 같은 판단으로 403) */ repoCheckAllowed?: boolean }) {
+export default function ImplementationCheckPanel({
+  projectId,
+  onGoStructure,
+  repoCheckAllowed = false,
+  aiAllowed = false,
+}: {
+  projectId: string;
+  onGoStructure: () => void;
+  /** 아래 둘은 서버 컴포넌트가 core/auth/feature-access로 판단해 내려 준다(서버도 같은 판단으로 403) */
+  repoCheckAllowed?: boolean;
+  aiAllowed?: boolean;
+}) {
   const upload = useUploadList({ allowConfigFiles: true });
+  const [useAi, setUseAi] = useState(false);
+  // 마지막으로 받은 AI 제안. 짝 확정·취소로 다시 검사할 때는 AI를 부르지 않으므로 그대로 둔다
+  const [ai, setAi] = useState<CheckResponse["ai"] | null>(null);
   const [mode, setMode] = useState<CodeMode>("upload");
   const [repoUrl, setRepoUrl] = useState("");
   const [repoSubdir, setRepoSubdir] = useState("");
@@ -108,16 +140,20 @@ export default function ImplementationCheckPanel({ projectId, onGoStructure, rep
           return;
         }
       }
-      const r = await checkWithAutoRemoval((c) => runImplementationCheck(projectId, code, c), conf);
+      // AI는 "검사하기"로 새로 검사할 때만 부른다(짝 확정·취소로 다시 검사할 때는 비용 때문에 부르지 않음)
+      const withAi = !sameCommit && useAi && aiAllowed;
+      const r = await checkWithAutoRemoval((c) => runImplementationCheck(projectId, code, c, fetch, withAi), conf);
       setConfirmed(r.confirmed);
       setRemoved(removedTexts(r.removed, nameOf));
       if (r.outcome.ok) {
         const next = r.outcome.data;
+        const nextAi = sameCommit ? ai : (next.ai ?? null);
         hasResult.current = true;
         setData(next);
+        setAi(nextAi);
         setStale(false);
-        // 같은 카드 id의 체크는 유지, 새 카드는 체크 안 함, 사라진 카드의 체크는 지움
-        setSelection((prev) => restoreSelection(prev, next.result.findings.filter((f) => f.certainty === "review").map((f) => f.id)));
+        // 같은 카드 id의 체크는 유지, 새 카드는 체크 안 함, 사라진 카드의 체크는 지움(AI 책임 제안의 체크도 같다)
+        setSelection((prev) => restoreSelection(prev, selectableIds(next, nextAi)));
       } else {
         setFailure(r.outcome.failure);
       }
@@ -126,7 +162,8 @@ export default function ImplementationCheckPanel({ projectId, onGoStructure, rep
     }
   }
 
-  const confirmPair = (nodeId: string, path: string, name: string) => run([...confirmed.filter((c) => c.nodeId !== nodeId), { nodeId, path, name }], true);
+  // AI 제안을 받아들인 짝은 source "ai"(기록용). 받아들인 순간 사용자의 결정이라 서버는 직접 짝지은 것과 똑같이 검증·판정한다
+  const confirmPair = (nodeId: string, path: string, name: string, source: "user" | "ai" = "user") => run([...confirmed.filter((c) => c.nodeId !== nodeId), { nodeId, path, name, source }], true);
 
   return (
     <div className="flex flex-col gap-8">
@@ -182,6 +219,7 @@ export default function ImplementationCheckPanel({ projectId, onGoStructure, rep
             disabled={running}
           />
         )}
+        <AiToggle allowed={aiAllowed} checked={useAi} onChange={setUseAi} disabled={running} />
         <div className="flex flex-wrap items-center gap-3">
           <Button type="button" onClick={() => run(confirmed)} disabled={!canRun}>
             {running ? "검사 중…" : data ? "다시 검사하기" : "검사하기"}
@@ -247,6 +285,8 @@ export default function ImplementationCheckPanel({ projectId, onGoStructure, rep
           onToggle={(id) => setSelection((prev) => toggleIncluded(prev, id))}
           onConfirm={confirmPair}
           onCancelConfirm={(nodeId) => run(confirmed.filter((x) => x.nodeId !== nodeId), true)}
+          ai={ai}
+          onAcceptAi={(nodeId, path, name) => confirmPair(nodeId, path, name, "ai")}
         />
       )}
     </div>

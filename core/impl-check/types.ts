@@ -15,8 +15,8 @@
  */
 export type EvidenceKind = "exact" | "case" | "same-name-location" | "same-name" | "name-similarity" | "location" | "route" | "file-name" | "path-name-unread" | "unknown-target" | "user-confirmed";
 
-/** 사용자가 확정한 짝: 설계 노드의 고유 id(nodeId)와 코드 단위(파일 경로 path, 컴포넌트·훅 이름 name) */
-export type ConfirmedPair = { nodeId: string; path: string; name: string };
+/** 사용자가 확정한 짝: 설계 노드의 고유 id(nodeId)와 코드 단위(파일 경로 path, 컴포넌트·훅 이름 name). source는 기록용(AI 제안을 받아들였으면 "ai")이고 판정에 쓰지 않는다 */
+export type ConfirmedPair = { nodeId: string; path: string; name: string; source?: "user" | "ai" };
 
 /** 근거 하나: 종류, 점수(있으면), 사람이 읽는 설명 */
 export type Evidence = { kind: EvidenceKind; score?: number; detail: string };

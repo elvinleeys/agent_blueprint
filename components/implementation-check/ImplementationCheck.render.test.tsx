@@ -4,7 +4,7 @@ import { readCodeModel } from "@/core/code-model/facts";
 import { loadBlueprint, loadCode } from "@/core/impl-check/load-fixture";
 import { checkImplementation } from "@/core/impl-check/run";
 import type { CheckResponse, PairReview } from "@/lib/client/run-implementation-check";
-import ImplementationCheckPanel, { REPO_RESTRICTED_TEXT, RepoSource } from "./ImplementationCheckPanel";
+import ImplementationCheckPanel, { AI_RESTRICTED_TEXT, AI_SEND_NOTE, REPO_RESTRICTED_TEXT, RepoSource } from "./ImplementationCheckPanel";
 import ResultView from "./ResultView";
 import { baselineText, configText, designSummaryText, groupFindings, removedTexts, repoText } from "./result-view";
 import type { Selection } from "./selection";
@@ -54,7 +54,8 @@ describe("ImplementationCheckPanel", () => {
   it("허용된 사용자는 안내 없이 GitHub 저장소를 고를 수 있다", () => {
     const allowed = text(<ImplementationCheckPanel projectId="p1" onGoStructure={() => {}} repoCheckAllowed />);
     expect(allowed).not.toContain(REPO_RESTRICTED_TEXT);
-    expect(allowed).not.toContain("(제한됨)");
+    // AI 켜기가 "(제한됨)"을 따로 보일 수 있어 저장소 선택지만 본다(5-5, 사용자 승인 2026-11-14)
+    expect(allowed).not.toContain("GitHub 저장소 (제한됨)");
     expect(allowed).toMatch(/<input[^>]*type="radio"[^>]*name="ic-mode"(?![^>]*disabled="")[^>]*>GitHub 저장소/);
   });
 
@@ -62,6 +63,90 @@ describe("ImplementationCheckPanel", () => {
     const inputs = out.match(/<input[^>]*type="file"[^>]*>/g) ?? [];
     expect(inputs).toHaveLength(2);
     for (const i of inputs) expect(i).toMatch(/\bhidden\b/);
+  });
+});
+
+describe("AI 제안 켜기", () => {
+  it("허용되지 않은 사용자(기본값)는 막힌 선택지와 '현재 제한된 기능' 안내만 보인다", () => {
+    const out = text(<ImplementationCheckPanel projectId="p1" onGoStructure={() => {}} />);
+    expect(out).toMatch(/<input type="checkbox"[^>]*disabled=""[^>]*aria-describedby="ic-ai-note"[^>]*>AI 제안도 받기 \(OpenAI\) \(제한됨\)/);
+    expect(out).toContain(AI_RESTRICTED_TEXT);
+    expect(out).not.toContain(AI_SEND_NOTE);
+  });
+
+  it("허용된 사용자는 켜기 전부터 무엇이 외부 AI로 전송되는지 안내가 보이고, 처음은 꺼져 있다", () => {
+    const out = text(<ImplementationCheckPanel projectId="p1" onGoStructure={() => {}} aiAllowed />);
+    expect(out).toContain("코드 일부가 외부 AI(OpenAI)로 전송됩니다");
+    expect(out).toContain("파일 전체는 보내지 않고 저장하지 않습니다");
+    expect(out).toContain("AI 의견은 설계 준수 집계에 넣지 않습니다");
+    expect(out).toMatch(/<input type="checkbox"(?![^>]*checked="")(?![^>]*disabled="")[^>]*aria-describedby="ic-ai-note"[^>]*>AI 제안도 받기 \(OpenAI\)<\/label>/);
+    expect(out).not.toContain(AI_RESTRICTED_TEXT);
+  });
+});
+
+describe("AI 제안 구역(ResultView)", () => {
+  const data = response("renamed");
+  const PAIR = { nodeId: "n-gallery", path: "src/entities/product/ui/ItemImages.tsx", name: "ItemImages", verdict: "same" as const, reason: "images prop으로 이미지를 그린다.", id: "AI|pair|n-gallery|src/entities/product/ui/ItemImages.tsx#ItemImages", nodeName: "ProductGallery" };
+  const MISSING = { nodeId: "n-cart", responsibility: "수량 검증", verdict: "missing" as const, reason: "수량을 확인하는 코드가 없다.", id: "AI|resp|n-cart|수량 검증", nodeName: "AddToCartButton" };
+  const DONE = { nodeId: "n-price", responsibility: "가격 표시", verdict: "done" as const, reason: "가격을 그린다.", id: "AI|resp|n-price|가격 표시", nodeName: "PriceTag" };
+  const META = { model: "gpt-6.1-terra", attempts: 1, elapsedMs: 1000, costUsd: 0.01 };
+  const OMIT = { pairNodes: [], responsibilityNodes: [] };
+  const ok: NonNullable<CheckResponse["ai"]> = { status: "ok", suggestions: { pairs: [PAIR], responsibilities: [MISSING, DONE], dropped: 0 }, omitted: OMIT, meta: META };
+
+  it("AI 제안이 없으면 구역을 그리지 않는다", () => {
+    expect(view(data)).not.toContain("AI 제안");
+  });
+
+  it("짝 제안은 판정·근거와 [받아들이기], 책임 제안은 missing에만 '수정 요청에 포함' 체크(기본 꺼짐)", () => {
+    const out = view(data, undefined, { ai: ok });
+    expect(out).toContain("AI 의견 · 집계에 넣지 않음");
+    expect(out).toContain("ProductGallery ↔ ItemImages: 같은 것으로 보임");
+    expect(out).toContain("AI 근거: images prop으로 이미지를 그린다.");
+    expect(out).toContain('aria-label="받아들이기: ProductGallery ↔ ItemImages"');
+    expect(out).toContain("코드 검사 판정이 아니라, AI가 코드 조각을 보고 낸 의견입니다");
+    expect(out).toContain("[받아들이기]를 누르면 그 짝을 직접 고른 것처럼 확정하고 코드로 다시 검사합니다");
+    expect(out).toContain("체크한 것은 수정 지시서에만 들어가고 설계 준수 집계는 바뀌지 않습니다");
+    expect(out).toMatch(/<section[^>]*aria-labelledby="ic-ai-title"/);
+    expect(out).toContain("AddToCartButton · 수량 검증: 수행하지 않은 것 같음");
+    expect(out).toContain("PriceTag · 가격 표시: 수행함");
+    const aiChecks = out.match(/<input id="ic-ai-include-[^"]*"[^>]*>/g) ?? [];
+    expect(aiChecks).toHaveLength(1);
+    expect(aiChecks[0]).not.toMatch(/checked=""/);
+    expect(out).toContain("수행하지 않은 것 같은 책임 1건 중 0건을 수정 요청에 포함했습니다.");
+  });
+
+  it("짝이 이미 정해진 노드(확인 필요가 아님)의 짝 제안과 '같음'이 아닌 짝 제안의 받아들이기는 보이지 않는다", () => {
+    const correct = response("correct");
+    expect(view(correct, undefined, { ai: ok })).not.toContain("ProductGallery ↔ ItemImages");
+    const differ: NonNullable<CheckResponse["ai"]> = { ...ok, suggestions: { ...ok.suggestions, pairs: [{ ...PAIR, verdict: "different" }] } };
+    const out = view(data, undefined, { ai: differ });
+    expect(out).toContain("ProductGallery ↔ ItemImages: 다른 것으로 보임");
+    expect(out).not.toContain("받아들이기: ");
+  });
+
+  it("missing을 체크하면 수정 지시서에 'AI 제안(사용자 확인)'이 생기지만, 설계 준수 집계·확인 필요 카드 수는 바뀌지 않는다", () => {
+    const lines = (out: string) => ({
+      summary: out.match(/설계 항목 \d+개 중 일치 \d+개 · 불일치 \d+개 · 확인 필요 \d+개/)?.[0],
+      review: out.match(/확인 필요 카드 \d+장 중 \d+장 포함/)?.[0],
+      header: out.match(/설계 준수: [^\n]*/)?.[0],
+    });
+    const off = view(data, new Set(), { ai: ok });
+    const on = view(data, new Set([MISSING.id]), { ai: ok });
+    expect(off).not.toContain("## AI 제안(사용자 확인)");
+    expect(on).toContain("## AI 제안(사용자 확인)");
+    expect(on).toContain("[AI 제안 · 책임 확인] AddToCartButton");
+    expect(on).toContain("수행하지 않은 것 같은 책임 1건 중 1건을 수정 요청에 포함했습니다.");
+    expect(lines(on)).toEqual(lines(off));
+    expect(lines(on)).toEqual(lines(view(data)));
+    expect(lines(on).summary).toBe("설계 항목 65개 중 일치 56개 · 불일치 0개 · 확인 필요 9개");
+  });
+
+  it("실패·건너뜀·생략을 알린다(코드 판정 결과는 그대로라고)", () => {
+    const failed = view(data, undefined, { ai: { status: "failed", failure: "timeout", omitted: OMIT, meta: META } });
+    expect(failed).toContain("AI 제안을 받지 못했습니다(AI 응답이 시간 안에 오지 않았습니다). 위의 코드 판정 결과는 그대로이고, 잠시 뒤 “다시 검사하기”로 다시 시도할 수 있습니다.");
+    expect(view(data, undefined, { ai: { status: "skipped", omitted: OMIT } })).toContain("AI를 부르지 않았습니다");
+    const omitted = view(data, undefined, { ai: { ...ok, omitted: { pairNodes: [], responsibilityNodes: ["PriceTag", "useCart"] } } });
+    expect(omitted).toContain("AI에 보내지 않은 대상: 책임 확인 PriceTag, useCart");
   });
 });
 

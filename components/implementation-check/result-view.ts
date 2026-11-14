@@ -41,5 +41,20 @@ export function removedTexts(removed: RemovedPair[], nameOf: (nodeId: string) =>
   return removed.map((r) => `${nameOf(r.nodeId)}: ${CONFIRMED_PROBLEM_TEXT[r.reason as keyof typeof CONFIRMED_PROBLEM_TEXT] ?? r.reason}`);
 }
 
+export const PAIR_VERDICT = { same: "같은 것으로 보임", different: "다른 것으로 보임", unsure: "판단 어려움" } as const;
+export const RESPONSIBILITY_VERDICT = { done: "수행함", missing: "수행하지 않은 것 같음", unsure: "판단 어려움" } as const;
+
+/** AI 실패 이유(사용자용) */
+export function aiFailureText(kind: "invalid_output" | "timeout" | "rate_limited" | "upstream"): string {
+  const why = { invalid_output: "AI 응답 형식이 맞지 않았습니다", timeout: "AI 응답이 시간 안에 오지 않았습니다", rate_limited: "AI 요청 한도에 걸렸습니다", upstream: "AI 서비스에 연결하지 못했습니다" }[kind];
+  return `AI 제안을 받지 못했습니다(${why}).`;
+}
+
+/** 상한을 넘거나 코드 조각을 찾지 못해 AI에 보내지 않은 대상. 없으면 null */
+export function aiOmittedText(o: { pairNodes: string[]; responsibilityNodes: string[] }): string | null {
+  const parts = [o.pairNodes.length ? `짝 확인 ${o.pairNodes.join(", ")}` : null, o.responsibilityNodes.length ? `책임 확인 ${o.responsibilityNodes.join(", ")}` : null].filter(Boolean);
+  return parts.length ? `보낼 양의 상한을 넘거나 코드 조각을 찾지 못해 AI에 보내지 않은 대상: ${parts.join(" · ")}` : null;
+}
+
 /** 후보 한 건의 "다른 노드의 1순위이기도 함" 문구 */
 export const contestedText = (by: string[] | undefined): string | null => (by?.length ? `다른 노드(${by.join(", ")})의 1순위 후보이기도 함` : null);

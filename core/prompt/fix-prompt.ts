@@ -1,8 +1,9 @@
 import type { Finding, ImplCheckResult, ReviewKind, Severity } from "../impl-check/result";
 
 // 구현 검사 수정 지시서. 템플릿만 쓰고 AI를 부르지 않아 같은 입력이면 같은 출력이다.
-// 담는 것: 확실한 카드(설계 밖 발견 제외) 전부 + 사용자가 포함한 확인 필요 카드. 포함하지 않은 확인 필요 카드는 지시서에서만 빠지고(건수도 적지 않음),
-// 머리말의 설계 준수 집계(일치 M / 전체 N)는 검사 결과 그대로다. 이름·파일 경로·근거만 적고 코드 본문은 넣지 않는다.
+// 담는 것(스펙 "수정 지시서 범위"): 확실한 카드(설계 밖 발견 제외) 전부 + 사용자가 포함한 확인 필요 카드 + 사용자가 포함한 AI 책임 제안(missing, "AI 제안(사용자 확인)" 구역).
+// 포함하지 않은 항목은 지시서에서만 빠지고(건수도 적지 않음), 머리말의 설계 준수 집계(일치 M / 전체 N)는 어떤 경우에도 검사 결과 그대로다.
+// 이름·파일 경로·근거만 적고 코드 본문은 넣지 않는다.
 
 export const FIX_SOURCE = "implementation-check";
 export const FIX_FILE_NAME = "implementation-fix-prompt.md";
@@ -12,7 +13,14 @@ export type FixPromptInput = {
   result: Pick<ImplCheckResult, "findings" | "summary">;
   /** 지시서에 포함하기로 한 확인 필요 카드 id(순서·중복은 결과에 영향 없음) */
   include: Iterable<string>;
+  /** 사용자가 포함한 AI 책임 제안(missing만). 없으면 지시서는 AI 이전과 같다 */
+  aiResponsibilities?: AiResponsibilityItem[];
 };
+
+/** 수정 지시서에 넣는 AI 책임 제안 하나(AI가 "책임을 수행하지 않은 것 같다"고 본 것을 사용자가 포함함) */
+export type AiResponsibilityItem = { id: string; nodeName: string; responsibility: string; reason: string };
+
+const AI_RESPONSIBILITY_ACTION = "이 책임을 코드가 수행하는지 직접 확인하고, 수행하지 않으면 설계대로 추가한다. AI의 의견이라 틀릴 수 있으니 확실하지 않으면 고치지 말고 보고한다.";
 
 export const SEVERITY_LABEL: Record<Severity, string> = { error: "오류", warning: "경고", info: "정보" };
 export const REVIEW_LABEL: Record<ReviewKind, string> = {
@@ -68,7 +76,7 @@ const titleOf = (f: Finding): string => {
 
 const item = (n: number, f: Finding): string[] => [`### ${n}. ${titleOf(f)}`, "", `- 문제: ${f.message}`, ...f.evidence.map((e) => `- 근거: ${e}`), `- 할 일: ${actionOf(f)}`, ""];
 
-export function buildFixPrompt({ baseline, result, include }: FixPromptInput): string {
+export function buildFixPrompt({ baseline, result, include, aiResponsibilities = [] }: FixPromptInput): string {
   const { findings, summary } = result;
   const included = new Set(include);
   const certain = findings.filter((f) => f.certainty === "certain" && !f.outsideDesign);
@@ -100,7 +108,13 @@ export function buildFixPrompt({ baseline, result, include }: FixPromptInput): s
     lines.push("## 확인 뒤 수정 (사용자가 포함한 확인 필요 항목)", "");
     for (const f of picked) lines.push(...item(++n, f));
   }
-  if (!certain.length && !picked.length) lines.push("## 고칠 항목", "", "고칠 항목이 없습니다.", "");
+  // 같은 입력이면 같은 출력: 화면의 체크 순서와 상관없이 id 순으로
+  const aiItems = [...new Map(aiResponsibilities.map((a) => [a.id, a])).values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  if (aiItems.length) {
+    lines.push("## AI 제안(사용자 확인)", "", "> AI가 책임을 수행하지 않은 것 같다고 본 항목 중 사용자가 포함한 것입니다. 설계 준수 집계에는 들어가지 않습니다.", "");
+    for (const a of aiItems) lines.push(`### ${++n}. [AI 제안 · 책임 확인] ${a.nodeName}`, "", `- 책임: ${a.responsibility}`, `- AI 근거: ${a.reason}`, `- 할 일: ${AI_RESPONSIBILITY_ACTION}`, "");
+  }
+  if (!certain.length && !picked.length && !aiItems.length) lines.push("## 고칠 항목", "", "고칠 항목이 없습니다.", "");
 
   // 사용자의 진행 상황(포함하지 않은 확인 필요 건수)은 적지 않는다: 지시서는 에이전트가 고칠 것만 담는다
   lines.push("## 건드리지 않을 것", "");

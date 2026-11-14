@@ -197,11 +197,13 @@ describe("tsconfig·jsconfig", () => {
 });
 
 describe("요청 검증과 상한", () => {
-  it("파일이 하나도 없거나 형식이 틀리거나 모르는 필드(useAi 등)가 있으면 400", async () => {
+  it("파일이 하나도 없거나 형식이 틀리거나(useAi가 불리언이 아님 등) 모르는 필드(foo 등)가 있으면 400", async () => {
     expect((await call({ codeFiles: [{ path: "README.md", content: "x" }] })).status).toBe(400);
     expect((await call({ codeFiles: [] })).status).toBe(400);
     expect((await call({})).status).toBe(400);
-    expect((await call({ codeFiles: files(), useAi: true })).status).toBe(400);
+    // useAi는 5-4에서 정상 필드가 됨(사용자 승인 2026-11-14). 정상 동작은 implementation-check-ai.test.ts
+    expect((await call({ codeFiles: files(), useAi: "yes" })).status).toBe(400);
+    expect((await call({ codeFiles: files(), foo: 1 })).status).toBe(400);
     expect((await call({ codeFiles: files(), confirmed: [{ nodeId: "x" }] })).status).toBe(400);
     expect(loadBlueprint).not.toHaveBeenCalled();
   });

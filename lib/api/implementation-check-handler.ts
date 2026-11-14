@@ -9,6 +9,12 @@ import { checkImplementation } from "../../core/impl-check/run";
 import { selectByBlueprint } from "../../core/impl-check/select-files";
 import { parseRepoUrl, type RepoTarget } from "../../core/code-source/github-url";
 import type { SourceFile } from "../../core/code-model/types";
+import { buildAiInput, isEmptyAiInput, type AiInput } from "../../core/impl-check/ai-input";
+import type { AiSuggestions } from "../../core/impl-check/ai-schema";
+import type { Pairing } from "../../core/impl-check/types";
+import type { Blueprint } from "../../core/schema/blueprint";
+import { BUDGET_TEXT_MS } from "../ai/draft-blueprint";
+import { suggestImplementation, type ImplAiFailure } from "../ai/impl-suggest";
 import { readGithubRepo, SERVER_REPO_LIMITS, type RepoErrorCode } from "../code-source/github";
 import { loadBlueprint } from "../db/blueprints";
 import { loadLatestBlueprintRef, loadLatestExportedRevision } from "../db/prompt-exports";
@@ -20,14 +26,15 @@ import { requireSession } from "./session";
 export const IMPLEMENTATION_CHECK_MAX_BODY_BYTES = 3 * 1024 * 1024;
 
 const FileList = z.array(z.object({ path: z.string().min(1).max(500), content: z.string() }).strict()).max(500);
-const ConfirmedItem = z.object({ nodeId: z.string().min(1).max(200), path: z.string().min(1).max(500), name: z.string().min(1).max(200) }).strict();
+// source는 기록용(사용자가 직접 짝지음 user / AI 제안을 받아들임 ai). 받아들인 순간 사용자의 결정이라 판정에는 쓰지 않는다
+const ConfirmedItem = z.object({ nodeId: z.string().min(1).max(200), path: z.string().min(1).max(500), name: z.string().min(1).max(200), source: z.enum(["user", "ai"]).optional() }).strict();
 
 /** GitHub 공개 저장소(4f). commit은 짝 확정 뒤 다시 검사할 때 같은 코드를 받으려고 첫 응답의 커밋 id를 그대로 보낸다 */
 const RepoInput = z.object({ url: z.string().min(1).max(300), subdir: z.string().max(300).nullable().optional(), commit: z.string().regex(/^[0-9a-f]{40}$/).optional() }).strict();
 
-// useAi와 confirmed 각 짝의 source("user"|"ai", 기록용·판정에 안 씀)는 5단계(AI 제안)에서 더한다. 지금은 모르는 필드로 보고 400을 낸다
+// useAi: 코드 판정 뒤에 AI 제안을 받는다(허용된 사용자만, 결과 숫자는 바뀌지 않음)
 const BodySchema = z
-  .object({ codeFiles: FileList.optional(), repo: RepoInput.optional(), confirmed: z.array(ConfirmedItem).max(200).optional() })
+  .object({ codeFiles: FileList.optional(), repo: RepoInput.optional(), confirmed: z.array(ConfirmedItem).max(200).optional(), useAi: z.boolean().optional() })
   .strict()
   .refine((b) => (b.codeFiles === undefined) !== (b.repo === undefined));
 
@@ -82,6 +89,9 @@ export async function handleImplementationCheckPost(request: Request, ctx: IdCon
   if (!parsed.success) return respond(invalidInput("요청 형식이 올바르지 않습니다. { codeFiles 또는 repo, confirmed? } 형식이어야 합니다."));
   const { db } = session;
   const input = parsed.data;
+
+  // 0) AI 제안은 허용된 사용자만(화면과 같은 판단). 코드를 받거나 OpenAI를 부르기 전에 거절한다
+  if (input.useAi && (await checkFeature("ai", db)) !== "allowed") return respond(httpError(403, "feature_restricted", "AI 제안은 현재 제한된 기능입니다. AI 없이 검사해 주세요.", false));
 
   // 1) 코드 출처별로 DB를 읽기 전에 거절할 것은 먼저 거절한다
   let files: SourceFile[] = [];
@@ -171,15 +181,54 @@ export async function handleImplementationCheckPost(request: Request, ctx: IdCon
     const configs = configSummary(files, model);
     const t4 = performance.now();
 
-    const timing = { totalMs: ms(t0, t4), filterMs: ms(t0, t1), dbMs: ms(t1, t2), parseMs: ms(t2, t3), checkMs: ms(t3, t4), requestNumber: sequence, first: sequence === 1 };
+    // 4) AI 제안(요청했을 때만). 코드 판정(result)은 이미 끝났고 AI는 바꾸지 못한다. 어떤 실패든 ai.status만 바뀐다
+    const ai = input.useAi ? await runAiSuggestions(bp, pairing, files, t0) : null;
+    const t5 = performance.now();
+
+    const timing = { totalMs: ms(t0, t5), filterMs: ms(t0, t1), dbMs: ms(t1, t2), parseMs: ms(t2, t3), checkMs: ms(t3, t4), ...(ai ? { aiMs: ms(t4, t5) } : {}), requestNumber: sequence, first: sequence === 1 };
     const bytes = files.reduce((n, f) => n + byteLength(f.content), 0);
-    console.info("[implementation-check]", JSON.stringify({ source: repo ? "repo" : "upload", files: files.length, bytes, nodes: bp.nodes.length, confirmed: confirmed.length, ...timing }));
+    const aiSources = confirmed.filter((c) => c.source === "ai").length;
+    console.info("[implementation-check]", JSON.stringify({ source: repo ? "repo" : "upload", files: files.length, bytes, nodes: bp.nodes.length, confirmed: confirmed.length, confirmedFromAi: aiSources, ...timing }));
+    if (ai) console.info("[implementation-check] ai", JSON.stringify(aiLogLine(ai)));
     return Response.json(
-      { baseline, ...(repo ? { repo } : {}), result, pairReviews, meta: { timing, files: files.length, bytes, nodes: bp.nodes.length, confirmedApplied: confirmed.length, configs } },
-      { headers: { "Server-Timing": `total;dur=${timing.totalMs}, filter;dur=${timing.filterMs}, db;dur=${timing.dbMs}, parse;dur=${timing.parseMs}, check;dur=${timing.checkMs}` } },
+      { baseline, ...(repo ? { repo } : {}), result, pairReviews, ...(ai ? { ai } : {}), meta: { timing, files: files.length, bytes, nodes: bp.nodes.length, confirmedApplied: confirmed.length, configs } },
+      { headers: { "Server-Timing": `total;dur=${timing.totalMs}, filter;dur=${timing.filterMs}, db;dur=${timing.dbMs}, parse;dur=${timing.parseMs}, check;dur=${timing.checkMs}${ai ? `, ai;dur=${timing.aiMs}` : ""}` } },
     );
   } catch (e) {
     console.error("[implementation-check] 분석 실패", e instanceof Error ? e.name : "error");
     return respond(httpError(500, "analysis_failed", "코드를 분석하지 못했습니다. 잠시 후 다시 시도해 주세요.", true));
   }
 }
+
+/** 라우트 maxDuration(60초) 안에서 응답을 마칠 수 있게 AI에 쓸 수 있는 시간을 줄인다(저장소 받기에 쓴 시간을 뺀다) */
+const ROUTE_BUDGET_MS = 55_000;
+
+export type AiOutcome =
+  | { status: "ok"; suggestions: AiSuggestions; omitted: AiInput["omitted"]; meta: AiMeta }
+  | { status: "failed"; failure: ImplAiFailure; omitted: AiInput["omitted"]; meta: AiMeta }
+  | { status: "skipped"; omitted: AiInput["omitted"] };
+type AiMeta = { model: string; attempts: number; elapsedMs: number; costUsd: number };
+
+async function runAiSuggestions(bp: Blueprint, pairing: Pairing, files: SourceFile[], t0: number): Promise<AiOutcome> {
+  const input = buildAiInput(bp, pairing, files);
+  if (isEmptyAiInput(input)) return { status: "skipped", omitted: input.omitted };
+  const budgetMs = Math.min(BUDGET_TEXT_MS, ROUTE_BUDGET_MS - (performance.now() - t0));
+  try {
+    const r = await suggestImplementation(input, { budgetMs });
+    const meta = { model: r.model, attempts: r.attempts, elapsedMs: r.elapsedMs, costUsd: r.costUsd };
+    return r.ok ? { status: "ok", suggestions: r.suggestions, omitted: input.omitted, meta } : { status: "failed", failure: r.kind, omitted: input.omitted, meta };
+  } catch (e) {
+    // 키가 없을 때 등 클라이언트를 만들지 못하면 여기로 온다. 코드 판정 결과는 그대로 보낸다
+    console.error("[implementation-check] AI 호출 준비 실패", e instanceof Error ? e.name : "error");
+    return { status: "failed", failure: "upstream", omitted: input.omitted, meta: { model: "", attempts: 0, elapsedMs: 0, costUsd: 0 } };
+  }
+}
+
+/** 로그 한 줄: 상태·개수·비용·시간만(근거 글·코드 조각 없음) */
+const aiLogLine = (ai: AiOutcome) => ({
+  status: ai.status,
+  ...(ai.status === "failed" ? { failure: ai.failure } : {}),
+  ...(ai.status === "ok" ? { pairs: ai.suggestions.pairs.length, responsibilities: ai.suggestions.responsibilities.length, dropped: ai.suggestions.dropped } : {}),
+  omitted: ai.omitted.pairNodes.length + ai.omitted.responsibilityNodes.length,
+  ...(ai.status !== "skipped" ? ai.meta : {}),
+});

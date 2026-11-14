@@ -9,7 +9,11 @@
 
 에이전트가 지시서대로 만든 코드(폴더 업로드)가 설계도를 지켰는지 확인한다.
 판정은 코드(`core/`)가 하고, 코드로 확신할 수 없는 것만 AI가 제안하며, 최종 결정은 사람이 한다.
-결과는 **확실 → 확인 필요 → AI 제안** 순서로 보여 주고, 확실한 항목과 사용자가 받아들인 확인 필요 항목으로 "수정 지시서"를 만든다.
+결과는 **확실 → 확인 필요 → AI 제안** 순서로 보여 주고, 다음 세 가지로 "수정 지시서"를 만든다(**수정 지시서 범위**, 이 문서의 정본. 사용자 결정 2026-11-14).
+- 확실한 항목(모두)
+- 사용자가 "수정 요청에 포함"을 체크한 확인 필요 항목
+- 사용자가 "수정 요청에 포함"을 체크한 AI 책임 제안(missing: 책임을 수행하지 않은 것 같음). 지시서 안에서 "AI 제안(사용자 확인)" 구역으로 따로 구분한다
+체크는 기본이 꺼져 있고 수정 지시서에만 영향을 준다. **어떤 경우에도 설계 준수 집계(일치·불일치·확인 필요 수)는 바뀌지 않는다**: 체크·AI 제안·AI 실패와 상관없이 집계는 코드 판정 결과 그대로다.
 
 성공 기준
 - 바르게 구현한 시험 코드는 확실 0건·확인 필요 0건.
@@ -246,10 +250,10 @@ React 훅 사용 규칙처럼 ESLint(코드 문법·습관을 검사하는 도�
 
 **AI** (5단계): 켜고 끌 수 있는 토글, 켜기 전에 "코드 일부가 외부 AI(OpenAI)로 전송됩니다" 안내. 보내는 것은 확인 필요 항목에 걸린 컴포넌트와 책임 확인 대상 컴포넌트의 함수 본문 조각뿐이며 컴포넌트당·총 글자 수 상한을 둔다(Q3). 응답은 JSON 스키마(Zod)로 받아 검증, 실패하면 AI 제안 없이 1·2번만 표시. 로그인 필수(`getClaims`), 기존 초안 생성의 모델·시간 제한(텍스트 45초)·오류 매핑·재시도 규칙 재사용. AI는 확실 결과를 바꾸지 못하고, 제안은 "AI 제안" 배지로 구분하며 `[받아들이기]`를 누르면 그 짝을 `confirmed`에 넣어 보낸다(출처 표시 `source: "ai"`). 받아들인 순간 사용자의 결정이므로 직접 짝지은 것과 똑같이 검증·판정한다(API 절).
 
-**수정 지시서**: `core/prompt/fix-prompt.ts` 템플릿(AI 없음, 같은 입력 → 같은 출력). 확실 항목 + 받아들인 확인 필요 항목만. 항목마다 "어느 노드·어느 파일·무엇을 설계대로 고칠지"를 적고 기준 판(번호)을 머리말에 적는다. 복사·.md 내려받기는 기존 `ExportDocumentCard` 재사용.
+**수정 지시서**: `core/prompt/fix-prompt.ts` 템플릿(AI 없음, 같은 입력 → 같은 출력). 범위는 맨 위의 "수정 지시서 범위"(12줄)를 따른다. 항목마다 "어느 노드·어느 파일·무엇을 설계대로 고칠지"를 적고 기준 판(번호)을 머리말에 적는다. 복사·.md 내려받기는 기존 `ExportDocumentCard` 재사용.
 
 **API** (4a 구현 기준): `POST /api/projects/[id]/implementation-check`
-- 요청 JSON: `{ codeFiles: [{path, content}], confirmed?: [{ nodeId, path, name }] }`. `codeFiles`는 `.ts`·`.tsx`와 `tsconfig.json`·`jsconfig.json`을 받고 서버가 화면과 같은 규칙·상한(본문 3MB, 30개·파일 200KB·합계 1MB)으로 다시 거른다. `confirmed`는 사용자가 "같은 것으로 짝짓기"로 확정한 짝이다: `nodeId`는 설계 노드의 고유 id(3b 항목 id `노드id|키`의 앞부분), `path`·`name`은 코드 단위(파일 경로, 컴포넌트·훅 이름). 5단계의 `useAi`는 지금은 모르는 필드로 400. 5단계에서 `confirmed`의 각 짝에 출처 표시 `source: "user" | "ai"`(선택, 없으면 `"user"`)를 더한다. AI 제안을 받아들인 짝도 별도 필드 없이 `confirmed`로 보내고 `source: "ai"`만 붙인다. 출처 표시는 기록용이며 검증·판정에 쓰지 않는다: 화면이 보내는 값이라 서버가 믿을 근거가 없으므로 출처 표시로 결과가 달라지면 안 된다. 그 전(4a·4b) 서버는 `source`도 모르는 필드로 400.
+- 요청 JSON: `{ codeFiles: [{path, content}], confirmed?: [{ nodeId, path, name }] }`. `codeFiles`는 `.ts`·`.tsx`와 `tsconfig.json`·`jsconfig.json`을 받고 서버가 화면과 같은 규칙·상한(본문 3MB, 30개·파일 200KB·합계 1MB)으로 다시 거른다. `confirmed`는 사용자가 "같은 것으로 짝짓기"로 확정한 짝이다: `nodeId`는 설계 노드의 고유 id(3b 항목 id `노드id|키`의 앞부분), `path`·`name`은 코드 단위(파일 경로, 컴포넌트·훅 이름). `useAi`(선택, 5-4부터)는 코드 판정 뒤에 AI 제안을 받는다(허용된 사용자만, 아니면 403. 불리언이 아니면 400). `confirmed`의 각 짝에는 출처 표시 `source: "user" | "ai"`(선택, 없으면 `"user"`, 5-4부터)를 붙일 수 있다. AI 제안을 받아들인 짝도 별도 필드 없이 `confirmed`로 보내고 `source: "ai"`만 붙인다. 출처 표시는 기록용이며 검증·판정에 쓰지 않는다: 화면이 보내는 값이라 서버가 믿을 근거가 없으므로 출처 표시로 결과가 달라지면 안 된다. (4a~4f 서버는 `useAi`·`source`를 모르는 필드로 보고 400을 냈다.)
 - 응답 200: `{ baseline, result, meta }`. `baseline` = `{ revision, source: "export"|"latest", newerRevision? }`(지시서를 가장 최근에 내보낸 판, 내보낸 적이 없으면 최신 판이고 `source`가 `latest`, 내보낸 판보다 새 판이 있으면 `newerRevision`). `result` = 3b의 `{ items, bans, findings, summary }` 그대로(`confirmed`가 없으면 3b와 완전히 같은 결과, 보냈을 때만 판정에 영향). `meta` = `{ timing: { totalMs, filterMs, dbMs, parseMs, checkMs, requestNumber, first }, files, bytes, nodes, confirmedApplied }`(`requestNumber`는 서버 인스턴스가 몇 번째로 처리했는지, `first`는 첫 요청 여부. 같은 값을 `Server-Timing` 헤더로도 낸다. 4c 성능 측정용).
 - `confirmed` 검증(하나라도 어긋나면 422 `invalid_confirmed`, 어느 항목(`confirmed[i]`)인지만 알리고 코드 내용은 담지 않음): 기준 설계도에 없는 `nodeId`, 올린 코드에 없는 `path`·`name`, 노드와 코드의 종류 불일치(훅은 훅끼리, 컴포넌트·페이지는 컴포넌트끼리), 같은 노드·같은 코드의 중복, 이미 확실한 짝이 있는 노드를 다른 코드로 확정, 다른 노드의 확실한 짝인 코드를 확정. 오류 응답에는 새 정보를 더한다: `error.code`는 `invalid_confirmed`이고(판 없음 `no_blueprint`·HTML `unsupported_stack` 등 다른 422와 구분), `error.invalid` = `[{ index, nodeId, reason, removable }]`(`reason`은 `unknown-node`·`unknown-code`·`kind-mismatch`·`duplicate-node`·`duplicate-code`·`already-certain-node`·`code-taken`). `removable`은 코드나 설계도가 바뀌어 생긴 사유(`unknown-node`·`unknown-code`·`already-certain-node`·`code-taken`)에만 true다. 화면은 `invalid`가 전부 removable일 때만 그 짝만 빼고 **한 번만** 다시 검사하고(제거한 짝과 사유를 사용자에게 알림), 중복·종류 불일치가 하나라도 있으면 빼지 않고 오류로 보인다. 다시 검사해서도 실패하면 그 오류를 그대로 보인다. 검증한 뒤에만 검사기에 넘기고, 검사기는 확정한 짝을 먼저 확실한 짝으로 정한 뒤 짝짓기 전체를 처음부터 다시 돌린다(§6-1).
 - 오류: 401(세션) · 404(없거나 남의 프로젝트) · 400(형식, 검사할 `.ts`·`.tsx` 없음) · 413(한도) · 422(판 없음, HTML 프로젝트, `confirmed` 오류) · 500(분석 중 예외, 메시지에 코드 없음) · 503(DB). 코드는 저장하지 않고 응답 오류·서버 로그에 코드 내용을 넣지 않는다(서버 로그는 파일 수·크기·노드 수·시간 한 줄).

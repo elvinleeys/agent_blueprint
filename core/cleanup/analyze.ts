@@ -1,7 +1,8 @@
 import { compareDesignSystem, type CompareSummary, type Finding } from "./compare";
-import { extractComponents } from "./extract";
+import { extractComponents } from "../code-model/parse";
 import { inferComponents, parseSpecJson, type InferWarning } from "./infer-spec";
-import type { OfficialComponent, PartialFile, SourceFile } from "./types";
+import type { PartialFile, SourceFile } from "../code-model/types";
+import type { OfficialComponent } from "./types";
 
 /** 공식 스펙을 얻는 방법: JSON 직접 입력, 또는 디자인 시스템으로 올린 파일의 내보낸 컴포넌트 */
 export type SpecSource = { kind: "json"; text: string } | { kind: "files"; files: SourceFile[] };

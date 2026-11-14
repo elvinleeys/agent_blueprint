@@ -1,0 +1,939 @@
+{
+  "bundle": "react",
+  "blueprint": "blueprint.json",
+  "cases": {
+    "correct": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "fetch": {
+          "ProductDetailPage": "READ",
+          "useCart": "WRITE"
+        },
+        "classes": {
+          "ProductInfo": {
+            "flex-col": "ALWAYS"
+          }
+        },
+        "routes": [
+          "/products/:id"
+        ],
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/components/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/components/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/components/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/components/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/components/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/hooks/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/components/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": [],
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 59,
+            "mismatch": 0,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-01": {
+      "certain": [
+        {
+          "rule": "IC-01",
+          "severity": "warning",
+          "node": "ReviewSummary"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 51,
+            "mismatch": 8,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 2
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-02": {
+      "certain": [
+        {
+          "rule": "IC-02",
+          "severity": "info",
+          "node": "PromoBanner"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 59,
+            "mismatch": 0,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 1
+        }
+      }
+    },
+    "wrong-IC-03": {
+      "certain": [
+        {
+          "rule": "IC-03",
+          "severity": "warning",
+          "node": "AddToCartButton"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-04": {
+      "certain": [
+        {
+          "rule": "IC-04",
+          "severity": "warning",
+          "node": "PriceTag"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-04-hook": {
+      "certain": [
+        {
+          "rule": "IC-04",
+          "severity": "warning",
+          "node": "useCart"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-05": {
+      "certain": [
+        {
+          "rule": "IC-05",
+          "severity": "warning",
+          "node": "useCart"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-06-missing": {
+      "certain": [
+        {
+          "rule": "IC-06",
+          "severity": "warning",
+          "node": "PriceTag"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-06-extra": {
+      "certain": [
+        {
+          "rule": "IC-06",
+          "severity": "warning",
+          "node": "PriceTag"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 59,
+            "mismatch": 0,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 1
+        }
+      }
+    },
+    "wrong-IC-07": {
+      "certain": [
+        {
+          "rule": "IC-07",
+          "severity": "warning",
+          "node": "OptionSelector"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-08-presentational": {
+      "certain": [
+        {
+          "rule": "IC-08",
+          "severity": "warning",
+          "node": "PriceTag"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-08-missing": {
+      "certain": [
+        {
+          "rule": "IC-08",
+          "severity": "warning",
+          "node": "useCart"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-09": {
+      "certain": [
+        {
+          "rule": "IC-09",
+          "severity": "warning",
+          "node": "ProductInfo"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "classes": {
+          "ProductInfo": {
+            "flex-col": "ABSENT"
+          }
+        },
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-10": {
+      "certain": [
+        {
+          "rule": "IC-10",
+          "severity": "warning",
+          "node": "PriceTag"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-11": {
+      "certain": [
+        {
+          "rule": "IC-11",
+          "severity": "warning",
+          "node": "PriceTag"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 59,
+            "mismatch": 0,
+            "review": 0
+          },
+          "ban": {
+            "violated": 1,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-IC-12": {
+      "certain": [
+        {
+          "rule": "IC-12",
+          "severity": "warning",
+          "node": "ProductGallery"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 59,
+            "mismatch": 0,
+            "review": 0
+          },
+          "ban": {
+            "violated": 1,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "wrong-ICR-01": {
+      "certain": [
+        {
+          "rule": "ICR-01",
+          "severity": "warning",
+          "node": "ProductDetailPage"
+        }
+      ],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 1,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "renamed": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-01",
+          "kind": "pair",
+          "node": "ProductGallery",
+          "candidate": "ItemImages"
+        },
+        {
+          "rule": "IC-05",
+          "kind": "state",
+          "node": "useCart",
+          "design": "cartCount",
+          "candidate": "count"
+        },
+        {
+          "rule": "IC-06",
+          "kind": "prop",
+          "node": "PriceTag",
+          "design": "discountRate",
+          "candidate": "discount"
+        }
+      ],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "candidate",
+            "unit": "ItemImages@src/components/ItemImages.tsx",
+            "basis": [
+              "location"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/components/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/components/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/components/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/components/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/hooks/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/components/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": [],
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 51,
+            "mismatch": 0,
+            "review": 8
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 2
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "stack-mismatch": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 59,
+            "mismatch": 0,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "review-IC-10-default-class": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-10",
+          "kind": "style",
+          "node": "PriceTag"
+        }
+      ],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 0,
+            "review": 1
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "review-IC-08-child-hook": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-08",
+          "kind": "fetch",
+          "node": "ProductDetailPage",
+          "via": "useProduct"
+        }
+      ],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 0,
+            "review": 1
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "review-ICR-01-no-router": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "ICR-01",
+          "kind": "router",
+          "node": "ProductDetailPage"
+        }
+      ],
+      "facts": {
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 0,
+            "review": 1
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "fetch-write-only": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "fetch": {
+          "ProductDetailPage": "READ",
+          "useCart": "WRITE"
+        },
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 59,
+            "mismatch": 0,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "class-conditional": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-09",
+          "kind": "style",
+          "node": "ProductInfo"
+        }
+      ],
+      "facts": {
+        "classes": {
+          "ProductInfo": {
+            "flex-col": "CONDITIONAL"
+          }
+        },
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 0,
+            "review": 1
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "nested-route": {
+      "certain": [],
+      "needsReview": [],
+      "facts": {
+        "routes": [
+          "/products/:id"
+        ],
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 59,
+            "mismatch": 0,
+            "review": 0
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "lazy-with-path": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-04",
+          "kind": "unreadable",
+          "node": "ProductGallery",
+          "via": "@/components/ProductGallery"
+        }
+      ],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/components/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/components/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/components/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/components/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/components/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/hooks/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "certain",
+            "unit": "ReviewSummary@src/components/ReviewSummary.tsx",
+            "basis": [
+              "exact"
+            ]
+          }
+        },
+        "extraUnits": [],
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 58,
+            "mismatch": 0,
+            "review": 1
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 0
+          },
+          "outsideDesign": 0
+        }
+      }
+    },
+    "dynamic-import-variable": {
+      "certain": [],
+      "needsReview": [
+        {
+          "rule": "IC-01",
+          "kind": "unreadable",
+          "node": "ReviewSummary"
+        }
+      ],
+      "facts": {
+        "pairs": {
+          "ProductDetailPage": {
+            "state": "certain",
+            "unit": "ProductDetailPage@src/pages/ProductDetailPage.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductGallery": {
+            "state": "certain",
+            "unit": "ProductGallery@src/components/ProductGallery.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ProductInfo": {
+            "state": "certain",
+            "unit": "ProductInfo@src/components/ProductInfo.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "PriceTag": {
+            "state": "certain",
+            "unit": "PriceTag@src/components/PriceTag.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "OptionSelector": {
+            "state": "certain",
+            "unit": "OptionSelector@src/components/OptionSelector.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "AddToCartButton": {
+            "state": "certain",
+            "unit": "AddToCartButton@src/components/AddToCartButton.tsx",
+            "basis": [
+              "exact"
+            ]
+          },
+          "useCart": {
+            "state": "certain",
+            "unit": "useCart@src/hooks/useCart.ts",
+            "basis": [
+              "exact"
+            ]
+          },
+          "ReviewSummary": {
+            "state": "unreadable",
+            "unit": null,
+            "basis": [
+              "unknown-target"
+            ]
+          }
+        },
+        "extraUnits": [],
+        "summary": {
+          "design": {
+            "total": 59,
+            "match": 51,
+            "mismatch": 0,
+            "review": 8
+          },
+          "ban": {
+            "violated": 0,
+            "unknown": 2
+          },
+          "outsideDesign": 0
+        }
+      }
+    }
+  }
+}

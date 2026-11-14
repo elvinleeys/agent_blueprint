@@ -2,13 +2,17 @@
 
 > **개정 (2026-10-30)**: `/api/draft`는 NDJSON 스트림 응답으로 바뀌었다. 아래의 `meta.saved`/`saveError`·"저장 실패 시 200" 표기는 폐지되고, 저장 실패는 스트림의 `error`(503 `db_unavailable`)에 `blueprint`를 함께 담아 알린다. 현재 형식은 `SPEC-draft-route.md`의 "응답 스트림"과 `docs/projects-api.md`를 따른다.
 
+> **이 문서는**: 로그인한 사용자가 프로젝트를 만들고, 설계도를 저장하고 불러오고, AI 초안을 새 판(저장된 설계도의 한 버전)으로 저장하게 하는 서버 쪽 연결의 설명서다. 화면은 만들지 않는다. 작업 순서는 `tasks/plan-projects-api.md`에 있다. (`F-014`는 이 기능의 번호다.)
+> **목록에 들어 있는 것**: 저장 규칙 표, 구현 방식 비교(API 라우트 대 서버 액션), 가정 9개, 엔드포인트(주소) 표, 오류 번호 매핑 표, `/api/draft` 연동 변경점, 파일 역할 표, 명령어, 테스트 전략, 경계, 성공 기준, 위험 표, 남은 질문 7개.
+
 단일 기능(서버 쪽 연결 1겹)이라 capability map은 만들지 않는다. 구현은 승인 후 시작한다. 작업 순서는 `tasks/plan-projects-api.md` 참조.
 근거: `SPEC-db-rls.md`, `lib/db/*`(이미 구현·테스트됨), `SPEC-draft-route.md`, `SPEC-auth-login.md`, `CLAUDE.md`(API 라우트 개요·에러 처리), Next.js 16.4.3 로컬 문서.
 
-## Objective
+## Objective (목표)
 로그인한 사용자가 (1) 프로젝트를 이름·스택(프레임워크, 스타일 방식, 디렉토리 구조)과 함께 만들고, (2) 자기 프로젝트만 목록으로 보고, (3) 설계도를 불러오고 저장하며, (4) AI 초안이 만들어지면 자동으로 **새 판**으로 저장되게 한다. 이번 범위는 **서버 쪽 연결**(HTTP 층 + `/api/draft` 연동 + 테스트 + 호출 예시 문서)이다. 화면은 만들지 않는다. 화면은 나중에 이 연결을 `fetch`로 호출한다.
 
-저장 규칙(확정, `SPEC-db-rls.md`):
+저장 규칙(확정, `SPEC-db-rls.md`): 아래 표는 언제 어떤 방식으로 저장하는지 정리한 것이다. (RLS는 DB가 사용자별로 데이터를 가르는 보안 규칙이다.)
+
 | 시점 | 동작 | 사용하는 함수 |
 | --- | --- | --- |
 | 편집 중 자동 저장 | **최신 판 갱신** | `saveBlueprint` |
@@ -16,6 +20,8 @@
 | 지시서 내보내기 | **새 판 추가** (내보내기 기능은 이번 범위 밖, 호출 경로만 열어 둠) | `createBlueprintRevision` |
 
 ## 구현 방식 비교: API 라우트 vs 서버 컴포넌트 + 서버 액션
+
+아래 표는 두 가지 구현 방식 A와 B를 기준별로 비교한 것이다. (API 라우트는 주소로 호출하는 서버 코드, 서버 액션은 화면이 직접 부르는 서버 함수다.)
 
 | 기준 | A. API 라우트 | B. 서버 컴포넌트 + 서버 액션 |
 | --- | --- | --- |
@@ -27,7 +33,7 @@
 
 **제안: A. API 라우트.** 이유: (1) CLAUDE.md에 `/api/projects`가 이미 계약으로 적혀 있고 `/api/draft`가 같은 구조(얇은 라우트 + `lib` 핸들러 + mock 테스트)라 **새 방식 도입이 없다**, (2) 화면이 없어도 테스트·콘솔 확인이 가능해 지금 단계에 맞다, (3) 편집기의 자동 저장·초안 생성이 모두 `fetch`+상태 코드 방식이라 한 가지로 통일된다. 목록 화면은 나중에 서버 컴포넌트에서 `listProjects`를 직접 호출해도 된다(이 결정과 충돌하지 않음).
 
-## Assumptions (틀리면 알려주세요)
+## Assumptions (가정: 틀리면 알려주세요)
 1. 위 비교에 따라 **A(API 라우트)** 로 진행한다.
 2. 라우트는 얇게 두고 로직은 `lib/api/`에 둔다(`app/`에는 라우팅만, CLAUDE.md 규칙). `lib/db`는 수정하지 않는다(Open Question 2의 `getProject` 제외).
 3. 로그인 확인은 `createClient()`(서버 클라이언트) + `getClaims()`. 실패는 **401** JSON. DB 접근은 같은 클라이언트(로그인 세션 → RLS가 사용자 격리). service role 사용 없음.
@@ -41,6 +47,8 @@
 ## 설계
 
 ### 엔드포인트
+아래 표는 새로 여는 주소(엔드포인트)와 각 주소의 동작을 정리한 것이다.
+
 | 메서드·경로 | 동작 | 사용 함수 | 성공 응답 |
 | --- | --- | --- | --- |
 | `GET /api/projects` | 내 프로젝트 목록(최근 수정 순, 최대 100) | `listProjects` | 200 `{ projects }` |
@@ -54,6 +62,8 @@
 판 삭제(`deleteBlueprintRevision`)와 판 목록 화면은 이번 범위 밖이다(삭제 라우트 없음).
 
 ### 오류 매핑 (`lib/api`)
+아래 표는 DB 함수의 결과를 어떤 HTTP 상태 번호와 오류 이름으로 바꿔 응답하는지 정리한 것이다. (`retryable`은 다시 시도해 볼 만한지를 뜻한다.)
+
 | `lib/db` 결과 | 상태 | `code` | `retryable` |
 | --- | --- | --- | --- |
 | 세션 없음 | 401 | `unauthorized` | false |
@@ -75,6 +85,8 @@
 - 이미지·코드 원본은 저장하지 않는다(기존 규칙 그대로, 저장 대상은 설계도뿐).
 
 ### 파일과 책임
+아래 표는 만들거나 고칠 파일과 각 파일이 맡는 일을 정리한 것이다.
+
 | 파일 | 책임 |
 | --- | --- |
 | `app/api/projects/route.ts` | `GET`·`POST` 연결만 |
@@ -87,10 +99,10 @@
 | `docs/projects-api.md` | 브라우저 콘솔 호출 예시(생성→목록→초안→저장→불러오기), 오류 코드표 |
 | `CLAUDE.md` | API 라우트 개요 표 갱신 |
 
-## Tech Stack
+## Tech Stack (기술 스택)
 Next.js 16.4.3 Route Handlers(Cache Components 켜짐), TypeScript, Zod 4, `@supabase/ssr`, Vitest 5. 새 의존성 없음.
 
-## Commands
+## Commands (명령어)
 ```
 npx vitest run lib
 npx tsc --noEmit
@@ -99,7 +111,7 @@ npm run build          # 라우트 컴파일(동적 세그먼트 [id] 포함) �
 ```
 실제 OpenAI 호출은 이 작업에서 하지 않는다(사용자가 콘솔로 직접).
 
-## Code Style
+## Code Style (코드 모양)
 ```ts
 // lib/api/projects-handler.ts — 핸들러는 Request를 받아 Response를 돌려주고, 로직은 lib/db에 맡긴다
 export async function handleProjectsPost(request: Request): Promise<Response> {
@@ -113,8 +125,8 @@ export async function handleProjectsPost(request: Request): Promise<Response> {
 ```
 `/api/draft`의 `respond`·오류 형식과 같은 이름·모양을 쓴다.
 
-## Testing Strategy
-- **핸들러 단위 테스트(mock)**: Supabase 서버 클라이언트와 `lib/db` 함수를 mock하고 `Request`를 직접 넘긴다(기존 `draft-handler.test.ts` 방식). 실제 DB·OpenAI 호출 없음.
+## Testing Strategy (테스트 전략)
+- **핸들러 단위 테스트(mock)**: Supabase 서버 클라이언트와 `lib/db` 함수를 mock하고 `Request`를 직접 넘긴다(기존 `draft-handler.test.ts` 방식). 실제 DB·OpenAI 호출 없음. (mock은 진짜 대신 쓰는 가짜 대역이다.) 아래 표는 대상별로 확인할 경우를 정리한 것이다.
   | 대상 | 케이스 |
   | --- | --- |
   | 공통 | 세션 없음 401(DB 미호출), content-type 아님 400, JSON 깨짐 400, 본문 1MB 초과 413, `[id]`가 uuid 아님 400 |
@@ -125,12 +137,12 @@ export async function handleProjectsPost(request: Request): Promise<Response> {
 - 라우트 파일은 연결만 하므로 `npm run build`(동적 라우트 컴파일)로 확인한다.
 - 실제 저장·조회는 사용자가 `docs/projects-api.md`의 콘솔 예시로 확인한다(마지막에 RLS가 실제 API 경로에서 작동하는지 처음 검증됨 — `SPEC-db-rls.md` 후속 위험).
 
-## Boundaries
-- Always: 처리 전 `getClaims()`로 세션 확인, 응답은 사용자용 메시지만, 설계도는 `lib/db`의 검증을 통과한 것만 저장, 쓰기는 `application/json`만
-- Ask first: `lib/db`에 함수 추가(`getProject`), `saveBlueprint` 동작 변경(Open Question 1), 새 의존성, `/api/projects` 외 경로 추가, 낙관적 동시성 제어
-- Never: service role key 사용, 클라이언트가 보낸 사용자 id 신뢰(소유는 RLS·세션이 결정), 이미지·코드 원본 저장, 응답에 DB 원본 에러 노출, 실제 OpenAI 호출(이번 구현 중), `app/`에 라우팅 외 로직
+## Boundaries (경계: 항상 / 먼저 물어봄 / 하지 않음)
+- Always(항상): 처리 전 `getClaims()`로 세션 확인, 응답은 사용자용 메시지만, 설계도는 `lib/db`의 검증을 통과한 것만 저장, 쓰기는 `application/json`만
+- Ask first(먼저 물어봄): `lib/db`에 함수 추가(`getProject`), `saveBlueprint` 동작 변경(Open Question 1), 새 의존성, `/api/projects` 외 경로 추가, 낙관적 동시성 제어
+- Never(하지 않음): service role key 사용, 클라이언트가 보낸 사용자 id 신뢰(소유는 RLS·세션이 결정), 이미지·코드 원본 저장, 응답에 DB 원본 에러 노출, 실제 OpenAI 호출(이번 구현 중), `app/`에 라우팅 외 로직
 
-## Success Criteria
+## Success Criteria (성공 기준)
 1. 핸들러·draft 연동 테스트가 위 표의 모든 케이스를 통과하고 `tsc`·`eslint`·`npm run build`가 통과한다.
 2. 세션 없이 모든 새 엔드포인트가 **401**이고 DB를 호출하지 않는다.
 3. 사용자가 콘솔 예시로 확인한다: 프로젝트 생성 201 → 목록에 보임 → 설계도 `PUT`(첫 저장)과 `GET` 일치 → `PUT` 재호출 시 같은 `revision`의 `updatedAt`만 갱신 → `POST revisions`로 `revision`이 1 증가.
@@ -138,7 +150,9 @@ export async function handleProjectsPost(request: Request): Promise<Response> {
 5. 다른 계정으로 같은 `[id]`를 호출하면 404이고 본문에 존재 여부가 드러나지 않는다.
 6. 이 작업 중 실제 OpenAI 호출·service role 사용이 없었다.
 
-## Risks
+## Risks (위험)
+아래 표는 예상되는 위험과 그 대응을 정리한 것이다.
+
 | 위험 | 대응 |
 | --- | --- |
 | **AI 초안이 편집으로 덮어써짐**(Open Question 1): 초안이 새 판으로 저장된 뒤 자동 저장은 *그 최신 판을 갱신*하므로, "AI가 처음 만든 초안"은 첫 자동 저장에서 사라진다. 이후 내보내기 때 새 판이 생기지만 그 사이 원본 초안은 보존되지 않는다 | 승인 전에 결정. 권장안은 아래 Open Question 1 |
@@ -149,7 +163,7 @@ export async function handleProjectsPost(request: Request): Promise<Response> {
 | RLS는 단위 테스트로 증명되지 않음 | 콘솔 예시(다른 계정으로 404 확인)와 `SPEC-db-rls.md`의 격리 스크립트가 이미 SQL 수준 검증 |
 | 사용자 단위 호출 제한 없음(비용) | 이전 스펙과 동일, 범위 밖(S-09 사용량·429 작업) |
 
-## Open Questions
+## Open Questions (남은 질문)
 1. **초안 보존 vs 자동 저장 (중요)**: 말씀하신 "AI가 처음 만든 초안을 그대로 보존"하려면 *초안으로 만든 판(generatedBy `ai`)은 첫 편집 저장 때 갱신하지 않고 새 판(`user`)을 만들어야* 합니다. 지금 규칙(자동 저장은 항상 최신 판 갱신)대로면 초안 판이 편집 내용으로 덮어써집니다. 권장: `saveBlueprint`가 "최신 판이 `ai`이고 저장하려는 설계도가 `user` 수정본이면 새 판 추가, 그 뒤 자동 저장은 그 판을 갱신"하도록 `lib/db`를 한 군데 고친다(테스트 포함). 이 범위에 포함할까요, 아니면 지금 규칙 그대로 두고 나중에 다룰까요?
 2. **`lib/db`에 `getProject(db, id)` 추가**를 승인하시나요? 이 함수가 있으면 (a) `/api/draft`가 AI 호출 **전에** 프로젝트 소유를 확인(남의/없는 프로젝트면 404, 비용 없음), (b) 프로젝트의 스택을 단일 기준으로 쓸 수 있습니다. 없으면 소유 확인 없이 AI를 호출하고 저장 단계에서 실패합니다. 권장: 추가.
 3. `/api/draft`에 `projectId`가 있을 때 요청의 `stack`은? 권장: 선택으로 두고 **프로젝트에 저장된 스택으로 덮어쓴다**(요청값은 무시). 요청의 `stack`을 그대로 쓰는 쪽이 좋으면 알려 주세요.

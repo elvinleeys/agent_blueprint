@@ -1,5 +1,6 @@
 import { DesignSystemSpecSchema, DSComponentSchema, type DesignSystemSpec, type DSComponent } from "../schema/design-system";
-import type { AnalyzedComponent, OfficialComponent } from "./types";
+import type { AnalyzedComponent } from "../code-model/types";
+import type { OfficialComponent } from "./types";
 
 // ── 스펙 JSON 직접 입력 ────────────────────────────────────────────
 

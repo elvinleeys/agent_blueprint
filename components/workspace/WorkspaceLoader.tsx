@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
+import { checkFeature } from "../../lib/api/feature-access";
 import { isUuid } from "../../lib/api/http";
 import { loadBlueprint } from "../../lib/db/blueprints";
 import { getProject } from "../../lib/db/projects";
@@ -33,11 +34,14 @@ export default async function WorkspaceLoader({ params }: { params: Promise<{ id
     );
 
   // 최신 설계도와 저장된 스펙 입력을 서버에서 읽어 초기값으로 넘긴다. 읽기에 실패해도 작업공간은 열고 안내만 보여 준다
-  const [blueprint, spec] = await Promise.all([loadBlueprint(db, id), loadSpecInput(db, id)]);
+  // 구현 검사의 GitHub 저장소 입력·AI 제안 허용 여부(서버 설정 + 허용 목록). API도 같은 판단으로 거부한다
+  const [blueprint, spec, repoCheck, ai] = await Promise.all([loadBlueprint(db, id), loadSpecInput(db, id), checkFeature("repoCheck", db), checkFeature("ai", db)]);
   const loadError = [blueprint, spec].find((r) => !r.ok);
   return (
     <Workspace
       initialProject={project.data}
+      repoCheckAllowed={repoCheck === "allowed"}
+      aiAllowed={ai === "allowed"}
       structureInit={{ blueprint: blueprint.ok ? blueprint.data : null, savedInput: spec.ok ? spec.data : null }}
       structureLoadError={loadError && !loadError.ok ? loadError.message : null}
     />

@@ -47,15 +47,15 @@ function desktopFirst(label: (bp: Breakpoint) => string): string {
 }
 
 /** 모바일 우선 클래스: 모바일 값은 접두사 없이, 바뀌는 곳에만 md:·lg: */
-function mobileFirst(value: (bp: Breakpoint) => string): string {
+export function mobileFirst(value: (bp: Breakpoint) => string): string {
   const [m, t, d] = [value("mobile"), value("tablet"), value("desktop")];
   return [m, t !== m ? `md:${t}` : "", d !== t ? `lg:${d}` : ""].filter(Boolean).join(" ");
 }
 
 // spacing.4 → 4, spacing.md → md (대응표의 gap-<키>와 같다). 다른 분류의 토큰은 클래스가 없다
-const gapClass = (gap: string | null) => (gap?.startsWith("spacing.") ? kebab(gap.slice("spacing.".length)) : undefined);
+export const gapClass = (gap: string | null) => (gap?.startsWith("spacing.") ? kebab(gap.slice("spacing.".length)) : undefined);
 
-function tailwindLayout(l: Layout): string {
+export function tailwindLayout(l: Layout): string {
   const at = (bp: Breakpoint) => resolveLayout(l, bp);
   const parts = [
     l.display,
@@ -69,8 +69,8 @@ function tailwindLayout(l: Layout): string {
 }
 
 // 열이 줄어든 화면에서는 열 수까지만 차지한다(미리보기와 같은 규칙)
-const spanAt = (parent: Layout, span: number | "full", bp: Breakpoint) => (span === "full" ? "full" : Math.min(span, resolveLayout(parent, bp).columns ?? span));
-const spanClass = (parent: Layout, span: number | "full") => mobileFirst((bp) => `col-span-${spanAt(parent, span, bp)}`);
+export const spanAt = (parent: Layout, span: number | "full", bp: Breakpoint) => (span === "full" ? "full" : Math.min(span, resolveLayout(parent, bp).columns ?? span));
+export const spanClass = (parent: Layout, span: number | "full") => mobileFirst((bp) => `col-span-${spanAt(parent, span, bp)}`);
 
 /** 부모 노드가 자식을 어떻게 놓는지 문장으로. 자식 배치가 없는 노드는 빈 배열 */
 export function layoutLines(styling: Styling, parent: TreeNode): string[] {
@@ -99,7 +99,7 @@ export function layoutLines(styling: Styling, parent: TreeNode): string[] {
 }
 
 const TOKEN_IN_TEXT = /\b(?:color|spacing|radius|layout|font|shadow|size|border|opacity)\.[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*/g;
-const kebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/\./g, "-").toLowerCase();
+export const kebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/\./g, "-").toLowerCase();
 
 /** 클래스로 바꿀 수 있는 토큰만 클래스를 돌려준다. 나머지는 null */
 function tokenClasses(token: string): string | null {
@@ -139,7 +139,7 @@ export const usedTokens = (nodes: TreeNode[]): string[] =>
   [...new Set(nodes.flatMap((n) => [n.layout?.gap ?? "", ...(n.style?.properties.filter((p) => p.isToken).map((p) => p.value) ?? [])]).filter(Boolean))].sort();
 
 // 속성 → (클래스 접두사, 토큰 분류). 짝이 맞는 토큰만 클래스로 바꾼다
-const PROPERTY_CLASS: Record<string, [prefix: string, category: string]> = {
+export const PROPERTY_CLASS: Record<string, [prefix: string, category: string]> = {
   color: ["text", "color"],
   "background-color": ["bg", "color"],
   background: ["bg", "color"],
@@ -149,7 +149,7 @@ const PROPERTY_CLASS: Record<string, [prefix: string, category: string]> = {
   "border-radius": ["rounded", "radius"],
 };
 
-function styleClass(property: string, token: string): string | null {
+export function styleClass(property: string, token: string): string | null {
   const [category, ...rest] = token.split(".");
   const rule = PROPERTY_CLASS[property];
   return rule && rule[1] === category ? `${rule[0]}-${kebab(rest.join("."))}` : null;

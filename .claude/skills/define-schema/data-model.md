@@ -362,6 +362,16 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 - **삭제 보호**: 지시서가 연결된 판과 최신 판은 직접 삭제할 수 없다(트리거 BP003·BP002). 프로젝트를 삭제하면 `on delete cascade`로 설계도·스펙 입력·지시서가 함께 지워진다(`DELETE /api/projects/[id]`).
 - **화면 주소**: `spec_inputs.route`에 저장하며 `/`로 시작하고 공백 없이 200자 이내(DB check). 지시서 탭이 내보내기 때 함께 저장한다(`saveSpecRoute`는 7개 항목·이미지 수를 건드리지 않고 route만 바꾼다). 주소는 설계도(`blueprints.route`)에도 있으나 지시서는 저장된 스펙 입력의 값을 쓴다.
 
+## 7-3. 구현 검사와 설계도 (기능 A의 검증, 스키마 필드 변경 없음)
+
+구현 검사(`POST /api/projects/[id]/implementation-check`, 판정은 `core/impl-check`)는 설계도를 읽기만 하고 바꾸지 않는다. 기준 문서는 `tasks/spec-implementation-check.md`다.
+
+- **기준 판**: 지시서를 가장 최근에 내보낸 판(`prompt_exports`가 연결된 판), 없으면 최신 판. 응답의 `baseline.source`가 `export`·`latest`로 알린다.
+- **노드와 코드의 짝**: 노드 `name`으로 코드 컴포넌트·훅과 짝을 찾는다(`id`는 비교하지 않고 결과 카드·확정한 짝을 구분하는 데만 쓴다). 확실한 짝에 대해서만 `parentId`(렌더링 관계)·`location.dir`·`state[].name`·`props[].name`·`events`·`dataFetch`·`renderMode`·`style.ownsOuterSpacing`과 스택 규칙을 비교하고, `layout`·`placement`·`style.properties`는 Tailwind면 코드로, CSS·CSS Modules면 확인 필요로 보낸다. `kind`·`responsibilities`는 코드로 판정하지 않고 AI 제안(의견)에만 쓴다. 필드별 분류 전체는 스펙 5절 표.
+- **확정한 짝(`confirmed`)**: `{ nodeId, path, name, source?("user"|"ai") }`. 요청마다 보내는 값이며 **저장하지 않는다**(DB 표 없음). `source`는 기록용이라 판정에 쓰지 않는다.
+- **저장하지 않는 것**: 올린 코드·GitHub에서 받은 코드·검사 결과·AI 제안·확정한 짝. DB에는 새 표·필드가 없다.
+- **설계 준수 집계**: 설계도 항목(노드별 비교 항목)마다 일치·불일치·확인 필요로 센다. 확인 필요 카드의 "수정 요청에 포함" 체크, AI 제안, AI 실패는 집계를 바꾸지 않는다(수정 지시서 범위는 스펙 12줄).
+
 ## 8. 기획서 대비 변경 이력
 
 - v1.0: `kind`, `events`, `order`, `style.ownsOuterSpacing` 추가, `state`·`props` 객체 배열화, 평면 배열 + parentId 확정, 노드 이동 규칙
@@ -375,6 +385,7 @@ FSD의 import 방향 규칙을 코드 없이 트리만으로 검사할 수 있�
 - v1.2 보완 (지시서): 스키마 필드 변경 없음, version 유지. 검사 규칙 NX-05(FSD가 아닌 Next.js에서 `pages/`·`app/` 위치, 경고) 추가. AI 응답 자동 보정에 "스택이 Tailwind인데 `style.scope`가 module이면 utility로 변경" 추가
 - v1.2 보완 (지시서 저장): 스키마 필드 변경 없음, version 유지. 7-2절 추가(지시서와 연결된 최신 판은 갱신하지 않고 새 판 추가, 같은 내용이면 기록 건너뛰기, 화면 주소만 저장, 프로젝트 삭제 시 연쇄 삭제)
 - v1.2 보완 (구조 검사 구현): 스키마 필드 변경 없음, version 유지. 검사 규칙 R-08(루트가 아닌 page, 경고) 추가, 5절에 판정 기준 확정(NX-02·R-02·R-03·R-05·R-06·TW-02·HC-01)
+- v1.2 보완 (구현 검사): 스키마 필드 변경 없음, version 유지. 7-3절 추가(설계도는 읽기만, 기준 판은 지시서를 내보낸 판, 확정한 짝·코드·결과·AI 제안은 저장하지 않음, 책임은 AI 의견에만)
 - v1.2: `stack.architecture`(type-based / feature-based / fsd), `route`, 노드 `location` 추가, Next.js + FSD 배치 규칙, FSD 검사 규칙 AR-01~AR-03
 
 위 내용은 기획서(F-001, F-006, F-012, 3.2, 3.3, 4.2, 5.3, 6.4, 일정)와 CLAUDE.md에 반영되었다.

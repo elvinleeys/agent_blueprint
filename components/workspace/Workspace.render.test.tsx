@@ -27,6 +27,12 @@ describe("Workspace", () => {
     expect(out).not.toContain("(준비 중)");
   });
 
+  it("제목·탭 줄은 줄어들지 않는다(구현 검사 결과가 화면보다 길 때 탭이 높이 0으로 눌려 사라지던 문제)", () => {
+    const out = html({ blueprint, savedInput: null });
+    expect(out).toMatch(/<div role="tablist"[^>]*class="[^"]*\bshrink-0\b[^"]*"/);
+    expect(out).toMatch(/<div class="shrink-0"><nav aria-label="경로"/);
+  });
+
   it("설계도가 없으면 안내를 그린다", () => {
     const out = html({ blueprint: null, savedInput: null });
     expect(out).toContain("아직 설계도가 없습니다");

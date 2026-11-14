@@ -3,14 +3,15 @@
 import { useRef, type ChangeEvent } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { describeLimitProblems, UPLOAD_LIMITS, type RejectReason } from "@/core/cleanup/filter-files";
+import { describeLimitProblems, UPLOAD_LIMITS, type RejectReason } from "@/core/code-model/filter-files";
 import { pickedLabel } from "@/core/cleanup/picked-files";
 import { REJECT_LABEL } from "@/core/cleanup/upload-summary";
 import { toPicked, type UploadList } from "./useUploadList";
 
 const kb = (n: number) => `${Math.max(1, Math.round(n / 1024))}KB`;
 
-export type Picker = { label: string; directory: boolean };
+/** accept: 파일 선택 창에서 보이는 파일 확장자(생략하면 파일 선택은 .ts·.tsx) */
+export type Picker = { label: string; directory: boolean; accept?: string };
 
 /** 선택 버튼 하나. 브라우저 기본 파일 입력("선택한 파일 없음" 문구 포함)은 숨기고 버튼 부품으로 대신 연다(구조 설계 탭의 이미지 선택과 같은 방식) */
 function PickerButton({ picker, ariaLabel, disabled, onFiles }: { picker: Picker; ariaLabel: string; disabled: boolean; onFiles: (e: ChangeEvent<HTMLInputElement>) => void }) {
@@ -25,7 +26,7 @@ function PickerButton({ picker, ariaLabel, disabled, onFiles }: { picker: Picker
         }}
         type="file"
         multiple
-        accept={picker.directory ? undefined : ".ts,.tsx"}
+        accept={picker.directory ? undefined : (picker.accept ?? ".ts,.tsx")}
         hidden
         tabIndex={-1}
         aria-hidden
@@ -48,6 +49,9 @@ export default function FileListSection({
   pickers,
   upload,
   disabled,
+  configFilesNote,
+  sourceNote = ".tsx(컴포넌트)와 .ts(타입을 찾는 데만 사용) 파일을 보냅니다.",
+  scrollList = true,
 }: {
   idPrefix: string;
   /** 접근성 이름에 쓰는 칸 이름(예: "디자인 시스템") */
@@ -55,6 +59,12 @@ export default function FileListSection({
   pickers: Picker[];
   upload: UploadList;
   disabled: boolean;
+  /** 있으면 안내 문구 끝에 덧붙인다(구현 검사: tsconfig.json·jsconfig.json도 받는다) */
+  configFilesNote?: string;
+  /** 보내는 파일 종류 안내 문장(기본: 디자인 시스템 정리용). 구현 검사는 .ts의 훅도 검사하므로 다르게 적는다 */
+  sourceNote?: string;
+  /** false면 목록을 안쪽 스크롤로 감싸지 않고 페이지 스크롤 하나만 쓴다(구현 검사 탭) */
+  scrollList?: boolean;
 }) {
   const { summary, unchecked, list, notice } = upload;
   const limitMessage = summary ? describeLimitProblems(summary.problems) : "";
@@ -81,8 +91,9 @@ export default function FileListSection({
         </p>
       )}
       <p className="text-xs text-foreground-tertiary">
-        .tsx(컴포넌트)와 .ts(타입을 찾는 데만 사용) 파일을 보냅니다. 선택할 때마다 목록에 추가되며, 한 칸에 {UPLOAD_LIMITS.maxFiles}개, 파일당 {UPLOAD_LIMITS.maxFileBytes / 1024}KB, 합계 {UPLOAD_LIMITS.maxTotalBytes / (1024 * 1024)}MB까지입니다.
+        {sourceNote} 선택할 때마다 목록에 추가되며, 한 칸에 {UPLOAD_LIMITS.maxFiles}개, 파일당 {UPLOAD_LIMITS.maxFileBytes / 1024}KB, 합계 {UPLOAD_LIMITS.maxTotalBytes / (1024 * 1024)}MB까지입니다.
       </p>
+      {configFilesNote && <p className="text-sm text-foreground-secondary">{configFilesNote}</p>}
 
       {summary && (
         <>
@@ -103,7 +114,7 @@ export default function FileListSection({
           )}
 
           {summary.accepted.length > 0 && (
-            <ul className="max-h-64 overflow-y-auto rounded-lg border border-border">
+            <ul className={`rounded-lg border border-border ${scrollList ? "max-h-64 overflow-y-auto" : ""}`}>
               {summary.accepted.map((f) => (
                 <li key={f.path} className="flex items-center gap-2 border-b border-border px-3 py-1.5 text-sm last:border-b-0">
                   <input
@@ -114,7 +125,7 @@ export default function FileListSection({
                     onChange={() => upload.toggle(f.path)}
                     className="size-4"
                   />
-                  <label htmlFor={`${idPrefix}-pick-${f.path}`} className="min-w-0 flex-1 truncate text-foreground">
+                  <label htmlFor={`${idPrefix}-pick-${f.path}`} className="min-w-0 flex-1 break-all text-foreground">
                     {pickedLabel(f)}
                   </label>
                   <span className="text-xs text-foreground-tertiary">{kb(f.size)}</span>

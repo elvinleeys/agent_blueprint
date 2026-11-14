@@ -1,0 +1,442 @@
+{
+ "files": {
+  "ok": true,
+  "result": {
+   "specSource": "files",
+   "officialCount": 3,
+   "codeFileCount": 8,
+   "designSystemFileCount": 3,
+   "sameFiles": [],
+   "uploadedCodeFileCount": 8,
+   "findings": [
+    {
+     "rule": "C-02",
+     "severity": "warning",
+     "members": [
+      {
+       "name": "Button",
+       "path": "design-system/Button.tsx",
+       "official": true
+      },
+      {
+       "name": "ButtonPrimary",
+       "path": "app/ButtonPrimary.tsx",
+       "official": false
+      }
+     ],
+     "evidence": [
+      "Button↔ButtonPrimary: 이름 단어 유사도 0.50, props 이름 유사도 0.75"
+     ],
+     "message": "Button, ButtonPrimary: 공식 컴포넌트(Button)와 비슷한 컴포넌트가 따로 있습니다. 공식 컴포넌트로 합칠 수 있는지 검토하세요."
+    },
+    {
+     "rule": "C-03",
+     "severity": "warning",
+     "component": {
+      "name": "OrderSummaryForm",
+      "path": "app/OrderSummaryForm.tsx",
+      "official": false
+     },
+     "propCount": 9,
+     "message": "OrderSummaryForm의 props가 9개입니다(기준 8개 초과). 나눌 수 있는지 검토하세요."
+    },
+    {
+     "rule": "C-05",
+     "severity": "warning",
+     "component": {
+      "name": "Button",
+      "path": "app/Button.tsx",
+      "official": true
+     },
+     "officialPath": "design-system/Button.tsx",
+     "message": "Button은(는) 공식 컴포넌트와 같은 이름의 별도 구현입니다(공식: design-system/Button.tsx). 공식 컴포넌트를 쓰도록 바꿀 수 있는지 검토하세요."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "ButtonPrimary",
+      "path": "app/ButtonPrimary.tsx",
+      "official": false
+     },
+     "message": "ButtonPrimary은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "CartPage",
+      "path": "app/CartPage.tsx",
+      "official": false
+     },
+     "message": "CartPage은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "OrderSummaryForm",
+      "path": "app/OrderSummaryForm.tsx",
+      "official": false
+     },
+     "message": "OrderSummaryForm은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "ProductCard",
+      "path": "app/ProductCard.tsx",
+      "official": false
+     },
+     "message": "ProductCard은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "ProductCardWide",
+      "path": "app/ProductCardWide.tsx",
+      "official": false
+     },
+     "message": "ProductCardWide은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "SiteFooter",
+      "path": "app/SiteFooter.tsx",
+      "official": false
+     },
+     "message": "SiteFooter은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "SiteHeader",
+      "path": "app/SiteHeader.tsx",
+      "official": false
+     },
+     "message": "SiteHeader은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-02",
+     "severity": "info",
+     "members": [
+      {
+       "name": "ProductCard",
+       "path": "app/ProductCard.tsx",
+       "official": false
+      },
+      {
+       "name": "ProductCardWide",
+       "path": "app/ProductCardWide.tsx",
+       "official": false
+      }
+     ],
+     "evidence": [
+      "ProductCard↔ProductCardWide: 이름 단어 유사도 0.67, props 이름 유사도 0.80"
+     ],
+     "message": "ProductCard, ProductCardWide: 서로 비슷한 컴포넌트입니다. 합칠 수 있는지 검토하세요."
+    }
+   ],
+   "summary": {
+    "officialCount": 3,
+    "comparedCount": 8,
+    "internalCount": 0,
+    "unresolvedCount": 0
+   },
+   "inferWarnings": [],
+   "partialFiles": [],
+   "failedPaths": []
+  }
+ },
+ "json": {
+  "ok": true,
+  "result": {
+   "specSource": "json",
+   "officialCount": 3,
+   "codeFileCount": 8,
+   "designSystemFileCount": 0,
+   "sameFiles": [],
+   "uploadedCodeFileCount": 8,
+   "findings": [
+    {
+     "rule": "C-02",
+     "severity": "warning",
+     "members": [
+      {
+       "name": "Button",
+       "path": null,
+       "official": true
+      },
+      {
+       "name": "ButtonPrimary",
+       "path": "app/ButtonPrimary.tsx",
+       "official": false
+      }
+     ],
+     "evidence": [
+      "Button↔ButtonPrimary: 이름 단어 유사도 0.50, props 이름 유사도 0.75"
+     ],
+     "message": "Button, ButtonPrimary: 공식 컴포넌트(Button)와 비슷한 컴포넌트가 따로 있습니다. 공식 컴포넌트로 합칠 수 있는지 검토하세요."
+    },
+    {
+     "rule": "C-03",
+     "severity": "warning",
+     "component": {
+      "name": "OrderSummaryForm",
+      "path": "app/OrderSummaryForm.tsx",
+      "official": false
+     },
+     "propCount": 9,
+     "message": "OrderSummaryForm의 props가 9개입니다(기준 8개 초과). 나눌 수 있는지 검토하세요."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "ButtonPrimary",
+      "path": "app/ButtonPrimary.tsx",
+      "official": false
+     },
+     "message": "ButtonPrimary은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "CartPage",
+      "path": "app/CartPage.tsx",
+      "official": false
+     },
+     "message": "CartPage은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "OrderSummaryForm",
+      "path": "app/OrderSummaryForm.tsx",
+      "official": false
+     },
+     "message": "OrderSummaryForm은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "ProductCard",
+      "path": "app/ProductCard.tsx",
+      "official": false
+     },
+     "message": "ProductCard은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "ProductCardWide",
+      "path": "app/ProductCardWide.tsx",
+      "official": false
+     },
+     "message": "ProductCardWide은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "SiteFooter",
+      "path": "app/SiteFooter.tsx",
+      "official": false
+     },
+     "message": "SiteFooter은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "SiteHeader",
+      "path": "app/SiteHeader.tsx",
+      "official": false
+     },
+     "message": "SiteHeader은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-02",
+     "severity": "info",
+     "members": [
+      {
+       "name": "ProductCard",
+       "path": "app/ProductCard.tsx",
+       "official": false
+      },
+      {
+       "name": "ProductCardWide",
+       "path": "app/ProductCardWide.tsx",
+       "official": false
+      }
+     ],
+     "evidence": [
+      "ProductCard↔ProductCardWide: 이름 단어 유사도 0.67, props 이름 유사도 0.80"
+     ],
+     "message": "ProductCard, ProductCardWide: 서로 비슷한 컴포넌트입니다. 합칠 수 있는지 검토하세요."
+    }
+   ],
+   "summary": {
+    "officialCount": 3,
+    "comparedCount": 8,
+    "internalCount": 0,
+    "unresolvedCount": 0
+   },
+   "inferWarnings": [],
+   "partialFiles": [],
+   "failedPaths": []
+  }
+ },
+ "sample": {
+  "ok": true,
+  "result": {
+   "specSource": "json",
+   "officialCount": 2,
+   "codeFileCount": 8,
+   "designSystemFileCount": 0,
+   "sameFiles": [],
+   "uploadedCodeFileCount": 8,
+   "findings": [
+    {
+     "rule": "C-02",
+     "severity": "warning",
+     "members": [
+      {
+       "name": "Button",
+       "path": null,
+       "official": true
+      },
+      {
+       "name": "ButtonPrimary",
+       "path": "app/ButtonPrimary.tsx",
+       "official": false
+      }
+     ],
+     "evidence": [
+      "Button↔ButtonPrimary: 이름 단어 유사도 0.50, props 이름 유사도 0.50"
+     ],
+     "message": "Button, ButtonPrimary: 공식 컴포넌트(Button)와 비슷한 컴포넌트가 따로 있습니다. 공식 컴포넌트로 합칠 수 있는지 검토하세요."
+    },
+    {
+     "rule": "C-03",
+     "severity": "warning",
+     "component": {
+      "name": "OrderSummaryForm",
+      "path": "app/OrderSummaryForm.tsx",
+      "official": false
+     },
+     "propCount": 9,
+     "message": "OrderSummaryForm의 props가 9개입니다(기준 8개 초과). 나눌 수 있는지 검토하세요."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "ButtonPrimary",
+      "path": "app/ButtonPrimary.tsx",
+      "official": false
+     },
+     "message": "ButtonPrimary은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "CartPage",
+      "path": "app/CartPage.tsx",
+      "official": false
+     },
+     "message": "CartPage은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "OrderSummaryForm",
+      "path": "app/OrderSummaryForm.tsx",
+      "official": false
+     },
+     "message": "OrderSummaryForm은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "ProductCard",
+      "path": "app/ProductCard.tsx",
+      "official": false
+     },
+     "message": "ProductCard은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "ProductCardWide",
+      "path": "app/ProductCardWide.tsx",
+      "official": false
+     },
+     "message": "ProductCardWide은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "SiteFooter",
+      "path": "app/SiteFooter.tsx",
+      "official": false
+     },
+     "message": "SiteFooter은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-01",
+     "severity": "info",
+     "component": {
+      "name": "SiteHeader",
+      "path": "app/SiteHeader.tsx",
+      "official": false
+     },
+     "message": "SiteHeader은(는) 공식 컴포넌트 목록에 없습니다."
+    },
+    {
+     "rule": "C-02",
+     "severity": "info",
+     "members": [
+      {
+       "name": "ProductCard",
+       "path": "app/ProductCard.tsx",
+       "official": false
+      },
+      {
+       "name": "ProductCardWide",
+       "path": "app/ProductCardWide.tsx",
+       "official": false
+      }
+     ],
+     "evidence": [
+      "ProductCard↔ProductCardWide: 이름 단어 유사도 0.67, props 이름 유사도 0.80"
+     ],
+     "message": "ProductCard, ProductCardWide: 서로 비슷한 컴포넌트입니다. 합칠 수 있는지 검토하세요."
+    }
+   ],
+   "summary": {
+    "officialCount": 2,
+    "comparedCount": 8,
+    "internalCount": 0,
+    "unresolvedCount": 0
+   },
+   "inferWarnings": [],
+   "partialFiles": [],
+   "failedPaths": []
+  }
+ }
+}

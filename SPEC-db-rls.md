@@ -1,12 +1,17 @@
 # Spec: DB 표와 RLS (F-014 프로젝트 저장·불러오기의 기반)
 
+> **이 문서는**: 프로젝트·스펙 입력·설계도·지시서를 저장하는 DB 표를 만들고, 다른 사용자의 데이터가 보이지 않게 막는 규칙(RLS, 행 단위 접근 제한)을 정한 설명서다. 작업 순서는 `tasks/plan-db-rls.md`에 있다. (`F-014`는 기능 번호다.)
+> **목록에 들어 있는 것**: 목표, 확정된 결정, 조사 결과(Supabase 공지·적용 방법), 가정 8개, 설계(표 4개·RLS 정책·권한·`lib/db` 함수), 시험 방법, 경계, 성공 기준 5개, 위험, 남은 질문 6개. (`BP001`~`BP003`은 DB가 거부할 때 쓰는 오류 코드다.)
+
 단일 기능이라 capability map은 만들지 않는다. 구현은 승인 후 시작한다. 작업 순서는 `tasks/plan-db-rls.md` 참조.
 근거: `.claude/skills/define-schema/data-model.md`(Blueprint·SpecInput), `core/schema/blueprint.ts`·`spec-input.ts`, `CLAUDE.md`(RLS·저장 규칙), `SPEC-auth-login.md`.
 
-## Objective
+## Objective (목표)
 로그인한 사용자가 프로젝트를 만들고, 프로젝트별로 스펙 입력·설계도·지시서를 저장·조회할 수 있는 **DB 기반**을 만든다. 이 작업의 산출물은 (1) 직접 실행할 마이그레이션 SQL, (2) 적용·검증 절차 문서, (3) `lib/db/`의 저장·조회 함수와 mock 단위 테스트다. 화면은 이번 범위 밖이다. 핵심 조건은 **다른 사용자의 데이터가 절대 보이거나 바뀌지 않는 것**(RLS)과 **이미지·코드 원본이 DB에 남지 않는 것**이다.
 
 ## 확정된 결정 (사용자 승인 반영 — 아래 본문과 충돌하면 이 절이 우선)
+
+아래 표는 표(테이블)별·주제별로 사용자가 승인한 결정을 정리한 것이다.
 
 | 항목 | 결정 |
 | --- | --- |
@@ -27,7 +32,7 @@
 `lib/db` 함수(수정): `createProject(db, {name, stack})`, `listProjects(db)`, `saveBlueprint(db, projectId, blueprint)`(최근 행 갱신, 행이 없으면 첫 행 생성), `createBlueprintRevision(db, projectId, blueprint)`(새 행), `loadBlueprint(db, projectId, { revision? })`(기본 최신), `listBlueprintRevisions(db, projectId)`(revision 내림차순, nodes 제외한 요약).
 (2차 승인으로 과거 판 수정은 DB 트리거가 막는다. 아래 `lib/db` 목록에 `deleteBlueprintRevision(db, projectId, revision)`이 추가된다.)
 
-## 조사 결과
+## 조사 결과 (Research)
 
 ### Data API 노출 기본값 변경 (Supabase 공식 공지)
 - Supabase는 `public` 스키마의 새 표를 **Data API(PostgREST)에 자동으로 노출하지 않도록** 기본값을 바꿨다. 공지 기준 새 프로젝트의 새 표는 5월 30일부터, **기존 프로젝트는 2026-10-30부터**(오늘은 10월 29일) 적용된다([변경 공지](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically)). 이 프로젝트가 어느 쪽 기본값인지는 코드로 알 수 없다.
@@ -38,13 +43,15 @@
 
 ### 마이그레이션 적용 방법 (이 저장소 상태)
 - 저장소에 `supabase/` 폴더가 없고 Supabase CLI는 `package.json`에도 없다(`@supabase/ssr`·`supabase-js`만 있음).
+- 아래 표는 SQL을 DB에 적용하는 두 방법을 비교한 것이다. (CLI는 명령어로 Supabase를 다루는 도구다.)
+
 | 방법 | 사용자가 직접 실행 가능? | 필요한 것 |
 | --- | --- | --- |
 | **A. 대시보드 SQL 편집기 (권장)** | 예 | 대시보드 로그인만. SQL을 붙여넣어 실행. 추가 설치·비밀번호 없음 |
 | B. CLI (`npx supabase login` → `link` → `db push`) | 예 | 프로젝트 ref, DB 비밀번호, 첫 실행 시 패키지 내려받기(`npx`). 로컬 `supabase/` 초기화(`init`)도 필요 |
 - 결정(제안): **A를 기본 절차**로 문서화하고, B는 "나중에 쓰려면" 짧게만 적는다. SQL 파일은 B와 호환되는 `supabase/migrations/<타임스탬프>_<이름>.sql` 위치에 둔다(내용이 같으므로 어느 쪽으로도 실행 가능).
 
-## Assumptions (틀리면 알려주세요)
+## Assumptions (가정, 틀리면 알려주세요)
 1. **`data-model.md`에는 `Project`와 `PromptExport`의 필드 정의가 없다**(Blueprint·SpecInput·DesignSystemSpec만 있음). 기획서 6.4는 저장소에 없어 확인하지 못했다. 그래서 아래 두 표의 열은 **제안**이다 → Open Question 1.
 2. 한 프로젝트에 **스펙 입력 1개, 설계도 1개**(현재본)를 둔다(`project_id` unique, 저장은 upsert). 설계도 이력·버전 관리는 이번 범위 밖이다.
 3. 지시서(`prompt_exports`)는 **누적 저장**(이력). 수정 없이 추가·삭제만 한다.
@@ -57,6 +64,8 @@
 ## 설계
 
 ### 표 (마이그레이션 SQL의 내용)
+마이그레이션은 DB 구조를 바꾸는 SQL 파일이다. 아래 표들은 만들 DB 표의 열과 제약을 정리한 것이다. (이 절은 "확정된 결정"보다 앞선 초안이라, 충돌하면 위 "확정된 결정"이 우선한다.)
+
 모든 표는 `public` 스키마, 기본키는 `uuid default gen_random_uuid()`, 시간은 `timestamptz default now()`.
 
 **projects**
@@ -106,6 +115,7 @@
 공통: `updated_at`은 **트리거**(`set_updated_at()`, `search_path` 고정)로 갱신한다. 이미지·코드 원본을 담는 열은 어느 표에도 없다.
 
 ### RLS 정책 (모든 표 `enable row level security`)
+RLS는 "이 행을 이 사용자가 볼 수 있는가"를 DB가 행마다 판단하는 기능이다. (`using`은 읽기·수정·삭제할 행의 조건, `with check`는 새로 넣거나 바꾼 행이 만족해야 할 조건이다.)
 - `projects`: 역할 `authenticated`, `using`/`with check`는 `user_id = (select auth.uid())`. 동작별 정책 4개(select·insert·update·delete). 성능 권장 형태인 `(select auth.uid())`로 감싼다.
 - 하위 표(`spec_inputs`, `blueprints`, `prompt_exports`): 같은 4개 정책(prompt_exports는 update 없이 3개), 조건은 **부모 소유 확인**:
   ```sql
@@ -137,10 +147,10 @@ loadBlueprint(db, projectId)             // → Blueprint | null. 읽은 뒤 Blu
 - 오류: Supabase 원본 에러는 **서버 로그에만**(이름·코드), 반환 메시지는 한국어 사용자용. 남의/없는 프로젝트에 저장해 RLS가 거부하면 `not_found`(존재 여부를 알려주지 않음). 저장 전 스키마 위반·DB에서 읽은 값이 스키마 위반이면 `invalid_data`(+ 필드 경로 최대 10개), 그 외는 `unavailable`.
 - 지시서·스펙 입력용 함수는 이번에 만들지 않는다(표만 준비, 가정 4·범위).
 
-## Tech Stack
+## Tech Stack (기술 스택)
 Supabase(PostgreSQL, RLS), `@supabase/supabase-js` 2.118(타입만), Zod 4, Vitest 5. 새 의존성 없음.
 
-## Commands
+## Commands (명령어)
 ```
 npx vitest run lib/db
 npx tsc --noEmit
@@ -149,7 +159,7 @@ npm run build
 ```
 SQL은 **사용자가 대시보드 SQL 편집기에서 직접 실행**(실제 DB 적용은 이 작업에서 하지 않는다).
 
-## Project Structure
+## Project Structure (파일 구조)
 ```
 supabase/migrations/<타임스탬프>_create_core_tables.sql   # 표·제약·인덱스·트리거·RLS·GRANT (한 파일, begin/commit)
 docs/db-migration.md                                       # 적용 절차(A 권장, B 참고), 검증 쿼리, 다른 사용자 격리 확인 스크립트, 롤백 SQL
@@ -159,7 +169,7 @@ lib/db/blueprints.ts (+ .test.ts)                          # saveBlueprint, load
 CLAUDE.md                                                  # 폴더 구조에 lib/db/, supabase/migrations/ 반영
 ```
 
-## Code Style
+## Code Style (코드 스타일)
 ```ts
 // lib/db/projects.ts — 클라이언트는 인자, 결과는 던지지 않고 판별 가능한 값으로
 export async function createProject(db: SupabaseClient, input: { name: string }): Promise<DbResult<ProjectRow>> {
@@ -170,8 +180,8 @@ export async function createProject(db: SupabaseClient, input: { name: string })
 ```
 SQL은 소문자 키워드, 정책 이름은 `"<표>_<동작>_own"` 형식, 주석은 이유만.
 
-## Testing Strategy
-- **`lib/db` 단위 테스트(mock)**: `from().select().eq()...` 체인을 흉내 낸 가짜 클라이언트를 주입한다. 실제 DB·네트워크 없음.
+## Testing Strategy (시험 방법)
+- **`lib/db` 단위 테스트(mock)**: `from().select().eq()...` 체인을 흉내 낸 가짜 클라이언트를 주입한다. 실제 DB·네트워크 없음. (아래 표는 시험할 경우와 기대 결과를 정리한 것이다.)
   | 케이스 | 기대 |
   | --- | --- |
   | createProject 성공 | insert에 `user_id`가 **없고** name만 전달, camelCase로 변환된 값 반환 |
@@ -185,19 +195,21 @@ SQL은 소문자 키워드, 정책 이름은 `"<표>_<동작>_own"` 형식, 주�
 - **RLS는 단위 테스트로 증명할 수 없다.** 대신 `docs/db-migration.md`에 사용자가 SQL 편집기에서 실행하는 **격리 확인 스크립트**를 둔다(`set local role authenticated` + `request.jwt.claims`로 사용자 A·B를 흉내 내어 서로의 행이 안 보이는지, 남의 프로젝트에 하위 행 insert가 거부되는지, anon이 거부되는지).
 - 마이그레이션 SQL 자체는 이 환경에서 실행하지 않는다. 문법 검토는 사람(사용자) 실행과 위 검증 쿼리에 의존한다.
 
-## Boundaries
-- Always: 모든 표에 RLS와 정책을 **같은 파일에서** 만든다, GRANT를 명시한다, 사용자 id는 `auth.uid()`로만 채운다, 앱 코드에서 저장 전·읽은 뒤 Zod 검증, 원본 에러는 서버 로그만
-- Ask first: `service_role` 사용·GRANT, 새 의존성(Supabase CLI 포함), 표·열 추가(위 제안 밖), 설계도 이력 보관, `anon`에 어떤 접근이든 부여
-- Never: 실제 DB에 SQL 적용(사용자가 직접), 이미지·코드 원본·응답 원문 저장 열, 정책 없는 표, `children` 중첩 저장, 클라이언트가 보낸 `user_id` 신뢰, `.env.local` 읽기
+## Boundaries (경계: 항상 / 먼저 물어봄 / 하지 않음)
+- Always(항상): 모든 표에 RLS와 정책을 **같은 파일에서** 만든다, GRANT를 명시한다, 사용자 id는 `auth.uid()`로만 채운다, 앱 코드에서 저장 전·읽은 뒤 Zod 검증, 원본 에러는 서버 로그만
+- Ask first(먼저 물어봄): `service_role` 사용·GRANT, 새 의존성(Supabase CLI 포함), 표·열 추가(위 제안 밖), 설계도 이력 보관, `anon`에 어떤 접근이든 부여
+- Never(하지 않음): 실제 DB에 SQL 적용(사용자가 직접), 이미지·코드 원본·응답 원문 저장 열, 정책 없는 표, `children` 중첩 저장, 클라이언트가 보낸 `user_id` 신뢰, `.env.local` 읽기
 
-## Success Criteria
+## Success Criteria (성공 기준)
 1. `lib/db` 테스트가 위 표의 모든 케이스를 통과하고 `tsc`·`eslint`·`npm run build`가 통과한다.
 2. 마이그레이션 SQL에 **4개 표 모두** `enable row level security`와 정책이 있고, `anon`은 REVOKE, `authenticated`만 GRANT가 있다. 이미지·코드 원본 열이 없다.
 3. 사용자가 SQL 편집기에서 SQL을 실행했을 때 오류가 없고, 문서의 확인 쿼리에서 4개 표 모두 `relrowsecurity = true`, 정책 개수가 기대와 같다.
 4. 문서의 격리 확인 스크립트에서: A는 자기 프로젝트만 보인다 / A가 B의 프로젝트 id로 하위 행을 insert하면 거부된다 / `anon`은 접근 거부.
 5. 이 작업 중 실제 DB 호출·service role 사용이 없었다.
 
-## Risks
+## Risks (위험)
+아래 표는 예상되는 위험과 대응을 정리한 것이다.
+
 | 위험 | 대응 |
 | --- | --- |
 | 이 프로젝트의 Data API 기본값을 모른다(옛/새) | GRANT·REVOKE를 명시해 어느 쪽이든 같은 결과. 적용 후 `information_schema.role_table_grants`로 확인하는 쿼리를 문서에 포함 |
@@ -207,7 +219,7 @@ SQL은 소문자 키워드, 정책 이름은 `"<표>_<동작>_own"` 형식, 주�
 | 표 열이 기획서 6.4와 다를 수 있음(가정 1) | 승인 전에 Open Question 1로 확인, 적용 전이라 변경 비용 낮음 |
 | `nodes` 상한 200이 너무 작거나 큼 | 확인 요청(Open Question 4). 체크 제약 변경은 SQL 한 줄 |
 
-## Open Questions
+## Open Questions (남은 질문)
 **→ 1~5번은 위 "확정된 결정"으로 모두 답변·승인됨. 6번(프로젝트 생성 시점)은 정확한 날짜는 미확인이나 첫 로그인 사용자 생성이 2026-10-29 10:35:59 UTC라 2026-10-30 이전으로 판단(옛 기본값 가능성 높음). SQL은 양쪽 기본값에서 동일하게 동작하며 GRANT는 authenticated에만, anon은 REVOKE 방식 확정.**
 
 1. **`Project`·`PromptExport`의 열**을 기획서 6.4에서 확인해 주세요. 제안: `projects(name)`, `prompt_exports(format, content)`. 기획서에 다른 열(예: 프로젝트의 stack, 설명, 지시서의 blueprint 연결)이 있으면 알려 주세요.

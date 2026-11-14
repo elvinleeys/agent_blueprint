@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { COMPARE_CONFIG, compareDesignSystem, type Finding } from "./compare";
-import { extractComponents } from "./extract";
+import { extractComponents } from "../code-model/parse";
 import { inferComponents } from "./infer-spec";
-import type { AnalyzedComponent, OfficialComponent } from "./types";
+import type { AnalyzedComponent } from "../code-model/types";
+import type { OfficialComponent } from "./types";
 
 const comp = (name: string, o: Partial<AnalyzedComponent> = {}): AnalyzedComponent => ({
   name,

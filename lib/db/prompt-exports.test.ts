@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeDb } from "./fake-db";
-import { loadLatestBlueprintRef, loadLatestExportContent, savePromptExport } from "./prompt-exports";
+import { loadLatestBlueprintRef, loadLatestExportContent, loadLatestExportedRevision, savePromptExport } from "./prompt-exports";
 
 const find = (calls: unknown[][], name: string) => calls.filter((c) => c[0] === name);
 
@@ -38,6 +38,22 @@ describe("loadLatestBlueprintRef", () => {
   it("판이 없으면 null, DB 오류는 unavailable", async () => {
     expect(await loadLatestBlueprintRef(fakeDb({ data: null }).db, "p1")).toEqual({ ok: true, data: null });
     expect(await loadLatestBlueprintRef(fakeDb({ error: { code: "XX000" } }).db, "p1")).toMatchObject({ ok: false, kind: "unavailable" });
+  });
+});
+
+describe("loadLatestExportedRevision (구현 검사의 기준 판)", () => {
+  it("이 프로젝트에서 가장 최근에 내보낸 기록의 판 번호를 돌려준다", async () => {
+    const { db, calls } = fakeDb({ data: { blueprint_id: "b3" } }, { data: { revision: 3 } });
+    expect(await loadLatestExportedRevision(db, "p1")).toEqual({ ok: true, data: 3 });
+    expect(find(calls, "eq")).toEqual([["eq", "project_id", "p1"], ["eq", "source_type", "blueprint"], ["eq", "id", "b3"], ["eq", "project_id", "p1"]]);
+    expect(find(calls, "order")[0]).toEqual(["order", "created_at", { ascending: false }]);
+  });
+  it("내보낸 기록이 없으면 null(판은 조회하지 않음), DB 오류는 unavailable", async () => {
+    const none = fakeDb({ data: null });
+    expect(await loadLatestExportedRevision(none.db, "p1")).toEqual({ ok: true, data: null });
+    expect(find(none.calls, "from").map((c) => c[1])).toEqual(["prompt_exports"]);
+    expect(await loadLatestExportedRevision(fakeDb({ error: { code: "XX000" } }).db, "p1")).toMatchObject({ ok: false, kind: "unavailable" });
+    expect(await loadLatestExportedRevision(fakeDb({ data: { blueprint_id: "b3" } }, { error: { code: "XX000" } }).db, "p1")).toMatchObject({ ok: false, kind: "unavailable" });
   });
 });
 

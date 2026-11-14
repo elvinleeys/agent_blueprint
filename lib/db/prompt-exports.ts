@@ -30,6 +30,17 @@ export async function loadLatestBlueprintRef(db: SupabaseClient, projectId: stri
   return { ok: true, data: (data as LatestBlueprintRef | null) ?? null };
 }
 
+/** 지시서를 가장 최근에 내보낸 판의 번호. 내보낸 기록이 없으면 data가 null (구현 검사의 기준 판) */
+export async function loadLatestExportedRevision(db: SupabaseClient, projectId: string): Promise<DbResult<number | null>> {
+  const exp = await db.from("prompt_exports").select("blueprint_id").eq("project_id", projectId).eq("source_type", "blueprint").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (exp.error) return fromDbError(exp.error, LOAD_FAILED);
+  const blueprintId = (exp.data as { blueprint_id: string } | null)?.blueprint_id;
+  if (!blueprintId) return { ok: true, data: null };
+  const bp = await db.from("blueprints").select("revision").eq("id", blueprintId).eq("project_id", projectId).maybeSingle();
+  if (bp.error) return fromDbError(bp.error, LOAD_FAILED);
+  return { ok: true, data: (bp.data as { revision: number } | null)?.revision ?? null };
+}
+
 /** 그 판에 저장된 같은 형식의 가장 최근 지시서 내용(같은 내용이면 저장을 건너뛰기 위한 비교용). 없으면 null */
 export async function loadLatestExportContent(db: SupabaseClient, blueprintId: string, format: ExportFormat): Promise<DbResult<string | null>> {
   const { data, error } = await db.from("prompt_exports").select("content").eq("blueprint_id", blueprintId).eq("format", format).order("created_at", { ascending: false }).limit(1).maybeSingle();

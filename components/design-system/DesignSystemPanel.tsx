@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { AnalyzeResult, SpecSource } from "@/core/cleanup/analyze";
-import type { SourceFile } from "@/core/cleanup/types";
+import type { SourceFile } from "@/core/code-model/types";
 import type { UploadSummary } from "@/core/cleanup/upload-summary";
 import { buildCleanupPrompt } from "@/core/prompt/cleanup-prompt";
 import { runAnalyze, type AnalyzeFailure } from "@/lib/client/run-analyze";

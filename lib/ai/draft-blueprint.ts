@@ -22,8 +22,8 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = 16_000;
 // 재시도를 포함한 전체 마감 (CLAUDE.md 에러 처리 규칙)
 export const BUDGET_TEXT_MS = 45_000;
 export const BUDGET_IMAGE_MS = 60_000;
-const RESPONSE_MARGIN_MS = 1_500; // 마감 직전에 끊고 응답을 만들 여유
-const MIN_RETRY_MS = 15_000; // 재시도는 첫 시도와 비슷한 시간이 걸리므로 max(첫 시도 시간, 이 값) 이상 남아야 한다
+export const RESPONSE_MARGIN_MS = 1_500; // 마감 직전에 끊고 응답을 만들 여유
+export const MIN_RETRY_MS = 15_000; // 재시도는 첫 시도와 비슷한 시간이 걸리므로 max(첫 시도 시간, 이 값) 이상 남아야 한다
 
 export type DraftImage = {
   mediaType: "image/png" | "image/jpeg" | "image/webp";
@@ -95,12 +95,13 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object
 
 class TimeoutError extends Error {}
 
-function createDefaultClient(): DraftClient {
+// 아래 세 함수는 구현 검사 AI 제안(lib/ai/impl-suggest)도 같은 규칙(재시도 없음·마감·오류 분류)으로 쓴다
+export function createDefaultClient(): DraftClient {
   const client = new OpenAI({ maxRetries: 0 }); // 429·5xx 재시도는 사용자의 "다시 시도"에 맡긴다. 숨은 재시도가 마감을 먹지 않게 한다
   return { responses: { create: (body, options) => client.responses.create(body, options) } };
 }
 
-async function callWithTimeout(client: DraftClient, body: OpenAI.Responses.ResponseCreateParamsNonStreaming, ms: number) {
+export async function callWithTimeout(client: DraftClient, body: OpenAI.Responses.ResponseCreateParamsNonStreaming, ms: number) {
   if (ms <= 0) throw new TimeoutError();
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -117,7 +118,7 @@ async function callWithTimeout(client: DraftClient, body: OpenAI.Responses.Respo
   }
 }
 
-function classify(e: unknown): { kind: "timeout" | "rate_limited" | "upstream"; status?: number; name?: string } {
+export function classify(e: unknown): { kind: "timeout" | "rate_limited" | "upstream"; status?: number; name?: string } {
   if (e instanceof TimeoutError) return { kind: "timeout" };
   const name = e instanceof Error ? e.name : undefined;
   const raw = isObj(e) ? e.status : undefined;

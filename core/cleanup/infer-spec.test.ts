@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DSComponentSchema } from "../schema/design-system";
-import { extractComponents } from "./extract";
+import { extractComponents } from "../code-model/parse";
 import { inferComponents, parseSpecJson } from "./infer-spec";
 
 describe("parseSpecJson", () => {

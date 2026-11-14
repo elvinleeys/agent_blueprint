@@ -1,0 +1,375 @@
+{
+  "version": "1.2",
+  "title": "상품 상세",
+  "route": "/products/:id",
+  "stack": {
+    "framework": "react",
+    "styling": "tailwind",
+    "architecture": "type-based"
+  },
+  "source": {
+    "hasSpec": true,
+    "imageCount": 1
+  },
+  "generatedBy": "user",
+  "nodes": [
+    {
+      "id": "n-page",
+      "name": "ProductDetailPage",
+      "parentId": null,
+      "order": 0,
+      "location": {
+        "dir": "pages"
+      },
+      "kind": "page",
+      "responsibilities": [
+        "상품 데이터 조회",
+        "하위 영역 배치"
+      ],
+      "state": [
+        {
+          "name": "product",
+          "description": "불러온 상품"
+        }
+      ],
+      "props": [],
+      "events": [],
+      "dataFetch": true,
+      "renderMode": null,
+      "layout": {
+        "display": "grid",
+        "columns": 2,
+        "gap": "spacing.6",
+        "align": "start",
+        "responsive": [
+          {
+            "breakpoint": "mobile",
+            "columns": 1
+          }
+        ]
+      },
+      "placement": null,
+      "style": {
+        "scope": "utility",
+        "properties": [
+          {
+            "property": "max-width",
+            "value": "layout.maxWidth",
+            "isToken": true
+          },
+          {
+            "property": "padding",
+            "value": "spacing.6",
+            "isToken": true
+          }
+        ],
+        "ownsOuterSpacing": false
+      },
+      "assumed": false
+    },
+    {
+      "id": "n-gallery",
+      "name": "ProductGallery",
+      "parentId": "n-page",
+      "order": 0,
+      "location": {
+        "dir": "components"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "상품 이미지 목록 표시"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "images",
+          "type": "ProductImage[]"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": null,
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "utility",
+        "properties": [
+          {
+            "property": "border-radius",
+            "value": "radius.md",
+            "isToken": true
+          }
+        ],
+        "ownsOuterSpacing": false
+      },
+      "assumed": false
+    },
+    {
+      "id": "n-info",
+      "name": "ProductInfo",
+      "parentId": "n-page",
+      "order": 1,
+      "location": {
+        "dir": "components"
+      },
+      "kind": "container",
+      "responsibilities": [
+        "선택한 옵션 상태 관리",
+        "가격·옵션·구매 영역 배치"
+      ],
+      "state": [
+        {
+          "name": "selectedOption",
+          "description": "사용자가 고른 상품 옵션"
+        }
+      ],
+      "props": [
+        {
+          "name": "product",
+          "type": "Product"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": null,
+      "layout": {
+        "display": "flex",
+        "direction": "column",
+        "gap": "spacing.4",
+        "align": "stretch"
+      },
+      "placement": null,
+      "style": {
+        "scope": "utility",
+        "properties": [],
+        "ownsOuterSpacing": false
+      },
+      "assumed": false
+    },
+    {
+      "id": "n-price",
+      "name": "PriceTag",
+      "parentId": "n-info",
+      "order": 0,
+      "location": {
+        "dir": "components"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "가격과 할인율 표시"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "price",
+          "type": "number"
+        },
+        {
+          "name": "discountRate",
+          "type": "number"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": null,
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "utility",
+        "properties": [
+          {
+            "property": "color",
+            "value": "color.primary",
+            "isToken": true
+          },
+          {
+            "property": "font-size",
+            "value": "font.title",
+            "isToken": true
+          }
+        ],
+        "ownsOuterSpacing": false
+      },
+      "assumed": false
+    },
+    {
+      "id": "n-option",
+      "name": "OptionSelector",
+      "parentId": "n-info",
+      "order": 1,
+      "location": {
+        "dir": "components"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "옵션 목록 표시",
+        "옵션 선택 이벤트 전달"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "options",
+          "type": "ProductOption[]"
+        },
+        {
+          "name": "selectedOption",
+          "type": "ProductOption | null"
+        }
+      ],
+      "events": [
+        "onChange"
+      ],
+      "dataFetch": false,
+      "renderMode": null,
+      "layout": {
+        "display": "flex",
+        "direction": "row",
+        "gap": "spacing.2",
+        "align": "center"
+      },
+      "placement": null,
+      "style": {
+        "scope": "utility",
+        "properties": [
+          {
+            "property": "border-color",
+            "value": "color.border",
+            "isToken": true
+          },
+          {
+            "property": "border-radius",
+            "value": "radius.sm",
+            "isToken": true
+          }
+        ],
+        "ownsOuterSpacing": false
+      },
+      "assumed": false
+    },
+    {
+      "id": "n-cart-button",
+      "name": "AddToCartButton",
+      "parentId": "n-info",
+      "order": 2,
+      "location": {
+        "dir": "components"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "장바구니 담기 버튼 표시",
+        "클릭 이벤트 전달"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "disabled",
+          "type": "boolean"
+        }
+      ],
+      "events": [
+        "onClick"
+      ],
+      "dataFetch": false,
+      "renderMode": null,
+      "layout": null,
+      "placement": null,
+      "style": {
+        "scope": "utility",
+        "properties": [
+          {
+            "property": "background-color",
+            "value": "color.primary",
+            "isToken": true
+          },
+          {
+            "property": "color",
+            "value": "color.onPrimary",
+            "isToken": true
+          },
+          {
+            "property": "border-radius",
+            "value": "radius.md",
+            "isToken": true
+          }
+        ],
+        "ownsOuterSpacing": false
+      },
+      "assumed": false
+    },
+    {
+      "id": "n-use-cart",
+      "name": "useCart",
+      "parentId": "n-info",
+      "order": 3,
+      "location": {
+        "dir": "hooks"
+      },
+      "kind": "hook",
+      "responsibilities": [
+        "장바구니 수량 상태 관리",
+        "장바구니 추가 API 호출"
+      ],
+      "state": [
+        {
+          "name": "cartCount",
+          "description": "장바구니에 담긴 상품 수"
+        }
+      ],
+      "props": [],
+      "events": [],
+      "dataFetch": true,
+      "renderMode": null,
+      "layout": null,
+      "placement": null,
+      "style": null,
+      "assumed": false
+    },
+    {
+      "id": "n-review",
+      "name": "ReviewSummary",
+      "parentId": "n-page",
+      "order": 2,
+      "location": {
+        "dir": "components"
+      },
+      "kind": "presentational",
+      "responsibilities": [
+        "평균 평점과 리뷰 수 표시"
+      ],
+      "state": [],
+      "props": [
+        {
+          "name": "rating",
+          "type": "number"
+        },
+        {
+          "name": "reviewCount",
+          "type": "number"
+        }
+      ],
+      "events": [],
+      "dataFetch": false,
+      "renderMode": null,
+      "layout": null,
+      "placement": {
+        "span": "full"
+      },
+      "style": {
+        "scope": "utility",
+        "properties": [
+          {
+            "property": "color",
+            "value": "color.textSecondary",
+            "isToken": true
+          }
+        ],
+        "ownsOuterSpacing": false
+      },
+      "assumed": true,
+      "assumedFields": [
+        "responsibilities",
+        "props"
+      ]
+    }
+  ]
+}

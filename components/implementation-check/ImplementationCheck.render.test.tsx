@@ -170,6 +170,16 @@ describe("AI 제안 구역(ResultView)", () => {
     expect(out.match(/<input id="ic-ai-include-[^"]*"/g)).toHaveLength(1);
   });
 
+  it("근거 없이 판정만 온 done도 접힌 목록에 노드·책임으로 보이고 'AI 근거'는 붙지 않는다", () => {
+    const { reason: _omit, ...doneOnly } = DONE;
+    void _omit;
+    const out = view(data, undefined, { ai: { ...ok, suggestions: { pairs: [], responsibilities: [MISSING, doneOnly], dropped: 0 } } });
+    expect(out).toContain("책임 2개 중 1개는 수행한 것으로 보임");
+    const folded = out.match(/<ul[^>]*aria-label="AI 책임 제안\(수행한 것으로 보임\)"[^>]*>.*?<\/ul>/)?.[0] ?? "";
+    expect(folded).toContain("PriceTag · 가격 표시");
+    expect(folded).not.toContain("AI 근거");
+  });
+
   it("done이 없으면 요약 줄이 없고, done만 있으면 카드 없이 요약 줄만", () => {
     expect(view(data, undefined, { ai: { ...ok, suggestions: { ...ok.suggestions, responsibilities: [MISSING] } } })).not.toContain("수행한 것으로 보임");
     const onlyDone = view(data, undefined, { ai: { ...ok, suggestions: { pairs: [], responsibilities: [DONE], dropped: 0 } } });

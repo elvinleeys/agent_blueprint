@@ -43,5 +43,6 @@ export const fixPromptInput = (data: Pick<CheckResponse, "baseline" | "result">,
   include: reviewIds(data).filter((id) => sel.has(id)).sort(),
   aiResponsibilities: aiMissing(ai)
     .filter((r) => sel.has(r.id))
-    .map(({ id, nodeName, responsibility, reason }) => ({ id, nodeName, responsibility, reason })),
+    // missing에는 스키마가 근거를 강제한다(done만 근거가 없다)
+    .map(({ id, nodeName, responsibility, reason }) => ({ id, nodeName, responsibility, reason: reason ?? "" })),
 });

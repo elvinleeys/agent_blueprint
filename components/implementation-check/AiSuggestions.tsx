@@ -132,7 +132,9 @@ function AiOk({
           <ul className="mt-1 list-disc break-words pl-5" aria-label="AI 책임 제안(수행한 것으로 보임)">
             {done.map((r) => (
               <li key={r.id}>
-                {r.nodeName} · {r.responsibility} <span className="text-xs text-foreground-tertiary">— AI 근거: {r.reason}</span>
+                {r.nodeName} · {r.responsibility}
+                {/* done은 판정만 받는다(근거 없음). 예전 응답처럼 근거가 있으면 보인다 */}
+                {r.reason && <span className="text-xs text-foreground-tertiary"> — AI 근거: {r.reason}</span>}
               </li>
             ))}
           </ul>

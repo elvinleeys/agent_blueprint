@@ -63,7 +63,47 @@ describe("맞는 응답", () => {
   });
 });
 
+describe("책임 판정 done은 근거 없이 판정만(missing·unsure만 근거)", () => {
+  const done = { nodeId: "n-cart", responsibility: "장바구니에 담기", verdict: "done" as const };
+  const input: AiInput = { ...INPUT, responsibilityTasks: [{ ...INPUT.responsibilityTasks[0], responsibilities: ["장바구니에 담기", "수량 검증"] }] };
+
+  it("done은 reason이 null(strict 출력)이거나 없어도 통과하고, 결과에 reason이 없다", () => {
+    for (const r of [{ ...done, reason: null }, done]) {
+      const out = acceptAiResponse({ pairs: [], responsibilities: [r] }, input);
+      expect(out.ok).toBe(true);
+      if (out.ok) {
+        expect(out.suggestions.responsibilities).toEqual([{ ...done, id: "AI|resp|n-cart|장바구니에 담기", nodeName: "AddToCartButton" }]);
+        expect("reason" in out.suggestions.responsibilities[0]).toBe(false);
+      }
+    }
+  });
+
+  it("done에 근거가 붙어 와도 쓰지 않는다(판정만 남김)", () => {
+    const out = acceptAiResponse({ pairs: [], responsibilities: [{ ...done, reason: "담기 버튼이 있다." }] }, input);
+    expect(out.ok && "reason" in out.suggestions.responsibilities[0]).toBe(false);
+  });
+
+  it.each(["missing", "unsure"] as const)("%s는 reason이 null이거나 없으면 스키마 실패(전체를 버림)", (verdict) => {
+    for (const r of [{ ...resp, verdict, reason: null }, { nodeId: resp.nodeId, responsibility: resp.responsibility, verdict }]) {
+      const out = acceptAiResponse({ pairs: [], responsibilities: [r] }, input);
+      expect(out.ok).toBe(false);
+      if (!out.ok) expect(out.issues.join(" ")).toContain("reason");
+    }
+  });
+
+  it("짝 제안(pairs)은 지금처럼 모든 판정에 reason이 필요하다", () => {
+    expect(acceptAiResponse({ pairs: [{ ...pair, reason: null }], responsibilities: [] }, input).ok).toBe(false);
+  });
+});
+
 describe("Structured Outputs(strict) 변환", () => {
+  it("책임의 reason은 strict에서 required이면서 null을 허용한다(done은 null로 보냄)", () => {
+    const s = toStrictJsonSchema(AiResponseSchema) as { properties: { responsibilities: { items: { required: string[]; properties: { reason: { anyOf?: { type: string }[] } } } } } };
+    const item = s.properties.responsibilities.items;
+    expect(item.required).toEqual(["nodeId", "responsibility", "verdict", "reason"]);
+    expect(item.properties.reason.anyOf?.map((b) => b.type)).toEqual(["string", "null"]);
+  });
+
   it("모든 필드가 required이고 추가 필드를 막는다", () => {
     const s = toStrictJsonSchema(AiResponseSchema) as { required: string[]; additionalProperties: boolean; properties: Record<string, { items: { required: string[]; additionalProperties: boolean } }> };
     expect(s.required).toEqual(["pairs", "responsibilities"]);

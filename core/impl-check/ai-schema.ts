@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { stripOptionalNulls } from "../prompt/strict-json-schema";
 import type { AiInput } from "./ai-input";
 
 /**
@@ -14,8 +15,14 @@ export const AiResponseSchema = z
     pairs: z
       .array(z.object({ nodeId: z.string(), path: z.string(), name: z.string(), verdict: z.enum(["same", "different", "unsure"]), reason: Reason }).strict())
       .max(50),
+    // 수행함(done)은 화면에 요약만 보이므로 근거 없이 판정만 받는다(출력 토큰 절약). missing·unsure만 근거가 필요하다
     responsibilities: z
-      .array(z.object({ nodeId: z.string(), responsibility: z.string(), verdict: z.enum(["done", "missing", "unsure"]), reason: Reason }).strict())
+      .array(
+        z
+          .object({ nodeId: z.string(), responsibility: z.string(), verdict: z.enum(["done", "missing", "unsure"]), reason: Reason.optional() })
+          .strict()
+          .refine((r) => r.verdict === "done" || r.reason !== undefined, { message: "missing·unsure에는 reason이 필요합니다", path: ["reason"] }),
+      )
       .max(100),
   })
   .strict();
@@ -32,7 +39,8 @@ export const aiResponsibilityId = (nodeId: string, responsibility: string) => `A
 export type AiAccept = { ok: true; suggestions: AiSuggestions } | { ok: false; issues: string[] };
 
 export function acceptAiResponse(raw: unknown, input: AiInput): AiAccept {
-  const parsed = AiResponseSchema.safeParse(raw);
+  // strict 출력은 없는 선택 필드를 null로 보낸다(done의 reason). 검증 전에 null을 빈 필드로 바꾼다
+  const parsed = AiResponseSchema.safeParse(stripOptionalNulls(AiResponseSchema, raw));
   if (!parsed.success) return { ok: false, issues: parsed.error.issues.slice(0, 5).map((i) => `${i.path.join(".") || "(전체)"}: ${i.message}`) };
 
   const pairTask = new Map(input.pairTasks.map((t) => [t.nodeId, t]));
@@ -58,7 +66,9 @@ export function acceptAiResponse(raw: unknown, input: AiInput): AiAccept {
       continue;
     }
     seen.add(id);
-    out.responsibilities.push({ ...r, id, nodeName: t.nodeName });
+    // done에 근거가 붙어 와도 쓰지 않는다(판정만)
+    const { reason, ...rest } = r;
+    out.responsibilities.push({ ...rest, ...(r.verdict !== "done" && reason !== undefined ? { reason } : {}), id, nodeName: t.nodeName });
   }
   return { ok: true, suggestions: out };
 }

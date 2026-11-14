@@ -20,7 +20,7 @@
 | A10 | 짝: 화면 주소 근거 | 화면 주소가 일치해도 후보 근거로 쓰지 않음 | 잡힘 | 4 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): next 묶음 page-route |
 | A11 | 짝: 코드에만 있음 | 짝 확인 필요의 후보 코드를 '설계에 없는 컴포넌트'로도 보고함 | 잡힘 | 7 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): next 묶음 dup-name-ambiguous |
 | A12 | 짝: 이름 유사도 기준값 | 이름 유사도 기준을 올려 비슷한 이름을 후보로 못 찾음 | 잡힘 | 8 | core/impl-check/confirmed.test.ts › 진 노드는 후보를 지우는 것만으로 '코드에 없음'이 되지 않는다 확정 전: 두 노드 모두 짝 확인 필요이고 View는 두 노드가 다툰다 |
-| A13 | 확정한 짝: 반영 | 사용자가 확정한 짝을 무시하고 확정하기 전과 같은 판정을 냄 | 잡힘 | 6 | core/impl-check/confirmed.test.ts › 확정한 짝을 반영해 다시 판정 확정 뒤에는 그 노드가 확실한 짝이 되고 근거에 사용자 확정이 적힌다 |
+| A13 | 확정한 짝: 반영 | 사용자가 확정한 짝을 무시하고 확정하기 전과 같은 판정을 냄 | 잡힘 | 7 | core/impl-check/confirmed.test.ts › 확정한 짝을 반영해 다시 판정 확정 뒤에는 그 노드가 확실한 짝이 되고 근거에 사용자 확정이 적힌다 |
 | A14 | 확정한 짝: 읽지 못한 경로 | 사용자가 확정한 짝도 경로에 이름이 보이는 읽지 못한 파일 때문에 다시 확인 필요로 낮춤 | 잡힘 | 1 | core/impl-check/confirmed.test.ts › 읽지 못한 경로가 있어도 사용자가 확정한 짝은 낮추지 않는다 확정하면 그 짝이 그대로 확실한 짝이다 |
 | A15 | 확정한 짝: 검증(이미 확실한 짝) | 이미 확실한 짝이 있는 노드를 다른 코드로 확정하는 것을 허용하고 같은 코드로 확정하는 것을 거부 | 잡힘 | 1 | core/impl-check/confirmed.test.ts › 확정한 짝 검증(validateConfirmed) 이미 확실한 짝이 있는 노드를 다른 코드로 확정하면 already-certain-node, 같은 코드로 확정하는 것은 허용 |
 | A16 | 확정한 짝: 검증(종류) | 훅 노드를 컴포넌트 코드로(또는 반대로) 확정하는 것을 허용 | 잡힘 | 1 | core/impl-check/confirmed.test.ts › 확정한 짝 검증(validateConfirmed) 훅 노드는 컴포넌트 코드로, 컴포넌트 노드는 훅 코드로 확정할 수 없다(kind-mismatch) |
@@ -32,44 +32,44 @@
 
 | 번호 | 규칙 | 잘못된 판정 | 결과 | 실패한 테스트 수 | 처음 실패한 테스트 |
 | --- | --- | --- | --- | --- | --- |
-| B01 | IC-03 위치 | 위치가 맞으면 경고, 틀리면 일치 | 잡힘 | 135 | core/impl-check/rules.test.ts › 후보 짝 노드의 연쇄: 직계 자식의 부모-자식 항목만 확인 필요 직계 자식의 다른 항목(존재·위치·서버 통신 등)은 영향받지 않는다 |
-| B02 | IC-07 이벤트 | 이벤트가 props와 JSX 속성 둘 다에 있어야 일치로 봄 | 잡힘 | 128 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
-| B03 | IC-08 서버 통신 | 조회 담당과 아닌 노드의 판정을 맞바꿈 | 잡힘 | 134 | core/impl-check/rules.test.ts › 후보 짝 노드의 연쇄: 직계 자식의 부모-자식 항목만 확인 필요 직계 자식의 다른 항목(존재·위치·서버 통신 등)은 영향받지 않는다 |
-| B04 | IC-09 배치 | 클래스가 있으면 불일치, 없으면 일치 | 잡힘 | 131 | core/impl-check/rules.test.ts › 후보 짝 노드의 연쇄: 직계 자식의 부모-자식 항목만 확인 필요 자식이 있는 노드가 후보 짝이면 그 노드의 항목은 전부 확인 필요이고 결과 카드는 한 장 |
+| B01 | IC-03 위치 | 위치가 맞으면 경고, 틀리면 일치 | 잡힘 | 146 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
+| B02 | IC-07 이벤트 | 이벤트가 props와 JSX 속성 둘 다에 있어야 일치로 봄 | 잡힘 | 139 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
+| B03 | IC-08 서버 통신 | 조회 담당과 아닌 노드의 판정을 맞바꿈 | 잡힘 | 145 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
+| B04 | IC-09 배치 | 클래스가 있으면 불일치, 없으면 일치 | 잡힘 | 142 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
 | B05 | IC-10 토큰 | 임의값(대괄호) 판정을 뒤집음 | 잡힘 | 11 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 wrong-IC-10: 확실·확인 필요 카드 |
 | B06 | IC-11 바깥 여백 | mx-auto(가운데 정렬)도 바깥 여백 위반으로 봄 | 잡힘 | 1 | core/impl-check/run.test.ts › Tailwind 규칙: 클래스는 항상·조건부·읽지 못함·없음으로 나눠 판정한다 바깥 여백(금지 규칙): margin이 항상 있으면 위반, 조건부·읽지 못함이면 확인 불가, 없으면 준수 |
-| B07 | IC-12 인라인 style | style이 없는 요소를 위반으로, 있는 요소를 준수로 봄 | 잡힘 | 132 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
-| B08 | ICN-02 server에 use client | server 컴포넌트에 "use client"가 없을 때 위반으로 봄 | 잡힘 | 78 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
-| B09 | ICN-04 page.tsx | page.tsx가 화면을 직접 그리면 일치, 재내보내기만 하면 경고 | 잡힘 | 151 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
-| B10 | ICR-01 라우터 연결 | 화면 주소가 다른 컴포넌트에 연결돼 있으면 일치로 봄 | 잡힘 | 50 | core/impl-check/run.test.ts › 구현 검사: react 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
+| B07 | IC-12 인라인 style | style이 없는 요소를 위반으로, 있는 요소를 준수로 봄 | 잡힘 | 140 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
+| B08 | ICN-02 server에 use client | server 컴포넌트에 "use client"가 없을 때 위반으로 봄 | 잡힘 | 88 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
+| B09 | ICN-04 page.tsx | page.tsx가 화면을 직접 그리면 일치, 재내보내기만 하면 경고 | 잡힘 | 167 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
+| B10 | ICR-01 라우터 연결 | 화면 주소가 다른 컴포넌트에 연결돼 있으면 일치로 봄 | 잡힘 | 51 | core/impl-check/run.test.ts › 구현 검사: react 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
 | B11 | IC-02 코드에만 있음 | page.tsx 안의 컴포넌트도 '설계에 없는 컴포넌트'로 보고함 | 잡힘 | 2 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 wrong-ICN-04: 확실·확인 필요 카드 |
-| B12 | 집계: 일치 수 | 확인 필요 항목을 일치로 셈 | 잡힘 | 36 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 renamed: 설계 준수 일치 M/N과 금지 규칙 집계 |
+| B12 | 집계: 일치 수 | 확인 필요 항목을 일치로 셈 | 잡힘 | 42 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) renamed: 확인 필요 카드 3장(짝 확인 필요 ProductGallery ↔ ItemImages, 상태 useCart, props PriceTag), 일치 56개·확인 필요 9개 |
 | B13 | 집계: 코드에 없는 노드 | 코드에 없는 노드의 항목을 불일치가 아니라 확인 필요로 표시 | 잡힘 | 2 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 wrong-IC-01: 설계 준수 일치 M/N과 금지 규칙 집계 |
 | B14 | 집계: 금지 규칙 | 코드에 없는 노드의 금지 규칙을 준수로 표시 | 잡힘 | 4 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 wrong-IC-01: 설계 준수 일치 M/N과 금지 규칙 집계 |
 | B15 | 집계: 정렬 | 항목이 설계도의 노드 순서를 따라 나와 순서가 입력에 따라 달라짐 | 잡힘 | 66 | core/impl-check/run.test.ts › 집계 구조: next 묶음의 모든 사례 correct: 파일·노드 순서를 섞어도 결과와 카드 id가 같다 |
 | B16 | 집계: 카드 id | 카드 id에 노드가 빠져 서로 다른 노드의 카드 id가 같아짐 | 잡힘 | 2 | core/impl-check/rules.test.ts › 후보 짝 노드의 연쇄: 직계 자식의 부모-자식 항목만 확인 필요 직계 자식(Leaf)은 부모-자식 항목만 확인 필요이고, 부모 카드에 묶인다 |
-| B17 | 집계: 항목 수 | 설계 준수 항목에서 부모-자식 항목을 빼 전체 수가 줄어듦 | 잡힘 | 75 | core/impl-check/rules.test.ts › 후보 짝 노드의 연쇄: 직계 자식의 부모-자식 항목만 확인 필요 직계 자식(Leaf)은 부모-자식 항목만 확인 필요이고, 부모 카드에 묶인다 |
+| B17 | 집계: 항목 수 | 설계 준수 항목에서 부모-자식 항목을 빼 전체 수가 줄어듦 | 잡힘 | 86 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
 
 ## 3c: 핵심 규칙 및 근거 원칙 판정
 
 | 번호 | 규칙 | 잘못된 판정 | 결과 | 실패한 테스트 수 | 처음 실패한 테스트 |
 | --- | --- | --- | --- | --- | --- |
 | C01 | IC-01 코드에 없음 | 코드에 없는 노드의 결과 카드를 내지 않음 | 잡힘 | 4 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 wrong-IC-01: 확실·확인 필요 카드 |
-| C02 | IC-04 부모-자식 | 부모가 자식을 렌더링하지 않으면 일치, 하면 확인 필요로 봄 | 잡힘 | 134 | core/impl-check/rules.test.ts › 후보 짝 노드의 연쇄: 직계 자식의 부모-자식 항목만 확인 필요 자식이 있는 노드가 후보 짝이면 그 노드의 항목은 전부 확인 필요이고 결과 카드는 한 장 |
-| C03 | IC-04 훅 호출 | 훅을 호출했는지가 아니라 렌더링했는지로 확인해 훅 사용 누락을 잘못 판정 | 잡힘 | 126 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
-| C04 | IC-06 props | 코드에 있는 설계 props를 일치가 아니라 없는 것을 일치로 봄 | 잡힘 | 133 | core/impl-check/rules.test.ts › 변이 실험 보강 T2: children·className·key·ref props는 '설계에 없는 props'가 아니다 |
+| C02 | IC-04 부모-자식 | 부모가 자식을 렌더링하지 않으면 일치, 하면 확인 필요로 봄 | 잡힘 | 146 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
+| C03 | IC-04 훅 호출 | 훅을 호출했는지가 아니라 렌더링했는지로 확인해 훅 사용 누락을 잘못 판정 | 잡힘 | 137 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
+| C04 | IC-06 props | 코드에 있는 설계 props를 일치가 아니라 없는 것을 일치로 봄 | 잡힘 | 145 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
 | C05 | IC-06 props | children·className 같은 공통 props를 '설계에 없는 props'로 보고함 | 잡힘 | 1 | core/impl-check/rules.test.ts › 변이 실험 보강 T2: children·className·key·ref props는 '설계에 없는 props'가 아니다 |
-| C06 | ICN-01 client | "use client"가 있는 client 컴포넌트를 위반, 없는 것을 일치로 봄 | 잡힘 | 78 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
+| C06 | ICN-01 client | "use client"가 있는 client 컴포넌트를 위반, 없는 것을 일치로 봄 | 잡힘 | 88 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
 | C07 | ICN-01 심각도 | 상태·이벤트를 쓰는 경우를 경고, 안 쓰는 경우를 오류로 맞바꿈 | 잡힘 | 2 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 wrong-ICN-01-error: 확실·확인 필요 카드 |
 | C08 | ICN-03 타입 import | 타입만 가져오는 import를 위반으로 보고 값을 가져오는 것은 놓침 | 잡힘 | 2 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 wrong-ICN-03: 확실·확인 필요 카드 |
-| C09 | ICN-03 client 파일만 | client가 아닌 파일의 import를 검사 | 잡힘 | 75 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 correct: 확실·확인 필요 카드 |
-| C10 | ICF-01 계층 방향 | 위 계층을 가져오는 것은 허용, 아래 계층을 가져오는 것을 위반으로 봄 | 잡힘 | 79 | core/impl-check/rules.test.ts › FSD 계층 방향: shared도 위 계층을 가져오면 위반(슬라이스 검사에서만 빠진다) shared가 위 계층(entities)을 가져오면 위반 |
+| C09 | ICN-03 client 파일만 | client가 아닌 파일의 import를 검사 | 잡힘 | 85 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
+| C10 | ICF-01 계층 방향 | 위 계층을 가져오는 것은 허용, 아래 계층을 가져오는 것을 위반으로 봄 | 잡힘 | 89 | core/impl-check/demo.test.ts › 시연 폴더의 검사 결과(문서에 적은 것과 같다) correct: 카드 없음, 설계 항목 65개 모두 일치 |
 | C11 | ICF-01 슬라이스 | 같은 슬라이스 안 import를 위반, 다른 슬라이스 import를 허용으로 봄 | 잡힘 | 3 | core/impl-check/rules.test.ts › FSD 계층 방향: shared도 위 계층을 가져오면 위반(슬라이스 검사에서만 빠진다) 같은 계층의 다른 슬라이스는 위반(entities끼리), 같은 슬라이스 안은 아님 |
 | C12 | ICF-01 app 계층 | app 계층도 검사 대상에 넣음 | 동등 변이 | 0 | - |
 | E01 | 근거 원칙: import 해석 | 경로를 풀지 못한 import가 있는데 부모-자식 관계를 불일치로 확정 | 잡힘 | 3 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 alias-unknown: 확실·확인 필요 카드 |
 | E02a | 근거 원칙: 서버 통신 유형 | 유형을 알 수 없는(UNKNOWN) 서버 통신을 조회 담당의 근거(일치)로 확정 | 잡힘 | 2 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 fetch-method-unknown: 확실·확인 필요 카드 |
 | E02b | 근거 원칙: 서버 통신 유형 | 유형을 알 수 없는(UNKNOWN) 서버 통신을 '조회 안 맡는 노드의 위반'으로 확정 | 잡힘 | 1 | core/impl-check/rules.test.ts › 변이 실험 보강 T3: 서버 통신을 맡지 않는 노드가 유형을 알 수 없는 호출을 하면 확인 필요(위반으로 확정하지 않는다) |
-| E03a | 근거 원칙: 조건부 클래스 | 조건부로만 붙는 클래스를 항상 있다고 확정 | 잡힘 | 8 | core/impl-check/run.test.ts › 구현 검사: next 묶음의 기대 결과 class-conditional: 확실·확인 필요 카드 |
+| E03a | 근거 원칙: 조건부 클래스 | 조건부로만 붙는 클래스를 항상 있다고 확정 | 잡힘 | 8 | core/code-model/facts-2c.test.ts › 클래스 분류: ALWAYS · CONDITIONAL · DYNAMIC · ABSENT 항상 > 조건부 > (못 읽은 부분이 있으면) DYNAMIC > ABSENT |
 | E03b | 근거 원칙: 조건부 클래스 | 조건부로만 붙는 클래스를 없다고 확정 | 잡힘 | 7 | core/code-model/facts-2c.test.ts › 클래스 분류: ALWAYS · CONDITIONAL · DYNAMIC · ABSENT 항상 > 조건부 > (못 읽은 부분이 있으면) DYNAMIC > ABSENT |
 | E03c | 근거 원칙: 읽지 못한 클래스 | 읽지 못한 클래스 값(DYNAMIC)을 없다고(ABSENT) 확정 | 잡힘 | 3 | core/code-model/facts-2c.test.ts › 클래스 분류: ALWAYS · CONDITIONAL · DYNAMIC · ABSENT 항상 > 조건부 > (못 읽은 부분이 있으면) DYNAMIC > ABSENT |
 | E04 | 근거 원칙: 알 수 없는 import 경로 | 경로를 알 수 없는 변수 import가 있는데도 짝 없는 노드를 코드에 없다고 확정 | 잡힘 | 4 | core/impl-check/match.test.ts › 시험 데이터의 기대 짝 표(facts.pairs): react 묶음 dynamic-import-variable |

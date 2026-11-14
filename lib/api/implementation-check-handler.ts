@@ -1,13 +1,18 @@
 import "server-only";
 import { z } from "zod";
-import { httpError } from "../ai/draft-http";
+import { httpError, type HttpError } from "../ai/draft-http";
 import { readCodeModel } from "../../core/code-model/facts";
 import { checkLimits, describeLimitProblems, CONFIG_FILE, filterFiles } from "../../core/code-model/filter-files";
 import { configSummary } from "../../core/impl-check/config-summary";
 import { AUTO_REMOVABLE, CONFIRMED_PROBLEM_TEXT, validateConfirmed } from "../../core/impl-check/confirmed";
 import { checkImplementation } from "../../core/impl-check/run";
+import { selectByBlueprint } from "../../core/impl-check/select-files";
+import { parseRepoUrl, type RepoTarget } from "../../core/code-source/github-url";
+import type { SourceFile } from "../../core/code-model/types";
+import { readGithubRepo, SERVER_REPO_LIMITS, type RepoErrorCode } from "../code-source/github";
 import { loadBlueprint } from "../db/blueprints";
 import { loadLatestBlueprintRef, loadLatestExportedRevision } from "../db/prompt-exports";
+import { checkFeature } from "./feature-access";
 import { dbFailureToHttp, invalidInput, parseProjectId, projectError, readJson, respond, type IdContext } from "./http";
 import { requireSession } from "./session";
 
@@ -17,8 +22,42 @@ export const IMPLEMENTATION_CHECK_MAX_BODY_BYTES = 3 * 1024 * 1024;
 const FileList = z.array(z.object({ path: z.string().min(1).max(500), content: z.string() }).strict()).max(500);
 const ConfirmedItem = z.object({ nodeId: z.string().min(1).max(200), path: z.string().min(1).max(500), name: z.string().min(1).max(200) }).strict();
 
+/** GitHub 공개 저장소(4f). commit은 짝 확정 뒤 다시 검사할 때 같은 코드를 받으려고 첫 응답의 커밋 id를 그대로 보낸다 */
+const RepoInput = z.object({ url: z.string().min(1).max(300), subdir: z.string().max(300).nullable().optional(), commit: z.string().regex(/^[0-9a-f]{40}$/).optional() }).strict();
+
 // useAi와 confirmed 각 짝의 source("user"|"ai", 기록용·판정에 안 씀)는 5단계(AI 제안)에서 더한다. 지금은 모르는 필드로 보고 400을 낸다
-const BodySchema = z.object({ codeFiles: FileList, confirmed: z.array(ConfirmedItem).max(200).optional() }).strict();
+const BodySchema = z
+  .object({ codeFiles: FileList.optional(), repo: RepoInput.optional(), confirmed: z.array(ConfirmedItem).max(200).optional() })
+  .strict()
+  .refine((b) => (b.codeFiles === undefined) !== (b.repo === undefined));
+
+/** 저장소에서 설계도 위치 기준으로 고른 뒤의 상한(4f 승인 값). 업로드(30개·1MB)보다 크지만 서버 한 번 분석에 맞춘 값 */
+export const REPO_PICKED_LIMITS = { maxFiles: 200, maxFileBytes: 200 * 1024, maxTotalBytes: 5 * 1024 * 1024 };
+
+/** 저장소 읽기 오류 → HTTP 상태. 문구는 lib/code-source가 만든 사용자용 문구(토큰·코드·압축 파일 안 문자열 없음)를 그대로 쓴다 */
+const REPO_STATUS: Record<RepoErrorCode, HttpError["status"]> = {
+  not_found: 422,
+  private: 422,
+  moved: 422,
+  ref_not_found: 422,
+  subdir_not_found: 422,
+  unsafe_path: 422,
+  bad_archive: 422,
+  too_large: 413,
+  too_large_unpacked: 413,
+  too_many_entries: 413,
+  file_too_large: 413,
+  kept_too_large: 413,
+  too_many_files: 413,
+  rate_limited: 429,
+  forbidden: 502,
+  bad_redirect: 502,
+  github_error: 502,
+  network: 502,
+  timeout: 504,
+  aborted: 400,
+};
+const RETRYABLE = new Set<RepoErrorCode>(["rate_limited", "forbidden", "github_error", "network", "timeout"]);
 
 const byteLength = (s: string) => new TextEncoder().encode(s).length;
 
@@ -40,18 +79,31 @@ export async function handleImplementationCheckPost(request: Request, ctx: IdCon
   const body = await readJson(request, IMPLEMENTATION_CHECK_MAX_BODY_BYTES);
   if (!body.ok) return respond(body.error);
   const parsed = BodySchema.safeParse(body.value);
-  if (!parsed.success) return respond(invalidInput("요청 형식이 올바르지 않습니다. { codeFiles, confirmed? } 형식이어야 합니다."));
-  const notFound = await projectError(session.db, id.id);
-  if (notFound) return respond(notFound);
+  if (!parsed.success) return respond(invalidInput("요청 형식이 올바르지 않습니다. { codeFiles 또는 repo, confirmed? } 형식이어야 합니다."));
   const { db } = session;
-  const sequence = ++requestCount;
+  const input = parsed.data;
 
-  // 1) 화면과 같은 규칙으로 다시 거르고 상한을 검사한다(화면을 거치지 않은 요청 방어). tsconfig·jsconfig도 받는다. DB를 읽기 전에 거절할 것은 먼저 거절한다
-  const { accepted } = filterFiles(parsed.data.codeFiles.map((f) => ({ ...f, size: byteLength(f.content) })), { allowConfigFiles: true });
-  const problems = checkLimits(accepted);
-  if (problems.length) return respond(httpError(413, "payload_too_large", `검사할 코드: ${describeLimitProblems(problems)}`, false));
-  if (!accepted.some((f) => !CONFIG_FILE.test(f.path))) return respond(invalidInput("검사할 코드: 분석할 .ts·.tsx 파일이 없습니다."));
-  const files = accepted.map(({ path, content }) => ({ path, content }));
+  // 1) 코드 출처별로 DB를 읽기 전에 거절할 것은 먼저 거절한다
+  let files: SourceFile[] = [];
+  let target: RepoTarget | null = null;
+  if (input.repo) {
+    // 저장소 검사는 허용된 사용자만(화면과 같은 판단). GitHub를 부르기 전에 거절한다
+    const access = await checkFeature("repoCheck", db);
+    if (access !== "allowed") return respond(httpError(403, "feature_restricted", "GitHub 저장소 검사는 현재 제한된 기능입니다. 코드 폴더를 올려 검사해 주세요.", false));
+    const url = parseRepoUrl(input.repo.url, input.repo.subdir);
+    if (!url.ok) return respond(invalidInput(url.message));
+    target = input.repo.commit ? { ...url.target, ref: input.repo.commit } : url.target;
+  } else {
+    // 화면과 같은 규칙으로 다시 거르고 상한을 검사한다(화면을 거치지 않은 요청 방어). tsconfig·jsconfig도 받는다
+    const { accepted } = filterFiles(input.codeFiles!.map((f) => ({ ...f, size: byteLength(f.content) })), { allowConfigFiles: true });
+    const problems = checkLimits(accepted);
+    if (problems.length) return respond(httpError(413, "payload_too_large", `검사할 코드: ${describeLimitProblems(problems)}`, false));
+    if (!accepted.some((f) => !CONFIG_FILE.test(f.path))) return respond(invalidInput("검사할 코드: 분석할 .ts·.tsx 파일이 없습니다."));
+    files = accepted.map(({ path, content }) => ({ path, content }));
+  }
+  const notFound = await projectError(db, id.id);
+  if (notFound) return respond(notFound);
+  const sequence = ++requestCount;
   const t1 = performance.now();
 
   // 2) 기준 판: 가장 최근에 내보낸 판 → 없으면 최신 판
@@ -67,6 +119,24 @@ export async function handleImplementationCheckPost(request: Request, ctx: IdCon
   const bp = blueprint.data;
   if (bp.stack.framework === "html") return respond(httpError(422, "unsupported_stack", "HTML 프로젝트는 구현 검사를 지원하지 않습니다.", false));
   const baseline = { revision, source: exported.data === null ? ("latest" as const) : ("export" as const), ...(latest.data.revision > revision ? { newerRevision: latest.data.revision } : {}) };
+
+  // 2-1) 저장소: 기준 판이 있을 때만 받는다(서버용 제한, 사용자가 연결을 끊으면 중단). 받은 코드는 메모리에서만 쓰고 로그에는 오류 코드만 남긴다
+  let repo: { name: string; ref: string; commit: string | null; subdir: string | null } | null = null;
+  if (target) {
+    const read = await readGithubRepo(target, { limits: SERVER_REPO_LIMITS, signal: request.signal });
+    if (!read.ok) {
+      console.info("[implementation-check] 저장소 읽기 실패", read.error.code);
+      const e = httpError(REPO_STATUS[read.error.code], read.error.code, read.error.message, RETRYABLE.has(read.error.code));
+      return respond({ status: e.status, body: { error: { ...e.body.error, ...(read.error.retryAfterSec !== undefined ? { retryAfterSec: read.error.retryAfterSec } : {}) } } });
+    }
+    const picked = selectByBlueprint(bp, read.files);
+    const sized = picked.map((f) => ({ ...f, size: byteLength(f.content) }));
+    const problems = checkLimits(sized, REPO_PICKED_LIMITS);
+    if (problems.length) return respond(httpError(413, "payload_too_large", `저장소에서 고른 코드: ${describeLimitProblems(problems, REPO_PICKED_LIMITS)} 하위 폴더를 지정해 범위를 좁혀 보세요.`, false));
+    if (!picked.some((f) => !CONFIG_FILE.test(f.path))) return respond(httpError(422, "no_source_files", "저장소에서 설계도 위치에 맞는 .ts·.tsx 파일을 찾지 못했습니다. 하위 폴더와 설계도의 파일 위치를 확인해 주세요.", false));
+    files = picked;
+    repo = { name: `${read.owner}/${read.repo}`, ref: read.ref, commit: read.commit, subdir: target.subdir };
+  }
   const t2 = performance.now();
 
   // 3) 분석·검증·검사. 실패해도 응답과 로그에는 코드가 든 메시지를 넣지 않는다
@@ -103,9 +173,9 @@ export async function handleImplementationCheckPost(request: Request, ctx: IdCon
 
     const timing = { totalMs: ms(t0, t4), filterMs: ms(t0, t1), dbMs: ms(t1, t2), parseMs: ms(t2, t3), checkMs: ms(t3, t4), requestNumber: sequence, first: sequence === 1 };
     const bytes = files.reduce((n, f) => n + byteLength(f.content), 0);
-    console.info("[implementation-check]", JSON.stringify({ files: files.length, bytes, nodes: bp.nodes.length, confirmed: confirmed.length, ...timing }));
+    console.info("[implementation-check]", JSON.stringify({ source: repo ? "repo" : "upload", files: files.length, bytes, nodes: bp.nodes.length, confirmed: confirmed.length, ...timing }));
     return Response.json(
-      { baseline, result, pairReviews, meta: { timing, files: files.length, bytes, nodes: bp.nodes.length, confirmedApplied: confirmed.length, configs } },
+      { baseline, ...(repo ? { repo } : {}), result, pairReviews, meta: { timing, files: files.length, bytes, nodes: bp.nodes.length, confirmedApplied: confirmed.length, configs } },
       { headers: { "Server-Timing": `total;dur=${timing.totalMs}, filter;dur=${timing.filterMs}, db;dur=${timing.dbMs}, parse;dur=${timing.parseMs}, check;dur=${timing.checkMs}` } },
     );
   } catch (e) {

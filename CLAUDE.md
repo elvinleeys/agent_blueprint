@@ -29,6 +29,7 @@ npm run verify:regression   # 디자인 시스템 정리 결과가 기준 스냅
 npm run verify:mutation     # 구현 검사 변이 실험(전체 약 9분. `-- --stage 3a|3b|3c|neutral` 또는 `-- --only 번호`). 실행 기준은 .claude/skills/step/SKILL.md
 npm run demo:build         # 구현 검사 화면 시연 코드 폴더(fixtures/demo-implementation-check)를 시험 데이터에서 다시 만든다
 npm run demo:sql -- <프로젝트 id>   # 예시 설계도를 그 프로젝트에 넣는 SQL을 출력(DB 접속 없음, 대시보드 SQL 편집기에서 실행). 방법은 docs/demo-implementation-check.md
+npm run test:impl-ai [-- --case <시험 데이터 사례>] [-- --run]   # 구현 검사 AI 제안 확인. 기본은 보낼 대상·글자 수·최대 비용만 출력하고 호출 안 함, --run일 때만 실제 OpenAI 호출(사용자가 확인할 때만)
 npm run score -- --blueprint <설계도 JSON> (--code <코드 폴더> | --repo <GitHub 공개 저장소 주소> [--subdir <폴더>]) [--json] [--all]   # 구현 검사 채점(화면·AI·DB 없이, 지시서 효과 비교용). 기본은 설계도 위치 기준으로 골라 읽음, 내 컴퓨터용 상한은 --max-files 등으로 변경. --repo는 GITHUB_TOKEN(셸 환경변수, 선택)을 쓴다. 사용법은 docs/score.md
 ```
 
@@ -78,7 +79,7 @@ supabase/migrations/       # 표·RLS·GRANT SQL (대시보드 SQL 편집기로 
 supabase/tests/            # RLS 격리 확인 스크립트(적용 후 실행, 끝에 rollback)
 lib/api/                   # API 라우트 처리 (session: getClaims 로그인 확인, feature-access: 기능별 환경변수 읽기·checkFeature(GitHub id는 getUser()의 identities에서만, user_metadata는 쓰지 않음), http: 오류 매핑·JSON 읽기(readJson은 라우트별 본문 한도), *-handler: 라우트별 처리, analyze-handler: 본문 3MB·칸마다 30개/파일 200KB/합계 1MB, implementation-check-handler: 구현 검사. 본문 3MB·30개/파일 200KB/합계 1MB, tsconfig·jsconfig 허용, 기준 판 조회, 확정한 짝 검증 뒤 재판정, 코드는 저장·로그 없음, 처리 시간 기록. GitHub 저장소 입력은 허용 판단(checkFeature) → 기준 판 → 서버용 제한으로 받기 → 설계도 위치 기준 고르기 → 200개·5MB)
 lib/code-source/           # 코드 읽기(Node 전용, 화면 코드에서 import 금지. 모두 {path, content}[]): local(내 컴퓨터 폴더, 제외 폴더 건너뜀, --tsconfig는 맨 위 설정으로 간주), github(공개 저장소: 저장소 정보로 private 확인·크기 → tarball 주소 → codeload의 같은 저장소만 받기, 메모리에서만 풀기, 제한 REPO_LIMITS, GITHUB_TOKEN은 api.github.com에만), tar(직접 만든 작은 tar 해석기: 일반 파일만, ../·절대 경로 거부, ustar·pax·GNU 긴 이름, 제한), tar-builder(테스트 전용 tar 만들기). 주소 검증은 core/code-source/github-url(순수 함수)
-lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용·단계 알림 콜백, draft-http: 요청 검증·오류 매핑, draft-stream: NDJSON 스트림·하트비트, draft-handler: /api/draft 처리)
+lib/ai/                    # 서버 전용 AI 호출 (draft-blueprint: OpenAI 호출·검증·재시도·비용·단계 알림 콜백, impl-suggest: 구현 검사 AI 제안(초안과 같은 클라이언트·모델·45초·오류 분류, 형식이 틀리면 남은 시간이 있을 때만 1회 재시도, 실패해도 던지지 않고 종류만), draft-http: 요청 검증·오류 매핑, draft-stream: NDJSON 스트림·하트비트, draft-handler: /api/draft 처리)
 scripts/                   # 개발용 실행 스크립트 (test-draft.ts: lib/ai를 호출하는 초안 생성 검증, 실제 API 호출은 직접 실행)
 fixtures/                  # 테스트 입력 (wireframes/<화면>/spec.json·expected.md, 이미지는 커밋하지 않음. demo-implementation-check/: 구현 검사 화면 시연용 완성 코드 폴더 3개(correct·renamed·warning, 시험 데이터에서 만들고 core/impl-check/demo.test.ts가 확인), demo-cleanup/: 디자인 시스템 정리를 눈으로 확인하는 예시, 일부러 문제를 넣음, 기대 결과는 core/cleanup/demo-cleanup.test.ts, score/: 채점 스크립트 시험 폴더(react-router: 구현 검사 react 시험 데이터 복사본에 라우터에만 연결된 화면을 더함, 설계도는 react-router-blueprint.json, 기대 결과는 core/impl-check/score.test.ts))
 tasks/                     # 계획·테스트 결과·응답 원문 (draft-test-result.md, draft-outputs/)

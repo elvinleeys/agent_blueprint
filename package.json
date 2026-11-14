@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:draft": "tsx --conditions=react-server --env-file=.env.local scripts/test-draft.ts",
+    "test:impl-ai": "tsx --conditions=react-server --env-file=.env.local scripts/test-impl-ai.ts",
     "verify:regression": "tsx scripts/verify-regression.ts",
     "verify:mutation": "tsx scripts/verify-mutation.ts",
     "demo:build": "tsx scripts/build-demo-code.ts",

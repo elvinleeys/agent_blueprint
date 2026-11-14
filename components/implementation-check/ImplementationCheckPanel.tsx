@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { parseRepoUrl, parseSubdir } from "@/core/code-source/github-url";
 import { CONFIG_FILE } from "@/core/code-model/filter-files";
-import type { SourceFile } from "@/core/cleanup/types";
+import type { SourceFile } from "@/core/code-model/types";
 import type { UploadSummary } from "@/core/cleanup/upload-summary";
 import type { ConfirmedPair } from "@/core/impl-check/types";
 import { checkWithAutoRemoval, runImplementationCheck, type CheckFailure, type CheckResponse, type RepoInput } from "@/lib/client/run-implementation-check";

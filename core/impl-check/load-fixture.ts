@@ -2,7 +2,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BlueprintSchema, type Blueprint } from "../schema/blueprint";
-import type { SourceFile } from "../cleanup/types";
+import type { SourceFile } from "../code-model/types";
 
 export const FIXTURE_ROOT = join(process.cwd(), "fixtures", "implementation-check");
 

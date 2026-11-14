@@ -2,7 +2,7 @@ import type { InvalidConfirmed } from "../ai/draft-http";
 import type { AiSuggestions } from "../../core/impl-check/ai-schema";
 import type { ImplCheckResult } from "../../core/impl-check/result";
 import type { ConfirmedPair } from "../../core/impl-check/types";
-import type { SourceFile } from "../../core/cleanup/types";
+import type { SourceFile } from "../../core/code-model/types";
 
 // 브라우저 전용: 올린 코드를 구현 검사 API로 보내 결과를 받는다. 코드 원본은 이 요청에만 쓰고 어디에도 저장하지 않는다.
 // 확정한 짝이 코드·설계도가 바뀌어 더 유효하지 않으면(없는 코드·없는 노드·이미 확실한 짝) 그 짝만 빼고 한 번만 다시 검사한다.

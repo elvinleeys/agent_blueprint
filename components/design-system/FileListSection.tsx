@@ -3,7 +3,7 @@
 import { useRef, type ChangeEvent } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { describeLimitProblems, UPLOAD_LIMITS, type RejectReason } from "@/core/cleanup/filter-files";
+import { describeLimitProblems, UPLOAD_LIMITS, type RejectReason } from "@/core/code-model/filter-files";
 import { pickedLabel } from "@/core/cleanup/picked-files";
 import { REJECT_LABEL } from "@/core/cleanup/upload-summary";
 import { toPicked, type UploadList } from "./useUploadList";

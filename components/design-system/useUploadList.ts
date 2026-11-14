@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { addNotice, addPickedWithStats, removePicked, type PickedMeta } from "@/core/cleanup/picked-files";
-import type { FilterOptions } from "@/core/cleanup/filter-files";
+import type { FilterOptions } from "@/core/code-model/filter-files";
 import { summarizeUpload } from "@/core/cleanup/upload-summary";
 
 export type PickedFile = PickedMeta & { file: File };

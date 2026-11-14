@@ -1,4 +1,4 @@
-import { checkLimits, filterFiles, type FileEntry, type FilterOptions, type LimitProblem, type RejectReason } from "./filter-files";
+import { checkLimits, filterFiles, type FileEntry, type FilterOptions, type LimitProblem, type RejectReason } from "../code-model/filter-files";
 
 export type UploadSummary<T extends FileEntry> = {
   /** 고른 파일 전체 수 */

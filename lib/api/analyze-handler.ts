@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { httpError } from "../ai/draft-http";
 import { analyzeCode } from "../../core/cleanup/analyze";
-import { checkLimits, describeLimitProblems, filterFiles } from "../../core/cleanup/filter-files";
+import { checkLimits, describeLimitProblems, filterFiles } from "../../core/code-model/filter-files";
 import { invalidInput, readJson, respond } from "./http";
 import { requireSession } from "./session";
 

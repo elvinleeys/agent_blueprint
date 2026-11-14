@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { analyzeCode, type SpecSource } from "./analyze";
 import type { Finding } from "./compare";
 import { summarizeUpload } from "./upload-summary";
-import type { SourceFile } from "./types";
+import type { SourceFile } from "../code-model/types";
 
 // 예시 폴더 fixtures/demo-cleanup(일부러 문제를 넣음)의 기대 결과를 고정한다. 사용법은 그 폴더의 README.md
 const ROOT = "fixtures/demo-cleanup";

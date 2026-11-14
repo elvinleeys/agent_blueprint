@@ -1,5 +1,5 @@
 import type { AnalyzeResult, SpecSource } from "../../core/cleanup/analyze";
-import type { SourceFile } from "../../core/cleanup/types";
+import type { SourceFile } from "../../core/code-model/types";
 
 // 브라우저 전용: 거른 파일을 /api/analyze로 보내 결과를 받는다. 코드 원본은 이 요청에만 쓰고 어디에도 저장하지 않는다
 

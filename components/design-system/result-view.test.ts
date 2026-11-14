@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { compareDesignSystem } from "@/core/cleanup/compare";
-import type { AnalyzedComponent } from "@/core/cleanup/types";
+import type { AnalyzedComponent } from "@/core/code-model/types";
 import { countFindings, groupFindings } from "./result-view";
 
 const comp = (name: string, o: Partial<AnalyzedComponent> = {}): AnalyzedComponent => ({

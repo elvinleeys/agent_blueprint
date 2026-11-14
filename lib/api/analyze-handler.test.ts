@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { analyzeCode } from "../../core/cleanup/analyze";
-import { UPLOAD_LIMITS } from "../../core/cleanup/filter-files";
+import { UPLOAD_LIMITS } from "../../core/code-model/filter-files";
 import { handleAnalyzePost } from "./analyze-handler";
 import { requireSession } from "./session";
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeLimitProblems, UPLOAD_LIMITS } from "./filter-files";
+import { describeLimitProblems, UPLOAD_LIMITS } from "../code-model/filter-files";
 import { summarizeUpload } from "./upload-summary";
 
 const e = (path: string, size = 100) => ({ path, size });

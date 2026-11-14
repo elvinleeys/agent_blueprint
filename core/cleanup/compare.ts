@@ -1,6 +1,7 @@
 import { common, jaccard, words } from "../similarity/name-similarity";
 import { NAME_JACCARD_MIN, PROPS_JACCARD_MIN } from "../similarity/thresholds";
-import type { AnalyzedComponent, OfficialComponent } from "./types";
+import type { AnalyzedComponent } from "../code-model/types";
+import type { OfficialComponent } from "./types";
 
 /** 판정 기준값. 실제 코드로 돌려 본 뒤 조정하기 쉽게 여기에만 둔다(이름·props 유사도 기준은 core/similarity/thresholds.ts의 공용 값) */
 export const COMPARE_CONFIG = {
